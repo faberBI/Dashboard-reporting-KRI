@@ -148,7 +148,7 @@ if selected_kri == "Energy Risk":
         else:
             st.warning("Carica il file Excel per procedere.")
 
-        df = df_filtered 
+        df_filtered = df
         # 3. Simulazione Heston
         best_params, simulated_prices = run_heston(df_filtered,
                                                    n_trials=n_trials_heston,
