@@ -528,103 +528,75 @@ def compute_downside_upperside_risk(
     print(f"📸 Grafico salvato come immagine in: {chart_path}")
     return df_risk
 
-def var_ebitda_risk(periodo_di_analisi, df_risk, font_path = '/content/TIMSans-Medium.ttf' , output_file = '/content/var_ebitda_risk.png'):
+def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf'):
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
+    import matplotlib.font_manager as fm
+    import numpy as np
 
-  
-  df_risk.dropna(inplace=True)
-  anni = df_risk['Year']
-  data_sez1_no_solar = np.round(df_risk['Downside Budget (no solar)']/1000000, 1)
-  data_sez1_solar = np.round(df_risk['Downside Budget']/1000000, 1)
+    df_risk.dropna(inplace=True)
+    anni = df_risk['Year']
+    data_sez1_no_solar = np.round(df_risk['Downside Budget (no solar)']/1_000_000, 1)
+    data_sez1_solar = np.round(df_risk['Downside Budget']/1_000_000, 1)
 
-  # --- STILE E COLORI ---
-  plt.style.use('seaborn-v0_8-whitegrid')
+    # --- Stile e colori ---
+    plt.style.use('seaborn-v0_8-whitegrid')
+    colore_sfondo = '#f2f2f2'
+    colore_barre = '#c00000'
+    colore_testo_barre = '#ffffff'
+    colore_titolo = '#28488d'
+    colore_etichette_anni = '#000000'
+    colore_linea_divisoria = '#dadada'
+    colore_testo = '#335193'
 
-  colore_sfondo = '#f2f2f2'
-  colore_barre = '#c00000'
-  colore_testo_barre = '#ffffff'
-  colore_titolo = '#28488d'
-  colore_etichette_anni = '#000000'
-  colore_linea_divisoria = '#dadada'
-  colore_testo = '#335193'
+    prop = fm.FontProperties(fname=font_path)
+    fig, axes = plt.subplots(2, 1, figsize=(8, 9), sharex=True, gridspec_kw={'height_ratios':[1,1],'hspace':0.25})
+    fig.patch.set_facecolor(colore_sfondo)
 
-  # --- Caricamento del font TIM Sans (Body) ---
-  prop = fm.FontProperties(fname=font_path)
+    # Titolo e periodo di analisi
+    fig.text(0.5, 1.02, 'VaR (EBITDA@Risk)', ha='center', va='center', fontsize=14, color=colore_testo,
+             bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
+    fig.text(0.5, 0.98, periodo_di_analisi, ha='center', va='center', fontsize=14, color='white',
+             bbox=dict(facecolor='#404040', edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
 
-  # --- CREAZIONE FIGURA ---
-  fig, axes = plt.subplots(2, 1, figsize=(8, 9), sharex=True,
-                           gridspec_kw={'height_ratios': [1, 1], 'hspace': 0.25})
-  fig.patch.set_facecolor(colore_sfondo)
+    # Rettangolo bordo
+    bordo = Rectangle((0,0),1,1, transform=fig.transFigure, fill=False, edgecolor='black', linewidth=1.5)
+    fig.patches.append(bordo)
 
-  # --- Titolo principale con sfondo bianco ---
-  fig.text(0.5, 1.02, 'VaR (EBITDA@Risk) - as of 31/12/24',
-           ha='center', va='center', fontsize=14, color=colore_testo,
-           bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
+    larghezza_barra = 0.6
+    y_pos = np.arange(len(anni))
+    for ax in axes:
+        ax.set_facecolor(colore_sfondo)
+        ax.grid(False)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        ax.tick_params(left=False, bottom=False, labelbottom=False)
 
-  # --- Periodo di analisi con sfondo grigio scuro, posizionato più in basso ---
-  fig.text(0.5, 0.98, f'{periodo_di_analisi}',
-           ha='center', va='center', fontsize=14, color='white',
-           bbox=dict(facecolor='#404040', edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
+    # Grafico w/o solar
+    axes[0].barh(y_pos, data_sez1_no_solar, larghezza_barra, color=colore_barre)
+    axes[0].set_yticks(y_pos)
+    axes[0].set_yticklabels(anni, color=colore_etichette_anni, fontweight='bold', fontsize=12, fontproperties=prop)
+    axes[0].set_title('w/o solar', loc='left', color=colore_titolo, fontweight='bold', fontproperties=prop)
+    for i, v in enumerate(data_sez1_no_solar):
+        axes[0].text(v/2, y_pos[i], f'{v:.1f} mln €', color=colore_testo_barre, va='center', ha='center', fontweight='bold', fontproperties=prop)
+        axes[0].plot([0,0],[y_pos[i]-0.4, y_pos[i]+0.4], color='black', linewidth=0.5)
+    axes[0].invert_yaxis()
 
-  # --- RETTANGOLO CON BORDO NERO INTORNO A TUTTO IL GRAFICO ---
-  bordo = Rectangle((0, 0), 1, 1, transform=fig.transFigure,
-                    fill=False, edgecolor='black', linewidth=1.5)
-  fig.patches.append(bordo)
+    # Linea divisoria
+    line = plt.Line2D([0.05,0.95],[0.525,0.525], transform=fig.transFigure, color=colore_linea_divisoria, linewidth=1)
+    fig.add_artist(line)
 
-  larghezza_barra = 0.6
-  y_pos = np.arange(len(anni))
+    # Grafico w/ solar
+    axes[1].barh(y_pos, data_sez1_solar, larghezza_barra, color=colore_barre)
+    axes[1].set_yticks(y_pos)
+    axes[1].set_yticklabels(anni, color=colore_etichette_anni, fontweight='bold', fontsize=12, fontproperties=prop)
+    axes[1].set_title('w solar', loc='left', color=colore_titolo, fontweight='bold', fontproperties=prop)
+    for i, v in enumerate(data_sez1_solar):
+        axes[1].text(v/2, y_pos[i], f'{v:.1f} mln €', color=colore_testo_barre, va='center', ha='center', fontweight='bold', fontproperties=prop)
+        axes[1].plot([0,0],[y_pos[i]-0.4, y_pos[i]+0.4], color='black', linewidth=0.5)
+    axes[1].invert_yaxis()
 
-  for ax in axes:
-      ax.set_facecolor(colore_sfondo)
-      ax.grid(False)
-      ax.spines['top'].set_visible(False)
-      ax.spines['right'].set_visible(False)
-      ax.spines['left'].set_visible(False)
-      ax.spines['bottom'].set_visible(False)
-      ax.tick_params(left=False, bottom=False, labelbottom=False)
+    plt.tight_layout(rect=[0,0.03,1,0.95])
+    return fig  # <-- restituisce la figura direttamente
 
-  # --- Grafico 1: w/o solar ---
-  axes[0].barh(y_pos, data_sez1_no_solar, larghezza_barra, color=colore_barre)
-  axes[0].set_yticks(y_pos)
-  axes[0].set_yticklabels(anni, color=colore_etichette_anni,
-                          fontweight='bold', fontsize=12, fontproperties=prop)
-  axes[0].set_title('w/o solar', loc='left', color=colore_titolo, fontweight='bold', fontproperties=prop)
-  for i, v in enumerate(data_sez1_no_solar):
-      axes[0].text(v / 2, y_pos[i],
-                   f'{v:.1f} ' + r'$\bf{mln\ €}$',
-                   color=colore_testo_barre,
-                   va='center', ha='center', fontweight='bold', fontproperties=prop)
-      # Linea nera sottile verticale a sinistra (più lunga delle barre e più sottile)
-      axes[0].plot([0, 0], [y_pos[i] - 0.4, y_pos[i] + 0.4], 
-                   color='black', linewidth=0.5)
-
-  axes[0].invert_yaxis()
-
-  # --- Linea divisoria ---
-  line = plt.Line2D([0.05, 0.95], [0.525, 0.525], transform=fig.transFigure,
-                    color=colore_linea_divisoria, linewidth=1)
-  fig.add_artist(line)
-
-  # --- Grafico 2: w solar ---
-  axes[1].barh(y_pos, data_sez1_solar, larghezza_barra, color=colore_barre)
-  axes[1].set_yticks(y_pos)
-  axes[1].set_yticklabels(anni, color=colore_etichette_anni,
-                          fontweight='bold', fontsize=12, fontproperties=prop)
-  axes[1].set_title('w solar', loc='left', color=colore_titolo, fontweight='bold', fontproperties=prop)
-  for i, v in enumerate(data_sez1_solar):
-      axes[1].text(v / 2, y_pos[i],
-                   f'{v:.1f} ' + r'$\bf{mln\ €}$',
-                   color=colore_testo_barre,
-                   va='center', ha='center', fontweight='bold', fontproperties=prop)
-      # Linea nera sottile verticale a sinistra (più lunga delle barre e più sottile)
-      axes[1].plot([0, 0], [y_pos[i] - 0.4, y_pos[i] + 0.4], 
-                   color='black', linewidth=0.5)
-
-  axes[1].invert_yaxis()
-
-  # Mostra il grafico
-  plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-  plt.savefig(output_file, dpi=300)
-  plt.show()
-  plt.close()
-  print(f"📸 Grafico salvato come immagine in: {output_file}")
 
