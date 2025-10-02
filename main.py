@@ -115,14 +115,10 @@ if selected_kri == "Energy Risk" and uploaded_file:
         simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
 
         # 4. Analisi distribuzione
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means = analyze_simulation(
-            simulated_df, years=unique_years,
-            output_file="distribution_plot.png",
-            csv_file_m="monthly_percentiles.csv",
-            csv_file_y="yearly_percentiles.csv"
-        )
+        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
+        st.pyplot(fig)
 
-        forecast_price = pd.read_csv("yearly_percentiles.csv")
+        forecast_price = yearly_percentiles
 
         # Storico + forecast
         anni_prezzi = sorted(df_filtered['Year'].unique().tolist()) + unique_years
