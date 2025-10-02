@@ -119,6 +119,15 @@ if selected_kri == "Energy Risk":
 
         # 1. Filtra storico
         df_filtered = df[df['Date'] >= pd.to_datetime(start_date)]
+        
+        # Se df_filtered non ha la colonna 'Log_Returns', calcolala
+        if 'Log_Returns' not in df_filtered.columns:
+            if 'GMEPIT24 Index' in df_filtered.columns:
+                df_filtered['Log_Returns'] = np.log(df_filtered['GMEPIT24 Index'] / df_filtered['GMEPIT24 Index'].shift(1))
+            else:
+                st.error("Il DataFrame non contiene né 'Log_Returns' né 'GMEPIT24 Index'. Inserisci i dati manualmente.")
+                st.stop()
+
 
         # 3. Simulazione Heston
         best_params, simulated_prices = run_heston(df_filtered,
