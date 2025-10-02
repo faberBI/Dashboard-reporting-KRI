@@ -116,18 +116,37 @@ if selected_kri == "Energy Risk":
     # -----------------------
     if st.button("Esegui simulazione Energy Risk"):
         st.info("Simulazione in corso...")
-
-        # 1. Filtra storico
-        df_filtered = df[df['Date'] >= pd.to_datetime(start_date)]
+# ---------------------------
+# Caricamento file Excel
+# ---------------------------
+        uploaded_file = st.file_uploader("Seleziona il file Excel PUN", type=["xlsx"])
         
-        # Se df_filtered non ha la colonna 'Log_Returns', calcolala
-        if 'Log_Returns' not in df_filtered.columns:
-            if 'GMEPIT24 Index' in df_filtered.columns:
-                df_filtered['Log_Returns'] = np.log(df_filtered['GMEPIT24 Index'] / df_filtered['GMEPIT24 Index'].shift(1))
-            else:
-                st.error("Il DataFrame non contiene né 'Log_Returns' né 'GMEPIT24 Index'. Inserisci i dati manualmente.")
+        if uploaded_file:
+            try:
+                df = pd.read_excel(uploaded_file)
+                
+                # Controllo colonne obbligatorie
+                if 'Date' not in df.columns or 'GMEPIT24 Index' not in df.columns:
+                    st.error("Il file Excel deve contenere le colonne 'Date' e 'GMEPIT24 Index'.")
+                    st.stop()
+                
+                # Assicurati che la colonna Date sia in formato datetime
+                df['Date'] = pd.to_datetime(df['Date'])
+                
+                # Calcolo Log_Returns
+                df['Log_Returns'] = np.log(df['GMEPIT24 Index'] / df['GMEPIT24 Index'].shift(1))
+                
+                st.success("Dati caricati correttamente!")
+                st.dataframe(df.head())
+                
+                # Adesso df può essere passato a run_heston
+                # best_params, simulated_prices = run_heston(df, ...)
+        
+            except Exception as e:
+                st.error(f"Errore caricamento Excel: {e}")
                 st.stop()
-
+        else:
+            st.warning("Carica il file Excel per procedere.")
 
         # 3. Simulazione Heston
         best_params, simulated_prices = run_heston(df_filtered,
