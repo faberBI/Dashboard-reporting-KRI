@@ -143,14 +143,17 @@ if selected_kri == "Energy Risk" and uploaded_file:
         p5 += [0] * missing_len_p5
 
         # 5. Calcolo rischio
-        df_risk = compute_downside_upperside_risk(
+        df_risk, df_open, df_prezzi, fig = compute_downside_upperside_risk(
             unique_years, fabbisogno, covered, solar,
             anni_prezzi, historical_price, predict_price, p95, p5,
             forward_price, budget_price,
-            observation_period=start_date.strftime("%d/%m/%Y"),
-            chart_path="simulation_chart.png",
-            output_path="Simulation_VaR_results.xlsx"
-        )
+            observation_period=start_date.strftime("%d/%m/%Y")
+            )
+
+        st.pyplot(fig)
+        st.dataframe(df_risk)
+        st.dataframe(df_open)
+        st.dataframe(df_prezzi)
 
         # 6. Grafico VaR EBITDA
         fig = var_ebitda_risk(periodo_di_analisi=end_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, font_path="TIMSans-Medium.ttf")
