@@ -2,12 +2,15 @@ import streamlit as st
 import pandas as pd
 import sys
 import os
-
-# Aggiungi la cartella utils al path
-sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
-
 from utils.data_loader import load_kri_excel, validate_kri_data
-from montercarlo import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk)
+from utils.montercarlo import (
+    historical_VaR,
+    run_heston,
+    analyze_simulation,
+    compute_downside_upperside_risk,
+    var_ebitda_risk
+)
+
 
 # -----------------------
 # Configurazione Streamlit
