@@ -329,23 +329,43 @@ def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="di
     return monthly_percentiles, monthly_means, yearly_percentiles, yearly_means
 
 # Funzione principale che esegue tutto
-def analyze_simulation(sim_df, years=[2025, 2026, 2027], output_file="distribution_plot.png",  csv_file_m="forecast_percentiles_monthly.csv", csv_file_y="forecast_percentiles_yearly.csv"):
-    # Calcolare distribuzioni e percentili, e salvare il grafico e il CSV
+def analyze_simulation(sim_df, years):
+    """
+    Calcola percentili mensili e annuali senza salvare nulla su disco.
+    Restituisce dizionari con percentili e medie.
+    """
+    (
+        monthly_distributions, monthly_percentiles, monthly_means,
+        yearly_distributions, yearly_percentiles, yearly_means
+    ) = get_monthly_and_yearly_distribution(sim_df, years)
 
-    print(sim_df)
-    monthly_percentiles, monthly_means, yearly_percentiles, yearly_means = plot_and_save_distribution(sim_df, years, output_file, csv_file_m, csv_file_y)
-    selected_months = [k for k, v in monthly_percentiles.items() if len(v) > 0]
+    # Genera il grafico ma non salva, restituisce la figura
+    fig, ax = plt.subplots(figsize=(14, 6))
+    selected_months = [k for k, v in monthly_distributions.items() if len(v) > 0]
 
-    # Stampa i percentili stimati per ogni anno
     for (year, month) in selected_months:
-        values = monthly_percentiles.get((year, month), [])
-        p5, p50, p95 = values 
-        print(f"{(year,month)}: 5° = {p5:.2f}, 50° = {p50:.2f}, 95° = {p95:.2f}")
+        values = monthly_distributions.get((year, month), [])
+        if len(values) == 0:
+            continue
+        label = f"{year}-{month:02d}"
+        ax.hist(values, bins=100, alpha=0.4, label=label, density=True)
+        p5, p50, p95 = monthly_percentiles.get((year, month), (None, None, None))
+        if p5 is not None:
+            ax.axvline(p5, color='blue', linestyle='--', alpha=0.3)
+        if p50 is not None:
+            ax.axvline(p50, color='green', linestyle='-', alpha=0.3)
+        if p95 is not None:
+            ax.axvline(p95, color='red', linestyle='--', alpha=0.3)
 
-    print(f"\nIl grafico delle distribuzioni è stato salvato come: {output_file}")
-    print(f"I percentili sono stati salvati come CSV in: {csv_file_m} & in {csv_file_y}")
+    ax.set_title("Distribuzione prezzi simulati per mese")
+    ax.set_xlabel("Prezzo simulato")
+    ax.set_ylabel("Densità")
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
 
-    return monthly_percentiles, monthly_means, yearly_percentiles, yearly_means
+    return monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig
+
 
 def replace_last_zero_with_value(lst, last_value):
     # Trova l'indice dell'ultimo zero, se esiste
