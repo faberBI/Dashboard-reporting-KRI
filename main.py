@@ -11,7 +11,6 @@ from functions.montercarlo import (
     var_ebitda_risk
 )
 
-
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
