@@ -376,10 +376,12 @@ def replace_last_zero_with_value(lst, last_value):
 
 def compute_downside_upperside_risk(
     anni, fabbisogno, covered, solar,
-    anni_prezzi, media_pun, predictive, p95, p5, frwd, budget, observation_period,
-    output_path="Open_Position_e_Prezzi.xlsx",
-    chart_path="grafico_prezzi.png"
+    anni_prezzi, media_pun, predictive, p95, p5, frwd, budget, observation_period
 ):
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    from matplotlib.patches import Rectangle
+
     # === Calcolo Open Position ===
     open_position_no_solar = [f - c for f, c in zip(fabbisogno, covered)]
     open_position = [f - (c + s) for f, c, s in zip(fabbisogno, covered, solar)]
@@ -393,7 +395,6 @@ def compute_downside_upperside_risk(
         "Open Position": open_position
     })
 
-    # === Prezzi ===
     df_prezzi = pd.DataFrame({
         "Year": anni_prezzi,
         "Media PUN": media_pun,
@@ -404,13 +405,12 @@ def compute_downside_upperside_risk(
         "budget": budget
     })
 
-    # === Calcoli Upside / Downside ===
+    # === Calcolo rischio ===
     df_risk = pd.DataFrame({"Year": anni_prezzi})
 
     def calc_diff(col1, col2):
         return [((a - b) if a is not None and b is not None else None) for a, b in zip(col1, col2)]
 
-    # Mappatura open position sugli anni
     op_map = dict(zip(anni, open_position))
     op_nos_map = dict(zip(anni, open_position_no_solar))
 
@@ -420,13 +420,11 @@ def compute_downside_upperside_risk(
     def calc_product(diff, op):
         return [(d * o if d is not None and o is not None else None) for d, o in zip(diff, op)]
 
-    # Calcoli differenze
     diff_95_budget = calc_diff(p95, budget)
     diff_95_frwd = calc_diff(p95, frwd)
     diff_budget_5 = calc_diff(budget, p5)
     diff_frwd_5 = calc_diff(frwd, p5)
 
-    # Downside e Upside
     df_risk["Downside Budget"] = calc_product(diff_95_budget, open_pos)
     df_risk["Downside Budget (no solar)"] = calc_product(diff_95_budget, open_pos_nos)
     df_risk["Downside Forward"] = calc_product(diff_95_frwd, open_pos)
@@ -441,17 +439,7 @@ def compute_downside_upperside_risk(
     df_prezzi.replace(0, None, inplace=True)
     df_risk.replace(0, None, inplace=True)
 
-    # === Scrittura tabelle su Excel ===
-    writer = pd.ExcelWriter(output_path, engine="openpyxl", mode="w")
-    df_open.to_excel(writer, sheet_name="Analisi", index=False, startrow=0)
-    start_row_prezzi = len(df_open) + 6
-    df_prezzi.to_excel(writer, sheet_name="Analisi", index=False, startrow=start_row_prezzi)
-    start_row_risk = start_row_prezzi + len(df_prezzi) + 6
-    df_risk.to_excel(writer, sheet_name="Analisi", index=False, startrow=start_row_risk)
-    writer.close()
-    print(f"✅ File Excel salvato in: {output_path}")
-
-    # === GENERAZIONE GRAFICO PNG ===
+    # === Creazione grafico ===
     fig, ax = plt.subplots(figsize=(16, 6))
 
     ax.axvspan(2019.5, 2023.5, color="#ffffff", alpha=0.4)
@@ -461,72 +449,50 @@ def compute_downside_upperside_risk(
     ax.text(2024.2, 310, "Predictive data", fontsize=12, color="#5e7ab0", backgroundcolor="#daecff")
     ax.text(2024, -10, f"{observation_period}", ha="center", fontsize=10, color="gray")
 
-    # Funzione per tracciare le linee, evitando valori a zero
-    def plot_line(data, label, color, annotate=True):
-        # Filtra solo i valori non nulli e non uguali a zero
-        filtered_data = [d if d != 0 else None for d in data]
-        
-        # Traccia solo i dati validi
-        plt.plot(anni_prezzi, filtered_data, label=label, color=color, linewidth=2.5)
-        
-        if annotate:
-            for x, y in zip(anni_prezzi, filtered_data):
-                if y is not None:
-                    ax.text(x, y + 5, f"{int(y)}€", ha="center", fontsize=10, color=color)
+    def replace_last_zero_with_value(lst, last_value):
+        if 0 in lst:
+            last_zero_index = len(lst) - 1 - lst[::-1].index(0)
+            lst[last_zero_index] = last_value
+        return lst
 
-    # Ultimo valore di Media PUN
     last_historical_value = next((x for x in reversed(media_pun) if x != 0), None)
-
-    # Creiamo delle estensioni per 95th perc, 5th perc, Forward, e Market Prediction
     p95 = replace_last_zero_with_value(p95, last_historical_value)
     p5 = replace_last_zero_with_value(p5, last_historical_value)
     frwd = replace_last_zero_with_value(frwd, last_historical_value)
     predictive = replace_last_zero_with_value(predictive, last_historical_value)
 
-    # Traccia la linea Media PUN solo fino all'ultimo valore disponibile (fermata allo storico)
-    plot_line(media_pun, "Media PUN", "#000000")
+    def plot_line(data, label, color, annotate=True):
+        filtered_data = [d if d != 0 else None for d in data]
+        ax.plot(anni_prezzi, filtered_data, label=label, color=color, linewidth=2.5)
+        if annotate:
+            for x, y in zip(anni_prezzi, filtered_data):
+                if y is not None:
+                    ax.text(x, y + 5, f"{int(y)}€", ha="center", fontsize=10, color=color)
 
-    # Se tutti i dati di predictive sono 0, non disegniamo la linea
+    plot_line(media_pun, "Media PUN", "#000000")
     if any(val != 0 for val in predictive):
         plot_line(predictive, "market prediction", "#1f77b4")
+    plot_line(p95, "95th perc", "#d62728")
+    plot_line(p5, "5th perc", "#2ca02c")
+    plot_line(frwd, "Forward values", "#FFD700")
 
-    # Estendiamo le linee per 95th perc, 5th perc, forward, market prediction
-    plot_line(p95 , "95th perc", "#d62728")
-    plot_line(p5 , "5th perc", "#2ca02c")
-    plot_line(frwd , "Forward values", "#FFD700")
-
-    ax.set_title(
-    "PUN €/MWh yearly basis",
-    fontsize=16,
-    weight="bold",
-    color="white",
-    bbox=dict(facecolor="#28488d", edgecolor="none", boxstyle="round,pad=0.5")
-    )
+    ax.set_title("PUN €/MWh yearly basis", fontsize=16, weight="bold", color="white",
+                 bbox=dict(facecolor="#28488d", edgecolor="none", boxstyle="round,pad=0.5"))
     ax.set_xlabel("year", fontsize=12)
     ax.set_ylabel("€ x MWh", fontsize=12)
     ax.set_xlim(2019.5, 2027.5)
     ax.set_ylim(0, 330)
     ax.set_xticks(anni_prezzi)
     ax.grid(True, axis="y", linestyle="--", linewidth=0.5)
-
     for spine in ax.spines.values():
         spine.set_visible(False)
-
-    handles = [
-        plt.Line2D([0], [0], color="#000000", lw=2.5, label="Media PUN"),
-        plt.Line2D([0], [0], color="#1f77b4", lw=2.5, label="market prediction"),
-        plt.Line2D([0], [0], color="#d62728", lw=2.5, label="95th perc"),
-        plt.Line2D([0], [0], color="#2ca02c", lw=2.5, label="5th perc"),
-        plt.Line2D([0], [0], color="#FFD700", lw=2.5, label="Forward values")
-    ]
-    ax.legend(handles=handles, loc="upper right")
+    ax.legend()
 
     plt.tight_layout()
-    plt.savefig(chart_path, dpi=300)
-    plt.show()
-    plt.close()
-    print(f"📸 Grafico salvato come immagine in: {chart_path}")
-    return df_risk
+
+    # === Restituisco tutto in memoria ===
+    return df_risk, df_open, df_prezzi, fig
+
 
 def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf'):
     import matplotlib.pyplot as plt
