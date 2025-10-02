@@ -120,10 +120,6 @@ if selected_kri == "Energy Risk":
         # 1. Filtra storico
         df_filtered = df[df['Date'] >= pd.to_datetime(start_date)]
 
-        # 2. Calcolo VaR storico
-        rendimenti_giornalieri = df_filtered['Rendimenti']  # colonna obbligatoria
-        results_df = historical_VaR(rendimenti_giornalieri, n_simulations=n_simulations, csv_file="VaR_results.csv")
-
         # 3. Simulazione Heston
         best_params, simulated_prices = run_heston(df_filtered,
                                                    n_trials=n_trials_heston,
