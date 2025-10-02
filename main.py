@@ -44,11 +44,27 @@ if st.session_state.kri_data:
 # -----------------------
 # Analisi specifica per ENERGY RISK
 # -----------------------
-if selected_kri == "Energy Risk" and uploaded_file:
+if selected_kri == "Energy Risk":
     st.subheader("Parametri di simulazione Energy Risk")
 
-    # Dati caricati
-    df = st.session_state.kri_data[selected_kri]
+    # Controlla se i dati KRI sono caricati
+    if "kri_data" not in st.session_state:
+        st.session_state.kri_data = {}
+
+    if selected_kri in st.session_state.kri_data and uploaded_file:
+        df = st.session_state.kri_data[selected_kri]
+    else:
+        # Se non ci sono dati, crea un DataFrame vuoto con colonne minime
+        st.warning("Nessun file Excel caricato: usare i valori di default o inserire manualmente i dati")
+        df = pd.DataFrame({
+            "Date": pd.date_range(start="2023-01-01", periods=3, freq="Y"),
+            "Fabbisogno": [1548, 1557, 1373],
+            "Covered": [1408.6, 933.9, 619],
+            "Solar": [0, 203, 422],
+            "Forward Price": [115.99, 106.85, 94.00],
+            "Budget Price": [115, 121, 120]
+        })
+        st.session_state.kri_data[selected_kri] = df
 
     # Date configurabili
     start_date = st.date_input("Data iniziale storico", df['Date'].min())
@@ -93,6 +109,7 @@ if selected_kri == "Energy Risk" and uploaded_file:
     except Exception as e:
         st.error(f"Errore nei parametri: {e}")
         st.stop()
+
 
     # -----------------------
     # Lancia simulazione
