@@ -6,6 +6,9 @@ from montecarlo import (
     compute_downside_upperside_risk, var_ebitda_risk
 )
 
+# -----------------------
+# Configurazione Streamlit
+# -----------------------
 st.set_page_config(page_title="Dashboard KRI", layout="wide")
 st.title("Dashboard KRI")
 
@@ -19,7 +22,9 @@ if "kri_data" not in st.session_state:
 
 selected_kri = st.sidebar.selectbox("Seleziona KRI", kri_options)
 
-uploaded_file = st.sidebar.file_uploader(f"Carica Excel per {selected_kri}", type="xlsx", key=selected_kri)
+uploaded_file = st.sidebar.file_uploader(
+    f"Carica Excel per {selected_kri}", type="xlsx", key=selected_kri
+)
 
 if uploaded_file:
     df = load_kri_excel(uploaded_file, selected_kri)
@@ -35,11 +40,14 @@ if st.session_state.kri_data:
         st.dataframe(df.head())
 
 # -----------------------
-# Parametri di simulazione
+# Analisi specifica per ENERGY RISK
 # -----------------------
-st.subheader("Parametri di simulazione")
+if selected_kri == "Energy Risk" and uploaded_file:
+    st.subheader("Parametri di simulazione Energy Risk")
 
-if uploaded_file:
+    # Dati caricati
+    df = st.session_state.kri_data[selected_kri]
+
     # Date configurabili
     start_date = st.date_input("Data iniziale storico", df['Date'].min())
     end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
@@ -52,39 +60,61 @@ if uploaded_file:
     n_simulations = st.number_input("Numero di simulazioni", min_value=100, max_value=100_000, value=10_000, step=100)
     n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
 
-    # Parametri aggiuntivi
-    fabbisogno = st.text_input("Fabbisogno", "1548,1557,1373")
-    covered = st.text_input("Covered", "1408.6,933.9,619")
-    solar = st.text_input("Solar", "0,203,422")
-    forward_price = st.text_input("Forward Price", "115.99,106.85,94.00")
-    budget_price = st.text_input("Budget Price", "115,121,120")
+    # -----------------------
+    # Parametri aggiuntivi (da Excel se presenti, altrimenti input manuali)
+    # -----------------------
+    def df_to_str(df, col_name, default):
+        if col_name in df.columns:
+            values = df[col_name].dropna().tolist()
+            if len(values) > 0:
+                return ",".join(map(str, values))
+        return default
 
-    # Conversione string -> lista numerica
-    fabbisogno = [float(x) for x in fabbisogno.split(",")]
-    covered = [float(x) for x in covered.split(",")]
-    solar = [float(x) for x in solar.split(",")]
-    forward_price = [float(x) for x in forward_price.split(",")]
-    budget_price = [float(x) for x in budget_price.split(",")]
+    default_fabbisogno = df_to_str(df, "Fabbisogno", "1548,1557,1373")
+    default_covered = df_to_str(df, "Covered", "1408.6,933.9,619")
+    default_solar = df_to_str(df, "Solar", "0,203,422")
+    default_forward_price = df_to_str(df, "Forward Price", "115.99,106.85,94.00")
+    default_budget_price = df_to_str(df, "Budget Price", "115,121,120")
 
-    # Bottone per lanciare simulazione
-    if st.button("Esegui simulazione"):
+    fabbisogno = st.text_input("Fabbisogno", default_fabbisogno)
+    covered = st.text_input("Covered", default_covered)
+    solar = st.text_input("Solar", default_solar)
+    forward_price = st.text_input("Forward Price", default_forward_price)
+    budget_price = st.text_input("Budget Price", default_budget_price)
+
+    try:
+        fabbisogno = [float(x) for x in fabbisogno.split(",")]
+        covered = [float(x) for x in covered.split(",")]
+        solar = [float(x) for x in solar.split(",")]
+        forward_price = [float(x) for x in forward_price.split(",")]
+        budget_price = [float(x) for x in budget_price.split(",")]
+    except Exception as e:
+        st.error(f"Errore nei parametri: {e}")
+        st.stop()
+
+    # -----------------------
+    # Lancia simulazione
+    # -----------------------
+    if st.button("Esegui simulazione Energy Risk"):
         st.info("Simulazione in corso...")
 
-        # Filtra storico
+        # 1. Filtra storico
         df_filtered = df[df['Date'] >= pd.to_datetime(start_date)]
 
-        # 1. Calcolo VaR storico
-        rendimenti_giornalieri = df_filtered['Rendimenti']  # Assumendo tu abbia la colonna "Rendimenti"
+        # 2. Calcolo VaR storico
+        rendimenti_giornalieri = df_filtered['Rendimenti']  # colonna obbligatoria
         results_df = historical_VaR(rendimenti_giornalieri, n_simulations=n_simulations, csv_file="VaR_results.csv")
 
-        # 2. Simulazione Heston
-        best_params, simulated_prices = run_heston(df_filtered, n_trials=n_trials_heston,
-                                                   n_simulations=n_simulations, end_date=end_date)
+        # 3. Simulazione Heston
+        best_params, simulated_prices = run_heston(df_filtered,
+                                                   n_trials=n_trials_heston,
+                                                   n_simulations=n_simulations,
+                                                   end_date=end_date)
         simulated_df = pd.DataFrame(simulated_prices.T, index=future_dates,
                                     columns=[f"Simulazione {i+1}" for i in range(n_simulations)])
         simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
 
-        # 3. Analisi distribuzione
+        # 4. Analisi distribuzione
         monthly_percentiles, monthly_means, yearly_percentiles, yearly_means = analyze_simulation(
             simulated_df, years=unique_years,
             output_file="distribution_plot.png",
@@ -101,7 +131,7 @@ if uploaded_file:
         p95 = forecast_price['95%'].tolist()
         p5 = forecast_price['5%'].tolist()
 
-        # Adeguamento lunghezza
+        # Adeguamento lunghezze
         missing_len_hp = len(anni_prezzi) - len(historical_price)
         missing_len_b = len(anni_prezzi) - len(budget_price)
         missing_len_f = len(anni_prezzi) - len(forward_price)
@@ -116,21 +146,28 @@ if uploaded_file:
         p95 += [0] * missing_len_p95
         p5 += [0] * missing_len_p5
 
-        # 4. Calcolo rischio
+        # 5. Calcolo rischio
         df_risk = compute_downside_upperside_risk(
             unique_years, fabbisogno, covered, solar,
-            anni_prezzi, historical_price, predict_price, p95, p5, forward_price, budget_price,
+            anni_prezzi, historical_price, predict_price, p95, p5,
+            forward_price, budget_price,
             observation_period=start_date.strftime("%d/%m/%Y"),
             chart_path="simulation_chart.png",
-            output_path=f"Simulation_VaR_results.xlsx"
+            output_path="Simulation_VaR_results.xlsx"
         )
 
-        # 5. Grafico VaR EBITDA
+        # 6. Grafico VaR EBITDA
         var_ebitda_risk(periodo_di_analisi=end_date.strftime("as of %d/%m/%Y"),
                         df_risk=df_risk,
                         font_path="TIMSans-Medium.ttf",
                         output_file="var_ebitda_risk.png")
 
+        # -----------------------
+        # Output a video
+        # -----------------------
         st.success("Simulazione completata!")
         st.image("var_ebitda_risk.png", caption="VaR EBITDA Risk")
         st.dataframe(df_risk.head())
+        st.download_button("Scarica risultati Excel",
+                           data=open("Simulation_VaR_results.xlsx", "rb").read(),
+                           file_name="Simulation_VaR_results.xlsx")
