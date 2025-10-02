@@ -3,7 +3,19 @@ import pandas as pd
 import sys
 import os
 from utils.data_loader import load_kri_excel, validate_kri_data
-from functions.montercarlo import historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk
+from .montercarlo import (
+    get_data_statistics,
+    historical_VaR,
+    optimize_heston_model,
+    simulate_heston,
+    run_heston,
+    get_monthly_and_yearly_distribution,
+    plot_and_save_distribution,
+    analyze_simulation,
+    replace_last_zero_with_value,
+    compute_downside_upperside_risk,
+    var_ebitda_risk
+)
 
 
 # -----------------------
