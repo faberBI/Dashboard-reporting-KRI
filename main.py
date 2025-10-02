@@ -116,9 +116,9 @@ if selected_kri == "Energy Risk":
     # -----------------------
     if st.button("Esegui simulazione Energy Risk"):
         st.info("Simulazione in corso...")
-# ---------------------------
-# Caricamento file Excel
-# ---------------------------
+    # ---------------------------
+    # Caricamento file Excel
+    # ---------------------------
         uploaded_file = st.file_uploader("Seleziona il file Excel PUN", type=["xlsx"])
         
         if uploaded_file:
@@ -148,6 +148,7 @@ if selected_kri == "Energy Risk":
         else:
             st.warning("Carica il file Excel per procedere.")
 
+        df = df_filtered 
         # 3. Simulazione Heston
         best_params, simulated_prices = run_heston(df_filtered,
                                                    n_trials=n_trials_heston,
