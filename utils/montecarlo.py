@@ -7,7 +7,6 @@ import warnings
 from scipy.stats import gaussian_kde
 import optuna
 
-
 def get_data_statistics(input_path):
     # Carica il file
     df = pd.read_excel(input_path)
