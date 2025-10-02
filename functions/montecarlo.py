@@ -6,6 +6,7 @@ import scipy.stats as st
 import warnings
 from scipy.stats import gaussian_kde
 import optuna
+import matplotlib.pyplot as plt
 
 def get_data_statistics(input_path):
     # Carica il file
