@@ -72,8 +72,8 @@ def get_kri_dataframe(selected_kri, uploaded_file):
                 "id": [1, 2],
                 "comune": ["Milano", "Capua"],
                 "zona": ["B12", "C2"],
-                "lat": [45.0, 45.5],
-                "long": [9.0, 9.5],
+                "lat": [45.47377982648482, 41.109706286872694],
+                "long": [9.179101925254832, 14.20053274338481],
                 "codice_comune": ["F205", "B715"],
                 "building": [200000, 250000],
                 "content": [50000, 60000]
