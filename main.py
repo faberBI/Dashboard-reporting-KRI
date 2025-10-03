@@ -226,7 +226,7 @@ if selected_kri == "Energy Risk":
         missing_len_p5 = len(anni_prezzi) - len(p5)
         missing_len_f = len(anni_prezzi) - len(forward_price_full)
 
-        historical_price = [0]*missing_len_hp + historical_price
+        historical_price = historical_price + [0] * missing_len_hp
         predict_price = [0]*missing_len_pp + predict_price
         p95 = [0]*missing_len_p95 + p95
         p5 = [0]*missing_len_p5 + p5
