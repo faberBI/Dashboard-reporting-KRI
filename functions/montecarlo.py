@@ -192,7 +192,7 @@ def simulate_heston(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate, n_simu
 
 def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
     # Step 1: Ottimizzazione dei parametri Heston tramite Optuna
-    best_params, study = optimize_heston_model(df, n_trials, end_date)
+    # best_params, study = optimize_heston_model(df, n_trials, end_date)
 
     # Step 2: Simulazione dei percorsi futuri usando i parametri ottimizzati
     S0 = df['GMEPIT24 Index'].iloc[-1]
