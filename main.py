@@ -13,9 +13,14 @@ import optuna
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.montecarlo import historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk
+
+
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
+import streamlit as st
+import pandas as pd
+
 st.set_page_config(page_title="KRI Dashboard", page_icon="📊", layout="wide")
 st.title("📊 Dashboard KRI")
 
@@ -34,8 +39,8 @@ uploaded_file = st.sidebar.file_uploader(
 )
 
 if uploaded_file:
-    df = load_kri_excel(uploaded_file, selected_kri)
-    if validate_kri_data(df, selected_kri):
+    df = load_kri_excel(uploaded_file, selected_kri)  # funzione che definisci tu
+    if validate_kri_data(df, selected_kri):          # funzione che definisci tu
         st.session_state.kri_data[selected_kri] = df
         st.success(f"✅ {selected_kri} aggiunto con successo!")
 
@@ -48,23 +53,18 @@ if st.session_state.kri_data:
         st.markdown(f"### 📌 **{kri_name}**")
         st.dataframe(df.head())
 
-
 # -----------------------
 # Analisi specifica per ENERGY RISK
 # -----------------------
-if selected_kri == "Energy Risk":  
+if selected_kri == "⚡ Energy Risk":
     st.subheader("📌 Parametri di simulazione Energy Risk")
-
-    # Controlla se i dati KRI sono caricati
-    if "kri_data" not in st.session_state:
-        st.session_state.kri_data = {}
 
     # Se esiste df già in session_state e c'è un file caricato
     if selected_kri in st.session_state.kri_data and uploaded_file:
         df = st.session_state.kri_data[selected_kri]
     else:
         # Se non ci sono dati, crea un DataFrame vuoto con valori di default
-        st.warning("Nessun file Excel caricato: usare i valori di default o inserire manualmente i dati")
+        st.warning("⚠️ Nessun file Excel caricato: usare i valori di default o inserire manualmente i dati")
         df = pd.DataFrame({
             "Anno": [2025, 2026, 2027],
             "Fabbisogno": [1548, 1557, 1373],
@@ -75,15 +75,15 @@ if selected_kri == "Energy Risk":
         })
         st.session_state.kri_data[selected_kri] = df
 
-    # Date configurabili
+    # -----------------------
+    # Date e simulazioni
+    # -----------------------
     end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
     start_date = pd.Timestamp.today().normalize()
-
     days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-    future_dates = pd.date_range(start= start_date, periods=days_to_simulate, freq='D')
+    future_dates = pd.date_range(start=start_date, periods=days_to_simulate, freq='D')
     unique_years = sorted(future_dates.year.unique().tolist())
 
-    # Parametri Monte Carlo
     n_simulations = st.number_input("Numero di simulazioni", min_value=100, max_value=100_000, value=10_000, step=100)
     n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
 
@@ -103,12 +103,19 @@ if selected_kri == "Energy Risk":
     default_forward_price = df_to_str(df, "Forward Price", "115.99,106.85,94.00")
     default_budget_price = df_to_str(df, "Budget Price", "115,121,120")
 
-    fabbisogno = st.text_input("Fabbisogno", default_fabbisogno)
-    covered = st.text_input("Covered", default_covered)
-    solar = st.text_input("Solar", default_solar)
-    forward_price = st.text_input("Forward Price", default_forward_price)
-    budget_price = st.text_input("Budget Price", default_budget_price)
+    st.markdown("### Inserimento manuale parametri ⚡")
+    col1, col2 = st.columns(2)
+    with col1:
+        fabbisogno = st.text_input("Fabbisogno (MWh)", default_fabbisogno)
+        covered = st.text_input("Covered (MWh)", default_covered)
+        solar = st.text_input("Solar (MWh)", default_solar)
+    with col2:
+        forward_price = st.text_input("Forward Price (€)", default_forward_price)
+        budget_price = st.text_input("Budget Price (€)", default_budget_price)
 
+    # -----------------------
+    # Parsing input
+    # -----------------------
     try:
         fabbisogno = [float(x) for x in fabbisogno.split(",")]
         covered = [float(x) for x in covered.split(",")]
@@ -116,8 +123,15 @@ if selected_kri == "Energy Risk":
         forward_price = [float(x) for x in forward_price.split(",")]
         budget_price = [float(x) for x in budget_price.split(",")]
     except Exception as e:
-        st.error(f"Errore nei parametri: {e}")
+        st.error(f"❌ Errore nei parametri: {e}")
         st.stop()
+
+    # Controllo lunghezze coerenti
+    if not (len(fabbisogno) == len(covered) == len(solar) == len(forward_price) == len(budget_price)):
+        st.error("⚠️ Tutti i parametri devono avere lo stesso numero di valori per anno.")
+        st.stop()
+
+    st.success("✅ Parametri validi, pronti per la simulazione!")
 
     # -----------------------
     # Lancia simulazione
