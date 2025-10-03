@@ -191,7 +191,7 @@ if selected_kri == "Energy Risk":
         # Forecast + Storico
         # --------------------------------------
 
-        forecast_price = pd.DataFrame(yearly_percentiles) # {anno: (p5, p50, p95)}
+        forecast_price = df = pd.DataFrame.from_dict(yearly_percentiles, orient='index', columns=['5%', '50%', '95%'])
         st.dataframe(forecast_price)
 
         # Lista anni forecast ordinata
