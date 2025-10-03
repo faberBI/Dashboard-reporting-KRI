@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import sys
 import os
 from utils.data_loader import load_kri_excel, validate_kri_data
