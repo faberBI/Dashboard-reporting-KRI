@@ -268,7 +268,7 @@ if selected_kri == "Energy Risk":
         )
 
         # Grafico VaR EBITDA
-        fig = var_ebitda_risk(periodo_di_analisi=end_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, font_path="TIMSans-Medium.ttf")
+        fig = var_ebitda_risk(periodo_di_analisi=end_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, font_path="utils/TIMSans-Medium.ttf")
         st.pyplot(fig)
 
         st.success("Simulazione completata!")
