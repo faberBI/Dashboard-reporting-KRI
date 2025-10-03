@@ -49,9 +49,12 @@ if uploaded_file:
 # -----------------------
 if st.session_state.kri_data:
     st.subheader("📊 KRI caricati")
-    for kri_name, df in st.session_state.kri_data.items():
-        st.markdown(f"### 📌 **{kri_name}**")
+    # Mostra solo il KRI selezionato
+    if selected_kri in st.session_state.kri_data:
+        df = st.session_state.kri_data[selected_kri]
+        st.markdown(f"### 📌 **{selected_kri}**")
         st.dataframe(df.head())
+
 
 # -----------------------
 # Analisi specifica per ENERGY RISK
