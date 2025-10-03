@@ -192,18 +192,21 @@ if selected_kri == "Energy Risk":
         # --------------------------------------
 
         forecast_price = df = pd.DataFrame.from_dict(yearly_percentiles, orient='index', columns=['5%', '50%', '95%'])
-        
+        st.text("Ouput forecast")
         st.dataframe(forecast_price) 
         
         # Combinazione anni storico + forecast
         anni_prezzi = [2020, 2021, 2022, 2023, 2024] + unique_years
         anni_prezzi = [int(y) for y in anni_prezzi]
+        
+        st.text("serie temporale intera")
         st.dataframe(anni_prezzi)  
         
         # Media storica PUN per gli anni storici
         historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
         historical_price = historical_price[:-1]
         
+        st.text("df historical price")
         st.dataframe(historical_price)
         
         predict_price = forecast_price['50%'].values.tolist()
