@@ -219,18 +219,31 @@ if selected_kri == "⚡ Energy Risk":
 
         st.markdown("### 📅 Historical Price")  # Titolo con icona
         st.info("Media storica PUN per gli anni disponibili.")  # Box informativo
+        
         df_historical = pd.DataFrame({"Historical Price": historical_price, "Year": anni_prezzi[:len(historical_price)]})
-        # Mostra il DataFrame con sfumatura di colori
-        
-        df_hist = df_historical.copy()
-        # Colonne da escludere dalla formattazione in milioni
+
+        # Copia per styling
+        df_hist_styled = df_historical.style
+
+        # Colonne da escludere dalla formattazione
         exclude_cols = ["Year", "Anno", "year", "anno"]
-        
-        # Colonne da formattare in milioni di euro
-        cols_to_format = [c for c in df_hist.columns if c not in exclude_cols]
-        for col in cols_to_format:
-            df_hist[col] = df_hist[col].apply(lambda x: f"€ {x:.2f}" if pd.notnull(x) else "")
-        st.dataframe(df_hist.style.background_gradient(cmap='Greens', low=0.1, high=0.4).format("{:.2f}"))
+
+        # Colonne da formattare in euro
+        cols_to_format = [c for c in df_historical.columns if c not in exclude_cols]
+
+        # Funzione di formattazione
+        def format_euro(x):
+            return f"€ {x:.2f}" if pd.notnull(x) else ""
+
+        # Applica formattazione in un unico passaggio
+        format_dict = {col: format_euro for col in cols_to_format}
+        df_hist_styled = df_hist_styled.format(format_dict)
+
+        # Applica gradiente solo sulle colonne numeriche
+        df_hist_styled = df_hist_styled.background_gradient(cmap='Greens', low=0.1, high=0.4, subset=cols_to_format)
+
+        # Mostra su Streamlit
+        st.dataframe(df_hist_styled)
 
         predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
