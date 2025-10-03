@@ -270,7 +270,7 @@ if selected_kri == "⚡ Energy Risk":
         import pandas as pd
         
         # Applica la formattazione a tutte le colonne tranne eventualmente l'anno
-        cols_to_format = [c for c in df_prezzi.columns if c.lower() != "Year"]
+        cols_to_format = [c for c in df_prezzi.columns if c.lower()  not in ["year", "anno", "Year"]]
         
         df_display = df_prezzi.copy()
         # Aggiungi € e arrotonda a 2 decimali
