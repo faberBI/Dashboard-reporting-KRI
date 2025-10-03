@@ -66,7 +66,7 @@ if selected_kri == "Energy Risk":
         # Se non ci sono dati, crea un DataFrame vuoto con valori di default
         st.warning("Nessun file Excel caricato: usare i valori di default o inserire manualmente i dati")
         df = pd.DataFrame({
-            "Date": pd.date_range(start="2023-01-01", periods=3, freq="Y"),
+            "Anno": [2025, 2026, 2027],
             "Fabbisogno": [1548, 1557, 1373],
             "Covered": [1408.6, 933.9, 619],
             "Solar": [0, 203, 422],
@@ -76,11 +76,11 @@ if selected_kri == "Energy Risk":
         st.session_state.kri_data[selected_kri] = df
 
     # Date configurabili
-    start_date = st.date_input("Data iniziale storico", df['Date'].min())
     end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
+    start_date = pd.Timestamp.today().normalize()
 
     days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-    future_dates = pd.date_range(start=df['Date'].max(), periods=days_to_simulate, freq='D')
+    future_dates = pd.date_range(start= start_date, periods=days_to_simulate, freq='D')
     unique_years = sorted(future_dates.year.unique().tolist())
 
     # Parametri Monte Carlo
