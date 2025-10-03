@@ -187,42 +187,44 @@ if selected_kri == "Energy Risk":
         monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
         st.pyplot(fig)
 
-        # Forecast + storico
+        # --------------------------------------
+        # Forecast + Storico
+        # --------------------------------------
 
         forecast_price = yearly_percentiles  # {anno: (p5, p50, p95)}
-        
+
+        # Lista anni forecast ordinata
+        unique_years = sorted(list(forecast_price.keys()))
+
+        # Combinazione anni storico + forecast
+        anni_prezzi = sorted(df_filtered['Date'].dt.year.unique().tolist()) + unique_years
+
+        #     Media storica PUN per gli anni storici
+        historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tolist()
+
+        # Liste forecast (50%, 5%, 95%) e forward price
         predict_price = [forecast_price[year][1] for year in unique_years]  # 50%
         p5 = [forecast_price[year][0] for year in unique_years]             # 5%
         p95 = [forecast_price[year][2] for year in unique_years]            # 95%
-            
-        # Colonna Year per lo storico
-        df_filtered['Year'] = df_filtered['Date'].dt.year
-        
-        # Lista anni forecast ordinata
-        unique_years = sorted(list(forecast_price.keys()))
-        
-        # Combinazione anni storico + forecast
-        anni_prezzi = sorted(df_filtered['Year'].unique().tolist()) + unique_years
-        
-        # Media storica PUN per gli anni storici
-        historical_price = df_filtered.groupby('Year')['GMEPIT24 Index'].mean().tolist()
-        
-        # Inizializziamo le liste forecast
-        predict_price = [0] * len(df_filtered['Year'].unique())  # zeri per storico
-        p5 = [0] * len(df_filtered['Year'].unique())
-        p95 = [0] * len(df_filtered['Year'].unique())
-        forward_price_full = [0] * len(df_filtered['Year'].unique())
-        
-        # Inseriamo i valori forecast partendo dall’anno forecast
-        for i, year in enumerate(unique_years):
-            predict_price.append(forecast_price[year][1])  # 50%
-            p5.append(forecast_price[year][0])            # 5%
-            p95.append(forecast_price[year][2])           # 95%
-            forward_price_full.append(forward_price[i])   # Forward price corrispondente
-        
-        # Adeguamento lunghezze budget
-        missing_len_b = len(anni_prezzi) - len(budget_price)
-        budget_price = [0] * missing_len_b + budget_price
+
+        # Lista forward price corrispondente agli anni forecast
+        forward_price_full = forward_price.copy()  # assume forward_price contiene solo i valori forecast
+
+        # Budget price (allinea lunghezza aggiungendo zeri davanti)
+        budget_price_full = [0] * (len(anni_prezzi) - len(budget_price)) + budget_price
+
+        # Allineamento lunghezze di tutte le liste con anni_prezzi
+        missing_len_hp = len(anni_prezzi) - len(historical_price)
+        missing_len_pp = len(anni_prezzi) - len(predict_price)
+        missing_len_p95 = len(anni_prezzi) - len(p95)
+        missing_len_p5 = len(anni_prezzi) - len(p5)
+        missing_len_f = len(anni_prezzi) - len(forward_price_full)
+
+        historical_price = [0]*missing_len_hp + historical_price
+        predict_price = [0]*missing_len_pp + predict_price
+        p95 = [0]*missing_len_p95 + p95
+        p5 = [0]*missing_len_p5 + p5
+        forward_price_full = [0]*missing_len_f + forward_price_full
     
         # Chiamata alla funzione principale
         df_risk, df_open, df_prezzi, fig = compute_downside_upperside_risk(
@@ -236,7 +238,7 @@ if selected_kri == "Energy Risk":
         p95=p95,
         p5=p5,
         frwd=forward_price_full,
-        budget=budget_price,
+        budget=budget_price_full,
         observation_period=start_date.strftime("%d/%m/%Y"))
         
         # Visualizzazione su Streamlit
