@@ -181,19 +181,25 @@ if selected_kri == "Energy Risk":
             index=future_dates_sim,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-        simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
+        
+        #simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
 
         # Analisi distribuzione
         monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
         st.pyplot(fig)
 
         # Forecast + storico
-        forecast_price = yearly_percentiles
-        anni_prezzi = sorted(df_filtered['Date'].dt.year.unique().tolist()) + unique_years
-        historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(len(anni_prezzi)).tolist()
-        predict_price = forecast_price['50%'].tolist()
-        p95 = forecast_price['95%'].tolist()
-        p5 = forecast_price['5%'].tolist()
+
+        forecast_price = yearly_percentiles  # {anno: (p5, p50, p95)}
+
+        predict_price = [forecast_price[year][1] for year in unique_years]  # 50%
+        p5 = [forecast_price[year][0] for year in unique_years]             # 5%
+        p95 = [forecast_price[year][2] for year in unique_years]            # 95%
+
+        # Storico + forecast
+        anni_prezzi = sorted(df_filtered['Year'].unique().tolist()) + unique_years
+        historical_price = df_filtered.groupby('Year')['GMEPIT24 Index'].mean().tail(len(anni_prezzi)).tolist()
+
 
         # Adeguamento lunghezze
         missing_len_hp = len(anni_prezzi) - len(historical_price)
