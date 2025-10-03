@@ -192,22 +192,25 @@ if selected_kri == "Energy Risk":
         # --------------------------------------
 
         forecast_price = df = pd.DataFrame.from_dict(yearly_percentiles, orient='index', columns=['5%', '50%', '95%'])
-        st.text("Ouput forecast")
-        st.dataframe(forecast_price) 
+        st.markdown("### 📊 Forecast Output")  # titolo con icona
+        st.info("Questi sono i valori previsionali basati sui percentili annuali.")  # box informativo
+
+        # Mostra il DataFrame con stile
+        st.dataframe(forecast_price.style.background_gradient(cmap='Blues').format("{:.2f}"))
         
         # Combinazione anni storico + forecast
         anni_prezzi = [2020, 2021, 2022, 2023, 2024] + unique_years
         anni_prezzi = [int(y) for y in anni_prezzi]
         
-        st.text("serie temporale intera")
-        st.dataframe(anni_prezzi)  
-        
         # Media storica PUN per gli anni storici
         historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
         historical_price = historical_price[:-1]
         
-        st.text("df historical price")
-        st.dataframe(historical_price)
+        st.markdown("### 📅 Historical Price")  # Titolo con icona
+        st.info("Media storica PUN per gli anni disponibili.")  # Box informativo
+        df_historical = pd.DataFrame({"Historical Price": historical_price, "Year": anni_prezzi[:len(historical_price)]})
+        # Mostra il DataFrame con sfumatura di colori
+        st.dataframe(df_historical.style.background_gradient(cmap='Oranges').format("{:.2f}")
         
         predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
@@ -249,9 +252,24 @@ if selected_kri == "Energy Risk":
         
         # Visualizzazione su Streamlit
         st.pyplot(fig)
-        st.dataframe(df_risk)
-        st.dataframe(df_open)
-        st.dataframe(df_prezzi)
+        st.markdown("### 📈 Analisi Prezzi PUN ")
+        st.info("Tabella contenente media PUN, percentili, Forward e Budget per ogni anno.")
+
+        # Colori per evidenziare i valori più alti
+        st.dataframe(
+        df_prezzi.style
+        .background_gradient(cmap='Blues', subset=["Media PUN", "Predictive", "95° percentile", "5° percentile", "frwd", "budget"])
+        .format("{:.2f}")
+        )
+        st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
+        st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
+
+        # Colori per evidenziare i valori più alti
+        st.dataframe(
+        df_risk.style
+        .background_gradient(cmap='Reds', subset=df_risk.columns[1:])  # Esclude la colonna Year
+        .format("{:.0f}")  # Senza decimali, più leggibile per valori grandi
+        )
 
         # Grafico VaR EBITDA
         fig = var_ebitda_risk(periodo_di_analisi=end_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, font_path="TIMSans-Medium.ttf")
