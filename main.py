@@ -44,17 +44,18 @@ if st.session_state.kri_data:
 # -----------------------
 # Analisi specifica per ENERGY RISK
 # -----------------------
-if selected_kri == "Energy Risk":
+if selected_kri == "Energy Risk":  
     st.subheader("Parametri di simulazione Energy Risk")
 
     # Controlla se i dati KRI sono caricati
     if "kri_data" not in st.session_state:
         st.session_state.kri_data = {}
 
+    # Se esiste df già in session_state e c'è un file caricato
     if selected_kri in st.session_state.kri_data and uploaded_file:
         df = st.session_state.kri_data[selected_kri]
     else:
-        # Se non ci sono dati, crea un DataFrame vuoto con colonne minime
+        # Se non ci sono dati, crea un DataFrame vuoto con valori di default
         st.warning("Nessun file Excel caricato: usare i valori di default o inserire manualmente i dati")
         df = pd.DataFrame({
             "Date": pd.date_range(start="2023-01-01", periods=3, freq="Y"),
@@ -115,88 +116,73 @@ if selected_kri == "Energy Risk":
     # -----------------------
     if st.button("Esegui simulazione Energy Risk"):
         st.info("Simulazione in corso...")
-    
-        # ---------------------------
-        # Caricamento file Excel
-        # ---------------------------
-        uploaded_file = st.file_uploader("Seleziona il file Excel PUN", type=["xlsx"])
-    
-        if uploaded_file:
-            try:
-                df = pd.read_excel(uploaded_file)
-                
-                # Controllo colonne obbligatorie
-                if 'Date' not in df.columns or 'GMEPIT24 Index' not in df.columns:
-                    st.error("Il file Excel deve contenere le colonne 'Date' e 'GMEPIT24 Index'.")
-                    st.stop()
-                
-                # Converte Date e calcola Log_Returns
-                df['Date'] = pd.to_datetime(df['Date'])
-                df['Log_Returns'] = np.log(df['GMEPIT24 Index'] / df['GMEPIT24 Index'].shift(1))
-                df = df.dropna(subset=['Log_Returns'])
-                
-                st.success("Dati caricati correttamente!")
-                st.dataframe(df.head())
-    
-                # Filtra per intervallo di date selezionato
-                df_filtered = df[(df['Date'] >= pd.to_datetime(start_date)) & 
-                                 (df['Date'] <= pd.to_datetime(end_date))]
-                
-                st.session_state.energy_df = df_filtered
-                
-                if df_filtered.empty:
-                    st.error("Il filtro ha prodotto un DataFrame vuoto")
-                    st.stop()
-    
-                # ---------------------------
-                # Simulazione Heston
-                # ---------------------------
-                df_filtered = st.session_state.energy_df
-                best_params, simulated_prices = run_heston(
-                    df_filtered,
-                    n_trials=n_trials_heston,
-                    n_simulations=n_simulations,
-                    end_date=end_date
-                )
-    
-                future_dates = pd.date_range(start=df_filtered['Date'].max(), periods=(pd.to_datetime(end_date)-df_filtered['Date'].max()).days, freq='D')
-                simulated_df = pd.DataFrame(simulated_prices.T, index=future_dates,
-                                            columns=[f"Simulazione {i+1}" for i in range(n_simulations)])
-                simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
-    
-                # Analisi distribuzione
-                monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
-                st.pyplot(fig)
-    
-                st.success("Simulazione completata!")
-    
-            except Exception as e:
-                st.error(f"Errore durante la simulazione: {e}")
+
+        # Prova a caricare il file Excel locale
+        data_path = "Data/Pun 10_04_2025.xlsx"
+        df_excel = None
+        if os.path.exists(data_path):
+            df_excel = pd.read_excel(data_path)
+            st.success(f"Dati caricati da {data_path}")
+
+        # Se il file locale non esiste o è vuoto, richiedi upload
+        if df_excel is None or df_excel.empty:
+            uploaded_file = st.file_uploader("Seleziona il file Excel PUN", type=["xlsx"])
+            if uploaded_file:
+                df_excel = pd.read_excel(uploaded_file)
+            else:
+                st.warning("Carica il file Excel per procedere con la simulazione.")
                 st.stop()
-    
-        else:
-            st.warning("Carica il file Excel per procedere con la simulazione.")
 
+        # Controllo colonne obbligatorie
+        if 'Date' not in df_excel.columns or 'GMEPIT24 Index' not in df_excel.columns:
+            st.error("Il file Excel deve contenere 'Date' e 'GMEPIT24 Index'.")
+            st.stop()
 
-        df_filtered = df
-        # 3. Simulazione Heston
-        best_params, simulated_prices = run_heston(df_filtered,
-                                                   n_trials=n_trials_heston,
-                                                   n_simulations=n_simulations,
-                                                   end_date=end_date)
-        simulated_df = pd.DataFrame(simulated_prices.T, index=future_dates,
-                                    columns=[f"Simulazione {i+1}" for i in range(n_simulations)])
+        # Converte Date e calcola Log_Returns
+        df_excel['Date'] = pd.to_datetime(df_excel['Date'])
+        df_excel['Log_Returns'] = np.log(df_excel['GMEPIT24 Index'] / df_excel['GMEPIT24 Index'].shift(1))
+        df_excel = df_excel.dropna(subset=['Log_Returns'])
+
+        # Salva in session_state
+        st.session_state.energy_df = df_excel
+
+        # Filtra per intervallo date selezionato
+        df_filtered = df_excel[(df_excel['Date'] >= pd.to_datetime(start_date)) &
+                               (df_excel['Date'] <= pd.to_datetime(end_date))]
+        if df_filtered.empty:
+            st.error("Il filtro ha prodotto un DataFrame vuoto")
+            st.stop()
+
+        # ---------------------------
+        # Simulazione Heston
+        # ---------------------------
+        best_params, simulated_prices = run_heston(
+            df_filtered,
+            n_trials=n_trials_heston,
+            n_simulations=n_simulations,
+            end_date=end_date
+        )
+
+        future_dates_sim = pd.date_range(
+            start=df_filtered['Date'].max(),
+            periods=(pd.to_datetime(end_date) - df_filtered['Date'].max()).days,
+            freq='D'
+        )
+        simulated_df = pd.DataFrame(
+            simulated_prices.T,
+            index=future_dates_sim,
+            columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
+        )
         simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
 
-        # 4. Analisi distribuzione
+        # Analisi distribuzione
         monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
         st.pyplot(fig)
 
+        # Forecast + storico
         forecast_price = yearly_percentiles
-
-        # Storico + forecast
-        anni_prezzi = sorted(df_filtered['Year'].unique().tolist()) + unique_years
-        historical_price = df_filtered.groupby('Year')['GMEPIT24 Index'].mean().tail(len(anni_prezzi)).tolist()
+        anni_prezzi = sorted(df_filtered['Date'].dt.year.unique().tolist()) + unique_years
+        historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(len(anni_prezzi)).tolist()
         predict_price = forecast_price['50%'].tolist()
         p95 = forecast_price['95%'].tolist()
         p5 = forecast_price['5%'].tolist()
@@ -216,26 +202,22 @@ if selected_kri == "Energy Risk":
         p95 += [0] * missing_len_p95
         p5 += [0] * missing_len_p5
 
-        # 5. Calcolo rischio
+        # Calcolo rischio
         df_risk, df_open, df_prezzi, fig = compute_downside_upperside_risk(
             unique_years, fabbisogno, covered, solar,
             anni_prezzi, historical_price, predict_price, p95, p5,
             forward_price, budget_price,
             observation_period=start_date.strftime("%d/%m/%Y")
-            )
-
+        )
         st.pyplot(fig)
         st.dataframe(df_risk)
         st.dataframe(df_open)
         st.dataframe(df_prezzi)
 
-        # 6. Grafico VaR EBITDA
+        # Grafico VaR EBITDA
         fig = var_ebitda_risk(periodo_di_analisi=end_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, font_path="TIMSans-Medium.ttf")
         st.pyplot(fig)
 
-        # -----------------------
-        # Output a video
-        # -----------------------
         st.success("Simulazione completata!")
         st.image("var_ebitda_risk.png", caption="VaR EBITDA Risk")
         st.dataframe(df_risk.head())
