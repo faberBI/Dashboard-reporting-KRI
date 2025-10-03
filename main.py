@@ -349,7 +349,7 @@ if selected_kri == "⚡ Energy Risk":
         st.success("Simulazione completata!")
         # Pulsante per scaricare Excel
         buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             # df_prezzi
             df_prezzi.to_excel(writer, sheet_name='Prezzi PUN', index=False)
     
