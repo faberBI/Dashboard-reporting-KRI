@@ -273,8 +273,9 @@ if selected_kri == "⚡ Energy Risk":
         cols_to_format = [c for c in df_prezzi.columns if c.lower() != "Year"]
         
         df_display = df_prezzi.copy()
+        # Aggiungi € e arrotonda a 2 decimali
         for col in cols_to_format:
-            df_display[col] = df_display[col].apply(lambda x: f"€ {x}" if pd.notnull(x) else "")
+            df_display[col] = df_display[col].apply(lambda x: f"€ {x:.2f}" if pd.notnull(x) else "")
         st.dataframe(df_display)
         
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
