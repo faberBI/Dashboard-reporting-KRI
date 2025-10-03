@@ -199,7 +199,11 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
     days_to_simulate = (pd.to_datetime(end_date) - df['Date'].iloc[-1]).days
 
 
-    print(best_params)
+    best_params = {0.000207,
+        1.597124,
+        0.000100,
+        0.027288,
+        -0.092343}
 
     simulated_prices, simulated_log_returns = simulate_heston(
         S0,0.000207,
