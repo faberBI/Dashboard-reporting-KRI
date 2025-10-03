@@ -204,6 +204,9 @@ if selected_kri == "Energy Risk":
         # Media storica PUN per gli anni storici
         historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
         historical_price = historical_price[:-1]
+        
+        st.dataframe(historical_price)
+        
         predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
