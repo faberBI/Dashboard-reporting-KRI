@@ -205,9 +205,13 @@ if selected_kri == "⚡ Energy Risk":
         forecast_price = df = pd.DataFrame.from_dict(yearly_percentiles, orient='index', columns=['5%', '50%', '95%'])
         st.markdown("### 📊 Forecast Output")  # titolo con icona
         st.info("Questi sono i valori previsionali basati sui percentili annuali.")  # box informativo
+        # Funzione di formattazione in euro
+        def format_euro(x):
+            return f"€ {x:.2f}" if pd.notnull(x) else ""
 
-        # Mostra il DataFrame con stile
-        st.dataframe(forecast_price.style.background_gradient(cmap='Greens', low=0.1, high=0.4).format("{:.2f}"))
+        # Applica formattazione solo alle colonne numeriche
+        cols_to_format = [c for c in forecast_price.columns]  # qui non c'è Year, quindi tutte le colonne
+        st.dataframe(forecast_price.style.format({col: format_euro for col in cols_to_format}).background_gradient(cmap='Greens', low=0.1, high=0.4, subset=cols_to_format))
 
         # Combinazione anni storico + forecast
         anni_prezzi = [2020, 2021, 2022, 2023, 2024] + unique_years
