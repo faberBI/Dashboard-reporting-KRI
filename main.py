@@ -194,37 +194,35 @@ if selected_kri == "Energy Risk":
         predict_price = [forecast_price[year][1] for year in unique_years]  # 50%
         p5 = [forecast_price[year][0] for year in unique_years]             # 5%
         p95 = [forecast_price[year][2] for year in unique_years]            # 95%
-        
-        # Aggiungiamo colonna Year al df storico
+            
+        # Colonna Year per lo storico
         df_filtered['Year'] = df_filtered['Date'].dt.year
         
-        # Lista anni totale: storico + forecast
+        # Lista anni forecast ordinata
+        unique_years = sorted(list(forecast_price.keys()))
+        
+        # Combinazione anni storico + forecast
         anni_prezzi = sorted(df_filtered['Year'].unique().tolist()) + unique_years
-
-        # Prezzi storici medi
+        
+        # Media storica PUN per gli anni storici
         historical_price = df_filtered.groupby('Year')['GMEPIT24 Index'].mean().tolist()
-
-        # Lunghezza da adeguare
-        missing_len_hp = len(anni_prezzi) - len(historical_price)
-        historical_price += [None] * missing_len_hp  # None negli anni forecast
-
-        # --- Forecast ---
-        # predict_price (50%), p5 (5%), p95 (95%)
-        predict_price = [None] * len(df_filtered['Year'].unique())  # valori None per gli anni storici
-        p5 = [None] * len(df_filtered['Year'].unique())
-        p95 = [None] * len(df_filtered['Year'].unique())
-        forward_price_full = [None] * len(df_filtered['Year'].unique())
-
-        # Inseriamo i valori a partire dall’anno forecast
+        
+        # Inizializziamo le liste forecast
+        predict_price = [0] * len(df_filtered['Year'].unique())  # zeri per storico
+        p5 = [0] * len(df_filtered['Year'].unique())
+        p95 = [0] * len(df_filtered['Year'].unique())
+        forward_price_full = [0] * len(df_filtered['Year'].unique())
+        
+        # Inseriamo i valori forecast partendo dall’anno forecast
         for i, year in enumerate(unique_years):
-            idx = len(df_filtered['Year'].unique()) + i
-            predict_price.append(forecast_price.loc[year, '50%'])
-            p5.append(forecast_price.loc[year, '5%'])
-            p95.append(forecast_price.loc[year, '95%'])
-            forward_price_full.append(forward_price[i])  # forward_price già ordinato per unique_years
-
-        # Budget price: se vuoi allinearlo come gli altri
-        budget_price_full = [None] * len(df_filtered['Year'].unique()) + budget_price
+            predict_price.append(forecast_price[year][1])  # 50%
+            p5.append(forecast_price[year][0])            # 5%
+            p95.append(forecast_price[year][2])           # 95%
+            forward_price_full.append(forward_price[i])   # Forward price corrispondente
+        
+        # Adeguamento lunghezze budget
+        missing_len_b = len(anni_prezzi) - len(budget_price)
+        budget_price = [0] * missing_len_b + budget_price
     
         # Chiamata alla funzione principale
         df_risk, df_open, df_prezzi, fig = compute_downside_upperside_risk(
