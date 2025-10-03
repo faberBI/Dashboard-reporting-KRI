@@ -270,7 +270,7 @@ if selected_kri == "⚡ Energy Risk":
         import pandas as pd
         
         # Applica la formattazione a tutte le colonne tranne eventualmente l'anno
-        cols_to_format = [c for c in df_prezzi.columns if c.lower() != "anno"]
+        cols_to_format = [c for c in df_prezzi.columns if c.lower() != "Year"]
         
         df_display = df_prezzi.copy()
         for col in cols_to_format:
