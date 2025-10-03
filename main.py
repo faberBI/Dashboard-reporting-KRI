@@ -216,16 +216,13 @@ if selected_kri == "Energy Risk":
         predict_price += [0] * missing_len_pp
         p95 += [0] * missing_len_p95
         p5 += [0] * missing_len_p5
-        
+
         # Chiamata alla funzione principale
         df_risk, df_open, df_prezzi, fig = compute_downside_upperside_risk(
             unique_years, fabbisogno, covered, solar,
             anni_prezzi, historical_price, predict_price, p95, p5,
             forward_price, budget_price,
-            observation_period=start_date.strftime("%d/%m/%Y"),
-            output_path=f"Simulation_VaR_results_{start_date.strftime('%Y%m%d')}.xlsx",
-            chart_path=f"{start_date.strftime('%Y%m%d')}_PUN_€_MWh.png"
-        )
+            observation_period=start_date.strftime("%d/%m/%Y"))
         
         # Visualizzazione su Streamlit
         st.pyplot(fig)
