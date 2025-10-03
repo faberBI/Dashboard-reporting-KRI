@@ -272,7 +272,7 @@ if selected_kri == "Energy Risk":
         st.pyplot(fig)
 
         st.success("Simulazione completata!")
-        st.image("var_ebitda_risk.png", caption="VaR EBITDA Risk")
+
         st.dataframe(df_risk.head())
         st.download_button("Scarica risultati Excel",
                            data=open("Simulation_VaR_results.xlsx", "rb").read(),
