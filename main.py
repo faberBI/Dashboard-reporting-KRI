@@ -192,6 +192,7 @@ if selected_kri == "Energy Risk":
         # --------------------------------------
 
         forecast_price = pd.DataFrame(yearly_percentiles) # {anno: (p5, p50, p95)}
+        st.dataframe(forecast_price)
 
         # Lista anni forecast ordinata
         unique_years = sorted(list(forecast_price.keys()))
