@@ -30,7 +30,7 @@ kri_options = ["Energy Risk", "Natural Event Risk", "KRI 3"]
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
 
-selected_kri = st.sidebar.selectbox("Seleziona KRI", kri_options)
+selected_kri = st.sidebar.selectbox("📑 Seleziona KRI", kri_options)
 
 uploaded_file = st.sidebar.file_uploader(
     f"Carica Excel per {selected_kri}", type="xlsx", key=selected_kri
@@ -53,7 +53,7 @@ if st.session_state.kri_data:
 # Analisi specifica per ENERGY RISK
 # -----------------------
 if selected_kri == "Energy Risk":  
-    st.subheader("Parametri di simulazione Energy Risk")
+    st.subheader("📌 Parametri di simulazione Energy Risk")
 
     # Controlla se i dati KRI sono caricati
     if "kri_data" not in st.session_state:
@@ -122,7 +122,7 @@ if selected_kri == "Energy Risk":
     # -----------------------
     # Lancia simulazione
     # -----------------------
-    if st.button("Esegui simulazione Energy Risk"):
+    if st.button("💹 Esegui simulazione Energy Risk"):
         st.info("Simulazione in corso...")
 
         # Prova a caricare il file Excel locale
