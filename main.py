@@ -130,7 +130,7 @@ if selected_kri == "Energy Risk":
         df_excel = None
         if os.path.exists(data_path):
             df_excel = pd.read_excel(data_path)
-            st.success(f"Dati caricati da {data_path}")
+            st.success(f"🔄 Dati Caricati")
 
         # Se il file locale non esiste o è vuoto, richiedi upload
         if df_excel is None or df_excel.empty:
