@@ -285,15 +285,16 @@ if selected_kri == "⚡ Energy Risk":
         # Copia del DataFrame per styling
         df_styled = df_risk.style
 
+        cols_to_format = [c for c in df_risk.columns if c.lower()  not in ["year", "anno", "Year"]]
         # Applica rosso tenue alle colonne "Downside"
-        downside_cols = [c for c in df_risk.columns if c.startswith("Downside")]
+        downside_cols = [c for c in cols_to_format.columns if c.startswith("Downside")]
         if downside_cols:
             df_styled = df_styled.background_gradient(
             cmap='Reds', low=0.1, high=0.4, subset=downside_cols
             )
 
         # Applica verde tenue alle colonne "Upside"
-        upside_cols = [c for c in df_risk.columns if c.startswith("Upside")]
+        upside_cols = [c for c in cols_to_format.columns if c.startswith("Upside")]
         if upside_cols:
             df_styled = df_styled.background_gradient(
             cmap='Greens', low=0.1, high=0.4, subset=upside_cols
