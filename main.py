@@ -111,42 +111,69 @@ if selected_kri == "Energy Risk":
         st.stop()
 
 
-    # -----------------------
-    # Lancia simulazione
-    # -----------------------
-    if st.button("Esegui simulazione Energy Risk"):
-        st.info("Simulazione in corso...")
-    # ---------------------------
-    # Caricamento file Excel
-    # ---------------------------
-        uploaded_file = st.file_uploader("Seleziona il file Excel PUN", type=["xlsx"])
+            # -----------------------
+        # Lancia simulazione
+        # -----------------------
+        if st.button("Esegui simulazione Energy Risk"):
+            st.info("Simulazione in corso...")
         
-        if uploaded_file:
-            try:
-                df = pd.read_excel(uploaded_file)
-                
-                # Controllo colonne obbligatorie
-                if 'Date' not in df.columns or 'GMEPIT24 Index' not in df.columns:
-                    st.error("Il file Excel deve contenere le colonne 'Date' e 'GMEPIT24 Index'.")
+            # ---------------------------
+            # Caricamento file Excel
+            # ---------------------------
+            uploaded_file = st.file_uploader("Seleziona il file Excel PUN", type=["xlsx"])
+        
+            if uploaded_file:
+                try:
+                    df = pd.read_excel(uploaded_file)
+                    
+                    # Controllo colonne obbligatorie
+                    if 'Date' not in df.columns or 'GMEPIT24 Index' not in df.columns:
+                        st.error("Il file Excel deve contenere le colonne 'Date' e 'GMEPIT24 Index'.")
+                        st.stop()
+                    
+                    # Converte Date e calcola Log_Returns
+                    df['Date'] = pd.to_datetime(df['Date'])
+                    df['Log_Returns'] = np.log(df['GMEPIT24 Index'] / df['GMEPIT24 Index'].shift(1))
+                    df = df.dropna(subset=['Log_Returns'])
+                    
+                    st.success("Dati caricati correttamente!")
+                    st.dataframe(df.head())
+        
+                    # Filtra per intervallo di date selezionato
+                    df_filtered = df[(df['Date'] >= pd.to_datetime(start_date)) & 
+                                     (df['Date'] <= pd.to_datetime(end_date))]
+                    if df_filtered.empty:
+                        st.error("Il filtro ha prodotto un DataFrame vuoto")
+                        st.stop()
+        
+                    # ---------------------------
+                    # Simulazione Heston
+                    # ---------------------------
+                    best_params, simulated_prices = run_heston(
+                        df_filtered,
+                        n_trials=n_trials_heston,
+                        n_simulations=n_simulations,
+                        end_date=end_date
+                    )
+        
+                    future_dates = pd.date_range(start=df_filtered['Date'].max(), periods=(pd.to_datetime(end_date)-df_filtered['Date'].max()).days, freq='D')
+                    simulated_df = pd.DataFrame(simulated_prices.T, index=future_dates,
+                                                columns=[f"Simulazione {i+1}" for i in range(n_simulations)])
+                    simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
+        
+                    # Analisi distribuzione
+                    monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
+                    st.pyplot(fig)
+        
+                    st.success("Simulazione completata!")
+        
+                except Exception as e:
+                    st.error(f"Errore durante la simulazione: {e}")
                     st.stop()
-                
-                # Assicurati che la colonna Date sia in formato datetime
-                df['Date'] = pd.to_datetime(df['Date'])
-                
-                # Calcolo Log_Returns
-                df['Log_Returns'] = np.log(df['GMEPIT24 Index'] / df['GMEPIT24 Index'].shift(1))
-                
-                st.success("Dati caricati correttamente!")
-                st.dataframe(df.head())
-                
-                # Adesso df può essere passato a run_heston
-                # best_params, simulated_prices = run_heston(df, ...)
         
-            except Exception as e:
-                st.error(f"Errore caricamento Excel: {e}")
-                st.stop()
-        else:
-            st.warning("Carica il file Excel per procedere.")
+            else:
+                st.warning("Carica il file Excel per procedere con la simulazione.")
+
 
         df_filtered = df
         # 3. Simulazione Heston
