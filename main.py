@@ -23,9 +23,15 @@ from functions.montecarlo import historical_VaR, run_heston, analyze_simulation,
 st.title("📊 Dashboard KRI")
 
 # -----------------------
+# Configurazione Streamlit
+# -----------------------
+st.set_page_config(page_title="KRI Dashboard", page_icon="📊", layout="wide")
+st.title("📊 Dashboard KRI")
+
+# -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["Energy Risk", "Natural Event Risk", "KRI 3"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "📌 KRI 3"]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -33,21 +39,24 @@ if "kri_data" not in st.session_state:
 selected_kri = st.sidebar.selectbox("📑 Seleziona KRI", kri_options)
 
 uploaded_file = st.sidebar.file_uploader(
-    f"Carica Excel per {selected_kri}", type="xlsx", key=selected_kri
+    f"📂 Carica file Excel per {selected_kri}", type="xlsx", key=selected_kri
 )
 
 if uploaded_file:
     df = load_kri_excel(uploaded_file, selected_kri)
     if validate_kri_data(df, selected_kri):
         st.session_state.kri_data[selected_kri] = df
-        st.success(f"{selected_kri} aggiunto con successo!")
+        st.success(f"✅ {selected_kri} aggiunto con successo!")
 
+# -----------------------
 # Mostra KRI caricati
+# -----------------------
 if st.session_state.kri_data:
-    st.subheader("KRI caricati")
+    st.subheader("📊 KRI caricati")
     for kri_name, df in st.session_state.kri_data.items():
-        st.write(f"**{kri_name}**")
+        st.markdown(f"### 📌 **{kri_name}**")
         st.dataframe(df.head())
+
 
 # -----------------------
 # Analisi specifica per ENERGY RISK
