@@ -346,3 +346,34 @@ if selected_kri == "⚡ Energy Risk":
         st.pyplot(fig)
 
         st.success("Simulazione completata!")
+        # Pulsante per scaricare Excel
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            # df_prezzi
+            df_prezzi.to_excel(writer, sheet_name='Prezzi PUN', index=False)
+    
+            # df_risk
+            df_risk.to_excel(writer, sheet_name='Analisi Rischio', index=False)
+    
+            # df_historical
+            df_historical.to_excel(writer, sheet_name='Historical Price', index=False)
+    
+            # forecast_price
+            forecast_price.to_excel(writer, sheet_name='Forecast PUN', index=True)
+    
+            # Serie PUN storica
+            if 'energy_df' in st.session_state:
+                st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
+    
+            writer.save()
+            buffer.seek(0)
+
+        st.download_button(
+            label="💾 Scarica tutti i dati del Energy Risk in Excel ",
+            data=buffer,
+            file_name="KRI_Energy_Risk.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+
+
