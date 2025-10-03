@@ -271,10 +271,29 @@ if selected_kri == "⚡ Energy Risk":
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
         st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
 
-        # Colori per evidenziare i valori più alti
-        st.dataframe(
-        df_risk.style.background_gradient(cmap='Greens', low=0.1, high=0.4,subset=df_risk.columns[1:]).format("{:.0f}")  # Senza decimali, più leggibile per valori grandi
-        )
+
+        # Copia del DataFrame per styling
+        df_styled = df_risk.style
+
+        # Applica rosso tenue alle colonne "Downside"
+        downside_cols = [c for c in df_risk.columns if c.startswith("Downside")]
+        if downside_cols:
+            df_styled = df_styled.background_gradient(
+            cmap='Reds', low=0.1, high=0.4, subset=downside_cols
+            )
+
+        # Applica verde tenue alle colonne "Upside"
+        upside_cols = [c for c in df_risk.columns if c.startswith("Upside")]
+        if upside_cols:
+            df_styled = df_styled.background_gradient(
+            cmap='Greens', low=0.1, high=0.4, subset=upside_cols
+                )
+        # Formattazione in milioni di euro
+        def format_mln_euro(x):
+            return f"€ {x/1e6:,.2f} Mln"
+
+        # Mostra il DataFrame con formattazione in Euro milioni
+        st.dataframe(df_styled.format(format_mln_euro))
 
         # Grafico VaR EBITDA
         fig = var_ebitda_risk(periodo_di_analisi=end_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, font_path="utils/TIMSans-Medium.ttf")
