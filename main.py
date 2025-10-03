@@ -181,7 +181,7 @@ if selected_kri == "Energy Risk":
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
         
-        #simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
+        # simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
 
         # Analisi distribuzione
         monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
@@ -190,39 +190,44 @@ if selected_kri == "Energy Risk":
         # Forecast + storico
 
         forecast_price = yearly_percentiles  # {anno: (p5, p50, p95)}
-
+        
         predict_price = [forecast_price[year][1] for year in unique_years]  # 50%
         p5 = [forecast_price[year][0] for year in unique_years]             # 5%
         p95 = [forecast_price[year][2] for year in unique_years]            # 95%
-
+        
+        # Aggiungiamo colonna Year al df storico
         df_filtered['Year'] = df_filtered['Date'].dt.year
-        # Storico + forecast
+        
+        # Combinazione Storico + forecast
         anni_prezzi = sorted(df_filtered['Year'].unique().tolist()) + unique_years
         historical_price = df_filtered.groupby('Year')['GMEPIT24 Index'].mean().tail(len(anni_prezzi)).tolist()
-
-
-        # Adeguamento lunghezze
+        
+        # Adeguamento lunghezze dei vettori
         missing_len_hp = len(anni_prezzi) - len(historical_price)
-        missing_len_b = len(anni_prezzi) - len(budget_price)
-        missing_len_f = len(anni_prezzi) - len(forward_price)
+        missing_len_b  = len(anni_prezzi) - len(budget_price)
+        missing_len_f  = len(anni_prezzi) - len(forward_price)
         missing_len_pp = len(anni_prezzi) - len(predict_price)
         missing_len_p95 = len(anni_prezzi) - len(p95)
-        missing_len_p5 = len(anni_prezzi) - len(p5)
-
+        missing_len_p5  = len(anni_prezzi) - len(p5)
+        
         historical_price += [0] * missing_len_hp
         budget_price = [0] * missing_len_b + budget_price
         forward_price = [0] * missing_len_f + forward_price
         predict_price += [0] * missing_len_pp
         p95 += [0] * missing_len_p95
         p5 += [0] * missing_len_p5
-
-        # Calcolo rischio
+        
+        # Chiamata alla funzione principale
         df_risk, df_open, df_prezzi, fig = compute_downside_upperside_risk(
             unique_years, fabbisogno, covered, solar,
             anni_prezzi, historical_price, predict_price, p95, p5,
             forward_price, budget_price,
-            observation_period=start_date.strftime("%d/%m/%Y")
+            observation_period=start_date.strftime("%d/%m/%Y"),
+            output_path=f"Simulation_VaR_results_{start_date.strftime('%Y%m%d')}.xlsx",
+            chart_path=f"{start_date.strftime('%Y%m%d')}_PUN_€_MWh.png"
         )
+        
+        # Visualizzazione su Streamlit
         st.pyplot(fig)
         st.dataframe(df_risk)
         st.dataframe(df_open)
