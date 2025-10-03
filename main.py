@@ -13,15 +13,6 @@ import optuna
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.montecarlo import historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk
-
-
-
-# -----------------------
-# Configurazione Streamlit
-# -----------------------
-
-st.title("📊 Dashboard KRI")
-
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
