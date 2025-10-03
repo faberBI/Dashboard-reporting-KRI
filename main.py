@@ -365,8 +365,6 @@ if selected_kri == "⚡ Energy Risk":
             # Serie PUN storica
             if 'energy_df' in st.session_state:
                 st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
-    
-            writer.save()
             buffer.seek(0)
 
         st.download_button(
