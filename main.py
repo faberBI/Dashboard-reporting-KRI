@@ -263,16 +263,16 @@ if selected_kri == "⚡ Energy Risk":
 
         # Visualizzazione su Streamlit
         st.pyplot(fig)
+        
         st.markdown("### 📈 Analisi Prezzi PUN ")
         st.info("Tabella contenente media PUN, percentili, Forward e Budget per ogni anno.")
-        def format_euro(x):
-            return f"€ {x:,.2f}"
-
         # Applica la formattazione a tutte le colonne tranne eventualmente l'anno
         cols_to_format = [c for c in df_prezzi.columns if c.lower() != "anno"]
-        st.dataframe(
-        df_prezzi.style.format({col: format_euro for col in cols_to_format})
-        )
+        # Concateno € ai valori numerici, gestendo NaN
+        for col in cols_to_format:
+            df_display[col] = df_display[col].apply(lambda x: f"€ {x:,.2f}" if pd.notnull(x) else "")
+        st.dataframe(df_display)
+        
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
         st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
 
