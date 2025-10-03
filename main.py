@@ -281,39 +281,40 @@ if selected_kri == "⚡ Energy Risk":
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
         st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
 
-        # Copia del DataFrame per styling
+            # Copia del DataFrame per styling
         df_styled = df_risk.style
-
+        
         # Colonne da escludere dalla formattazione in milioni
         exclude_cols = ["Year", "Anno", "year", "anno"]
-
+        
         # Colonne da formattare in milioni di euro
         cols_to_format = [c for c in df_risk.columns if c not in exclude_cols]
-
+        
         # Applica rosso tenue alle colonne "Downside"
         downside_cols = [c for c in df_risk.columns if c.startswith("Downside")]
         if downside_cols:
             df_styled = df_styled.background_gradient(
-            cmap='Reds', low=0.1, high=0.4, subset=downside_cols
+                cmap='Reds', low=0.1, high=0.4, subset=downside_cols
             )
-
+        
         # Applica verde tenue alle colonne "Upside"
         upside_cols = [c for c in df_risk.columns if c.startswith("Upside")]
         if upside_cols:
             df_styled = df_styled.background_gradient(
-            cmap='Greens', low=0.1, high=0.4, subset=upside_cols
+                cmap='Greens', low=0.1, high=0.4, subset=upside_cols
             )
-    
-        # Formattazione in milioni di euro (solo sulle colonne selezionate)
+        
+        # Funzione di formattazione in milioni di euro
         def format_mln_euro(x):
             return f"€ {x/1e6:,.2f} Mln" if pd.notnull(x) else ""
-
-        for col in cols_to_format:
-            df_styled = df_styled.format({col: format_mln_euro})
-
+        
+        # Applica la formattazione a tutte le colonne selezionate in **un unico passaggio**
+        format_dict = {col: format_mln_euro for col in cols_to_format}
+        df_styled = df_styled.format(format_dict)
+        
         # Visualizza su Streamlit
         st.dataframe(df_styled)
-
+        
         # Grafico VaR EBITDA
         fig = var_ebitda_risk(periodo_di_analisi=end_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, font_path="utils/TIMSans-Medium.ttf")
         st.pyplot(fig)
