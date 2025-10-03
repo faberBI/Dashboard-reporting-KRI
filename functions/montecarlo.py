@@ -448,10 +448,12 @@ def compute_downside_upperside_risk(
 
     ax.axvspan(2019.5, 2023.5, color="#ffffff", alpha=0.4)
     ax.axvspan(2023.5, 2027.5, color="#ffffff", alpha=0.2)
-    ax.axvline(2024, color="gray", linestyle="--")
+    anno_oggi = pd.Timestamp.today().year
+    ax.axvline(anno_oggi, color="gray", linestyle="--")
+    
     ax.text(2020.2, 310, "Historical data", fontsize=12, color="#5e7ab0", backgroundcolor="#daecff")
     ax.text(2024.2, 310, "Predictive data", fontsize=12, color="#5e7ab0", backgroundcolor="#daecff")
-    ax.text(2024, -10, f"{observation_period}", ha="center", fontsize=10, color="gray")
+    ax.text(anno_oggi, -10, f"{observation_period}", ha="center", fontsize=10, color="gray")
 
     def replace_last_zero_with_value(lst, last_value):
         if 0 in lst:
