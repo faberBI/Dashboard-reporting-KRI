@@ -41,17 +41,13 @@ if uploaded_file:
         st.success(f"✅ {selected_kri} aggiunto con successo!")
 
 # -----------------------
-# Mostra KRI caricati
+# Mostra KRI caricati solo per il KRI selezionato
 # -----------------------
-if st.session_state.kri_data:
-    st.subheader("📊 KRI caricati")
-    for kri_name, df in st.session_state.kri_data.items():
-        st.markdown(f"### 📌 **{kri_name}**")
-    # Mostra solo il KRI selezionato
-    if selected_kri in st.session_state.kri_data:
-        df = st.session_state.kri_data[selected_kri]
-        st.markdown(f"### 📌 **{selected_kri}**")
-        st.dataframe(df.head())
+if selected_kri in st.session_state.kri_data:
+    df = st.session_state.kri_data[selected_kri]
+    st.subheader(f"📌 {selected_kri}")  # Usa subheader o markdown una sola volta
+    st.dataframe(df.head())
+
 
 
 # -----------------------
