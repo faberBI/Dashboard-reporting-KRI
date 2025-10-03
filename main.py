@@ -17,9 +17,6 @@ from functions.montecarlo import historical_VaR, run_heston, analyze_simulation,
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
-import streamlit as st
-import pandas as pd
-
 st.set_page_config(page_title="KRI Dashboard", page_icon="📊", layout="wide")
 st.title("📊 Dashboard KRI")
 
@@ -214,7 +211,7 @@ if selected_kri == "⚡ Energy Risk":
         st.info("Questi sono i valori previsionali basati sui percentili annuali.")  # box informativo
 
         # Mostra il DataFrame con stile
-        st.dataframe(forecast_price.style.background_gradient(cmap='Blues').format("{:.2f}"))
+        st.dataframe(forecast_price.style.background_gradient(cmap='Greens', low=0.1, high=0.4).format("{:.2f}"))
 
         # Combinazione anni storico + forecast
         anni_prezzi = [2020, 2021, 2022, 2023, 2024] + unique_years
@@ -228,7 +225,7 @@ if selected_kri == "⚡ Energy Risk":
         st.info("Media storica PUN per gli anni disponibili.")  # Box informativo
         df_historical = pd.DataFrame({"Historical Price": historical_price, "Year": anni_prezzi[:len(historical_price)]})
         # Mostra il DataFrame con sfumatura di colori
-        st.dataframe(df_historical.style.background_gradient(cmap='Oranges').format("{:.2f}"))
+        st.dataframe(df_historical.style.background_gradient(cmap='Greens', low=0.1, high=0.4).format("{:.2f}"))
 
         predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
@@ -280,9 +277,7 @@ if selected_kri == "⚡ Energy Risk":
 
         # Colori per evidenziare i valori più alti
         st.dataframe(
-        df_risk.style
-        .background_gradient(cmap='Reds', subset=df_risk.columns[1:])  # Esclude la colonna Year
-        .format("{:.0f}")  # Senza decimali, più leggibile per valori grandi
+        df_risk.style.background_gradient(cmap='Greens', low=0.1, high=0.4,subset=df_risk.columns[1:]).format("{:.0f}")  # Senza decimali, più leggibile per valori grandi
         )
 
         # Grafico VaR EBITDA
@@ -290,8 +285,3 @@ if selected_kri == "⚡ Energy Risk":
         st.pyplot(fig)
 
         st.success("Simulazione completata!")
-
-        st.dataframe(df_risk.head())
-        st.download_button("Scarica risultati Excel",
-                           data=open("Simulation_VaR_results.xlsx", "rb").read(),
-                           file_name="Simulation_VaR_results.xlsx")
