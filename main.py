@@ -236,7 +236,7 @@ if selected_kri == "Energy Risk":
         p95=p95,
         p5=p5,
         frwd=forward_price_full,
-        budget=budget_price_full,
+        budget=budget_price,
         observation_period=start_date.strftime("%d/%m/%Y"))
         
         # Visualizzazione su Streamlit
