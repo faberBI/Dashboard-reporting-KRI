@@ -256,11 +256,7 @@ if selected_kri == "Energy Risk":
         st.info("Tabella contenente media PUN, percentili, Forward e Budget per ogni anno.")
 
         # Colori per evidenziare i valori più alti
-        st.dataframe(
-        df_prezzi.style
-        .background_gradient(cmap='Blues', subset=["Media PUN", "Predictive", "95° percentile", "5° percentile", "frwd", "budget"])
-        .format("{:.2f}")
-        )
+        st.dataframe(df_prezzi)
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
         st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
 
