@@ -266,6 +266,9 @@ if selected_kri == "⚡ Energy Risk":
         
         st.markdown("### 📈 Analisi Prezzi PUN ")
         st.info("Tabella contenente media PUN, percentili, Forward e Budget per ogni anno.")
+        
+        import pandas as pd
+        
         # Applica la formattazione a tutte le colonne tranne eventualmente l'anno
         cols_to_format = [c for c in df_prezzi.columns if c.lower() != "anno"]
         # Concateno € ai valori numerici, gestendo NaN
