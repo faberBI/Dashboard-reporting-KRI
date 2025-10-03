@@ -70,11 +70,11 @@ def get_kri_dataframe(selected_kri, uploaded_file):
         elif selected_kri == "🌪️ Natural Event Risk":
             df = pd.DataFrame({
                 "id": [1, 2],
-                "comune": ["ComuneA", "ComuneB"],
-                "zona": ["Zona1", "Zona2"],
+                "comune": ["Milano", "Capua"],
+                "zona": ["B12", "C2"],
                 "lat": [45.0, 45.5],
                 "long": [9.0, 9.5],
-                "codice_comune": ["001", "002"],
+                "codice_comune": ["F205", "B715"],
                 "building": [200000, 250000],
                 "content": [50000, 60000]
             })
