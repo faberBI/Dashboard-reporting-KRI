@@ -271,7 +271,8 @@ if selected_kri == "⚡ Energy Risk":
         
         # Applica la formattazione a tutte le colonne tranne eventualmente l'anno
         cols_to_format = [c for c in df_prezzi.columns if c.lower() != "anno"]
-
+        
+        df_display = df_prezzi.copy()
         for col in cols_to_format:
             df_display[col] = df_display[col].apply(lambda x: f"€ {x}" if pd.notnull(x) else "")
         st.dataframe(df_display)
