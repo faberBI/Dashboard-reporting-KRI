@@ -15,6 +15,10 @@ from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk
 
 
+# Library custom
+from utils.data_loader import load_kri_excel, validate_kri_data
+from functions.energy_risk import historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk
+
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
@@ -35,59 +39,66 @@ uploaded_file = st.sidebar.file_uploader(
     f"📂 Carica file Excel per {selected_kri}", type="xlsx", key=selected_kri
 )
 
-if uploaded_file:
-    df = load_kri_excel(uploaded_file, selected_kri)  # funzione che definisci tu
-    if validate_kri_data(df, selected_kri):          # funzione che definisci tu
+# -----------------------
+# Funzione per ottenere DataFrame KRI
+# -----------------------
+def get_kri_dataframe(selected_kri, uploaded_file):
+    df = None
+    if uploaded_file:
+        try:
+            df = load_kri_excel(uploaded_file, selected_kri)
+            if validate_kri_data(df, selected_kri):
+                st.session_state.kri_data[selected_kri] = df
+                st.success(f"✅ {selected_kri} aggiunto con successo!")
+            else:
+                st.warning(f"⚠️ File Excel non valido per {selected_kri}. Uso dati di default.")
+                df = None
+        except Exception as e:
+            st.warning(f"⚠️ Errore nel caricamento: {e}. Uso valori di default.")
+            df = None
+
+    if df is None:
+        if selected_kri == "⚡ Energy Risk":
+            df = pd.DataFrame({
+                "Anno": [2025, 2026, 2027],
+                "Fabbisogno": [1548, 1557, 1373],
+                "Covered": [1408.6, 933.9, 619],
+                "Solar": [0, 203, 422],
+                "Forward Price": [115.99, 106.85, 94.00],
+                "Budget Price": [115, 121, 120]
+            })
+        elif selected_kri == "🌪️ Natural Event Risk":
+            df = pd.DataFrame({
+                "id": [1, 2],
+                "comune": ["ComuneA", "ComuneB"],
+                "zona": ["Zona1", "Zona2"],
+                "lat": [45.0, 45.5],
+                "long": [9.0, 9.5],
+                "codice_comune": ["001", "002"],
+                "building": [200000, 250000],
+                "content": [50000, 60000]
+            })
+        else:
+            df = pd.DataFrame()
+        st.warning(f"⚠️ Nessun file Excel caricato per {selected_kri}. Uso valori di default.")
         st.session_state.kri_data[selected_kri] = df
-        st.success(f"✅ {selected_kri} aggiunto con successo!")
+
+    return df
 
 # -----------------------
-# Mostra KRI caricati solo per il KRI selezionato
+# Carica o crea DataFrame
 # -----------------------
-if selected_kri in st.session_state.kri_data:
-    df = st.session_state.kri_data[selected_kri]
-    st.subheader(f"📌 {selected_kri}")  # Usa subheader o markdown una sola volta
-    st.dataframe(df.head())
-
-
+df = get_kri_dataframe(selected_kri, uploaded_file)
+st.subheader(f"📌 {selected_kri}")
+st.dataframe(df.head())
 
 # -----------------------
-# Analisi specifica per ENERGY RISK
+# Logica specifica KRI
 # -----------------------
 if selected_kri == "⚡ Energy Risk":
     st.subheader("📌 Parametri di simulazione Energy Risk")
 
-    # Se esiste df già in session_state e c'è un file caricato
-    if selected_kri in st.session_state.kri_data and uploaded_file:
-        df = st.session_state.kri_data[selected_kri]
-    else:
-        # Se non ci sono dati, crea un DataFrame vuoto con valori di default
-        st.warning("⚠️ Nessun file Excel caricato: usare i valori di default o inserire manualmente i dati")
-        df = pd.DataFrame({
-            "Anno": [2025, 2026, 2027],
-            "Fabbisogno": [1548, 1557, 1373],
-            "Covered": [1408.6, 933.9, 619],
-            "Solar": [0, 203, 422],
-            "Forward Price": [115.99, 106.85, 94.00],
-            "Budget Price": [115, 121, 120]
-        })
-        st.session_state.kri_data[selected_kri] = df
-
-    # -----------------------
-    # Date e simulazioni
-    # -----------------------
-    end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
-    start_date = pd.Timestamp.today().normalize()
-    days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-    future_dates = pd.date_range(start=start_date, periods=days_to_simulate, freq='D')
-    unique_years = sorted(future_dates.year.unique().tolist())
-
-    n_simulations = st.number_input("Numero di simulazioni", min_value=100, max_value=100_000, value=10_000, step=100)
-    n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
-
-    # -----------------------
-    # Parametri aggiuntivi (da Excel se presenti, altrimenti input manuali)
-    # -----------------------
+    # Parametri input manuale
     def df_to_str(df, col_name, default):
         if col_name in df.columns:
             values = df[col_name].dropna().tolist()
@@ -95,25 +106,13 @@ if selected_kri == "⚡ Energy Risk":
                 return ",".join(map(str, values))
         return default
 
-    default_fabbisogno = df_to_str(df, "Fabbisogno", "1548,1557,1373")
-    default_covered = df_to_str(df, "Covered", "1408.6,933.9,619")
-    default_solar = df_to_str(df, "Solar", "0,203,422")
-    default_forward_price = df_to_str(df, "Forward Price", "115.99,106.85,94.00")
-    default_budget_price = df_to_str(df, "Budget Price", "115,121,120")
+    fabbisogno = st.text_input("Fabbisogno (MWh)", df_to_str(df, "Fabbisogno", "1548,1557,1373"))
+    covered = st.text_input("Covered (MWh)", df_to_str(df, "Covered", "1408.6,933.9,619"))
+    solar = st.text_input("Solar (MWh)", df_to_str(df, "Solar", "0,203,422"))
+    forward_price = st.text_input("Forward Price (€)", df_to_str(df, "Forward Price", "115.99,106.85,94.00"))
+    budget_price = st.text_input("Budget Price (€)", df_to_str(df, "Budget Price", "115,121,120"))
 
-    st.markdown("### Inserimento manuale parametri ⚡")
-    col1, col2 = st.columns(2)
-    with col1:
-        fabbisogno = st.text_input("Fabbisogno (MWh)", default_fabbisogno)
-        covered = st.text_input("Covered (MWh)", default_covered)
-        solar = st.text_input("Solar (MWh)", default_solar)
-    with col2:
-        forward_price = st.text_input("Forward Price (€)", default_forward_price)
-        budget_price = st.text_input("Budget Price (€)", default_budget_price)
-
-    # -----------------------
     # Parsing input
-    # -----------------------
     try:
         fabbisogno = [float(x) for x in fabbisogno.split(",")]
         covered = [float(x) for x in covered.split(",")]
@@ -124,13 +123,20 @@ if selected_kri == "⚡ Energy Risk":
         st.error(f"❌ Errore nei parametri: {e}")
         st.stop()
 
-    # Controllo lunghezze coerenti
     if not (len(fabbisogno) == len(covered) == len(solar) == len(forward_price) == len(budget_price)):
         st.error("⚠️ Tutti i parametri devono avere lo stesso numero di valori per anno.")
         st.stop()
 
     st.success("✅ Parametri validi, pronti per la simulazione!")
 
+    # Simulazione
+    n_simulations = st.number_input("Numero di simulazioni", min_value=100, max_value=100_000, value=10_000, step=100)
+    n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
+    end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
+    start_date = pd.Timestamp.today().normalize()
+    days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
+    future_dates = pd.date_range(start=start_date, periods=days_to_simulate, freq='D')
+    unique_years = sorted(future_dates.year.unique().tolist())
     # -----------------------
     # Lancia simulazione
     # -----------------------
