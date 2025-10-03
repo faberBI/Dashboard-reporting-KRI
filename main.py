@@ -141,6 +141,9 @@ if selected_kri == "Energy Risk":
                 # Filtra per intervallo di date selezionato
                 df_filtered = df[(df['Date'] >= pd.to_datetime(start_date)) & 
                                  (df['Date'] <= pd.to_datetime(end_date))]
+                
+                st.session_state.energy_df = df_filtered
+                
                 if df_filtered.empty:
                     st.error("Il filtro ha prodotto un DataFrame vuoto")
                     st.stop()
@@ -148,6 +151,7 @@ if selected_kri == "Energy Risk":
                 # ---------------------------
                 # Simulazione Heston
                 # ---------------------------
+                df_filtered = st.session_state.energy_df
                 best_params, simulated_prices = run_heston(
                     df_filtered,
                     n_trials=n_trials_heston,
