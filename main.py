@@ -155,8 +155,7 @@ if selected_kri == "Energy Risk":
         st.session_state.energy_df = df_excel
 
         # Filtra per intervallo date selezionato
-        df_filtered = df_excel[(df_excel['Date'] >= pd.to_datetime(start_date)) &
-                               (df_excel['Date'] <= pd.to_datetime(end_date))]
+        df_filtered = df_excel
         if df_filtered.empty:
             st.error("Il filtro ha prodotto un DataFrame vuoto")
             st.stop()
