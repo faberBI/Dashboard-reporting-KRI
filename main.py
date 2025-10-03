@@ -196,7 +196,7 @@ if selected_kri == "Energy Risk":
         st.dataframe(forecast_price) 
         
         # Combinazione anni storico + forecast
-        anni_prezzi = sorted(df_filtered['Date'].dt.year.unique().tolist()) + unique_years
+        anni_prezzi = [2020, 2021, 2022, 2023, 2024] + unique_years
         anni_prezzi = [int(y) for y in anni_prezzi]
         st.dataframe(anni_prezzi)  
         
