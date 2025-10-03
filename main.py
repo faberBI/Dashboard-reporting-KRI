@@ -199,14 +199,12 @@ if selected_kri == "Energy Risk":
         # Combinazione anni storico + forecast
         anni_prezzi = sorted(df_filtered['Date'].dt.year.unique().tolist()) + unique_years
 
-        #     Media storica PUN per gli anni storici
+        # Media storica PUN per gli anni storici
         historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
         historical_price = historical_price[:-1]
-
-        # Liste forecast (50%, 5%, 95%) e forward price
-        predict_price = [forecast_price[year][1] for year in unique_years]  # 50%
-        p5 = [forecast_price[year][0] for year in unique_years]             # 5%
-        p95 = [forecast_price[year][2] for year in unique_years]            # 95%
+        predict_price = forecast_price['50%'].values.tolist()
+        p95 = forecast_price['95%'].values.tolist()
+        p5 = forecast_price['5%'].values.tolist()
 
         # Lista forward price corrispondente agli anni forecast
         forward_price_full = forward_price.copy()  # assume forward_price contiene solo i valori forecast
