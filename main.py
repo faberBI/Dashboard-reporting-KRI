@@ -198,31 +198,48 @@ if selected_kri == "Energy Risk":
         # Aggiungiamo colonna Year al df storico
         df_filtered['Year'] = df_filtered['Date'].dt.year
         
-        # Combinazione Storico + forecast
+        # Lista anni totale: storico + forecast
         anni_prezzi = sorted(df_filtered['Year'].unique().tolist()) + unique_years
-        historical_price = df_filtered.groupby('Year')['GMEPIT24 Index'].mean().tail(len(anni_prezzi)).tolist()
-        
-        # Adeguamento lunghezze dei vettori
-        missing_len_hp = len(anni_prezzi) - len(historical_price)
-        missing_len_b  = len(anni_prezzi) - len(budget_price)
-        missing_len_f  = len(anni_prezzi) - len(forward_price)
-        missing_len_pp = len(anni_prezzi) - len(predict_price)
-        missing_len_p95 = len(anni_prezzi) - len(p95)
-        missing_len_p5  = len(anni_prezzi) - len(p5)
-        
-        historical_price += [0] * missing_len_hp
-        budget_price = [0] * missing_len_b + budget_price
-        forward_price = [0] * missing_len_f + forward_price
-        predict_price += [0] * missing_len_pp
-        p95 += [0] * missing_len_p95
-        p5 += [0] * missing_len_p5
 
+        # Prezzi storici medi
+        historical_price = df_filtered.groupby('Year')['GMEPIT24 Index'].mean().tolist()
+
+        # Lunghezza da adeguare
+        missing_len_hp = len(anni_prezzi) - len(historical_price)
+        historical_price += [None] * missing_len_hp  # None negli anni forecast
+
+        # --- Forecast ---
+        # predict_price (50%), p5 (5%), p95 (95%)
+        predict_price = [None] * len(df_filtered['Year'].unique())  # valori None per gli anni storici
+        p5 = [None] * len(df_filtered['Year'].unique())
+        p95 = [None] * len(df_filtered['Year'].unique())
+        forward_price_full = [None] * len(df_filtered['Year'].unique())
+
+        # Inseriamo i valori a partire dall’anno forecast
+        for i, year in enumerate(unique_years):
+            idx = len(df_filtered['Year'].unique()) + i
+            predict_price.append(forecast_price.loc[year, '50%'])
+            p5.append(forecast_price.loc[year, '5%'])
+            p95.append(forecast_price.loc[year, '95%'])
+            forward_price_full.append(forward_price[i])  # forward_price già ordinato per unique_years
+
+        # Budget price: se vuoi allinearlo come gli altri
+        budget_price_full = [None] * len(df_filtered['Year'].unique()) + budget_price
+    
         # Chiamata alla funzione principale
         df_risk, df_open, df_prezzi, fig = compute_downside_upperside_risk(
-            unique_years, fabbisogno, covered, solar,
-            anni_prezzi, historical_price, predict_price, p95, p5,
-            forward_price, budget_price,
-            observation_period=start_date.strftime("%d/%m/%Y"))
+        anni=unique_years,
+        fabbisogno=fabbisogno,
+        covered=covered,
+        solar=solar,
+        anni_prezzi=anni_prezzi,
+        media_pun=historical_price,
+        predictive=predict_price,
+        p95=p95,
+        p5=p5,
+        frwd=forward_price_full,
+        budget=budget_price_full,
+        observation_period=start_date.strftime("%d/%m/%Y"))
         
         # Visualizzazione su Streamlit
         st.pyplot(fig)
