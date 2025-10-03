@@ -51,9 +51,10 @@ if st.session_state.kri_data:
     st.subheader("📊 KRI caricati")
     # Mostra solo il KRI selezionato
     if selected_kri in st.session_state.kri_data:
-        df = st.session_state.kri_data[selected_kri]
+        df_to_show = st.session_state.kri_data[selected_kri]
         st.markdown(f"### 📌 **{selected_kri}**")
-        st.dataframe(df.head())
+        st.dataframe(df_to_show.head())
+
 
 
 # -----------------------
