@@ -20,8 +20,7 @@ from functions.montecarlo import historical_VaR, run_heston, analyze_simulation,
 # Configurazione Streamlit
 # -----------------------
 
-st.set_page_config(page_title="Dashboard KRI")
-st.title("Dashboard KRI")
+st.title("📊 Dashboard KRI")
 
 # -----------------------
 # Selezione KRI
