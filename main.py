@@ -221,6 +221,7 @@ if selected_kri == "⚡ Energy Risk":
         st.info("Media storica PUN per gli anni disponibili.")  # Box informativo
         df_historical = pd.DataFrame({"Historical Price": historical_price, "Year": anni_prezzi[:len(historical_price)]})
         # Mostra il DataFrame con sfumatura di colori
+        
         df_hist = df_historical.copy()
         # Colonne da escludere dalla formattazione in milioni
         exclude_cols = ["Year", "Anno", "year", "anno"]
@@ -228,7 +229,7 @@ if selected_kri == "⚡ Energy Risk":
         # Colonne da formattare in milioni di euro
         cols_to_format = [c for c in df_hist.columns if c not in exclude_cols]
         
-        st.dataframe(df_hist.style.background_gradient(cmap='Greens', low=0.1, high=0.4).format("{:.2f}"))
+        st.dataframe(df_hist[cols_to_format].style.background_gradient(cmap='Greens', low=0.1, high=0.4).format("{:.2f}"))
 
         predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
