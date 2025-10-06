@@ -136,7 +136,7 @@ def optimize_heston_model(df, n_trials=2000, end_date="2027-12-31"):
             dW1 = np.random.randn() * np.sqrt(dt)
             dW2 = rho * dW1 + np.sqrt(1 - rho**2) * np.random.randn() * np.sqrt(dt)
 
-            v_t = np.clip(v_t + kappa * (theta - v_t) * dt + sigma_v * np.sqrt(max(v_t, 0)) * dW2, 0, 1)
+            v_t = max(v_t + kappa * (theta - v_t) * dt + sigma_v * np.sqrt(max(v_t, 0)) * dW2, 0, 1)
             simulated_volatilities[t] = v_t
             dlogS = (mu - 0.5 * v_t) * dt + np.sqrt(v_t) * dW1
             simulated_log_returns[t] = dlogS
@@ -187,7 +187,6 @@ def simulate_heston(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate, n_simu
     log_prices = np.cumsum(simulated_log_returns*1.73, axis=1)
     simulated_prices = S0 * np.exp(log_prices)
     
-
     return simulated_prices, simulated_log_returns
 
 def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
@@ -195,17 +194,18 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
     best_params, study = optimize_heston_model(df, n_trials, end_date)
 
     # Step 2: Simulazione dei percorsi futuri usando i parametri ottimizzati
+    
     S0 = df['GMEPIT24 Index'].iloc[-1]
     days_to_simulate = (pd.to_datetime(end_date) - df['Date'].iloc[-1]).days
 
     simulated_prices, simulated_log_returns = simulate_heston(
-    S0,0.000207,
+        S0,0.000207,
         1.597124,
         0.000100,
         0.027288,
         -0.092343,
-    days_to_simulate,
-    n_simulations )
+        days_to_simulate,
+        n_simulations )
     
     simulated_prices = np.clip(simulated_prices, 48, 400)
 
@@ -258,10 +258,11 @@ def get_monthly_and_yearly_distribution(df, years):
         values_year = values_year[~np.isnan(values_year)]
 
         if len(values_year) > 0:
-            p5_y, p50_y, p95_y = np.percentile(values_year, [5, 50, 95])
+            p5_y, _, p95_y = np.percentile(values_year, [5, 50, 95])
             mean_y = np.mean(values_year)
 
-            yearly_percentiles[year] = (p5_y, p50_y, p95_y)
+            # Sostituisci il 50° percentile con la media
+            yearly_percentiles[year] = (p5_y, mean_y, p95_y)
             yearly_means[year] = mean_y
             yearly_distributions[year] = values_year
         else:
