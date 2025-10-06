@@ -14,11 +14,6 @@ import io
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk
 
-
-# Library custom
-from utils.data_loader import load_kri_excel, validate_kri_data
-from functions.energy_risk import historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk
-
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
@@ -202,7 +197,7 @@ if selected_kri == "⚡ Energy Risk":
         simulated_df = simulated_df.mask((simulated_df < 40) | (simulated_df >= 350))
 
         # Analisi distribuzione
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
+        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years, forward_prices= forward_price)  # <-- PASSA qui il forward price
         st.pyplot(fig)
 
         # --------------------------------------
