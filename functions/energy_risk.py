@@ -198,20 +198,15 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
     S0 = df['GMEPIT24 Index'].iloc[-1]
     days_to_simulate = (pd.to_datetime(end_date) - df['Date'].iloc[-1]).days
 
-
-    best_params = {0.000207,
-        1.597124,
-        0.000100,
-        0.027288,
-        -0.092343}
-
     simulated_prices, simulated_log_returns = simulate_heston(
-        S0,0.000207,
-        1.597124,
-        0.000100,
-        0.027288,
-        -0.092343 , days_to_simulate, n_simulations
-    )
+    S0,
+    best_params["mu"],
+    best_params["kappa"],
+    best_params["theta"],
+    best_params["sigma_v"],
+    best_params["rho"],
+    days_to_simulate,
+    n_simulations )
     # simulated_prices = np.clip(simulated_prices, 48, 220)
 
     # Step 3: Visualizzare il risultato delle simulazioni
