@@ -186,7 +186,7 @@ def simulate_heston(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate, n_simu
 
     log_prices = np.cumsum(simulated_log_returns, axis=1)
     simulated_prices = S0 * np.exp(log_prices)
-    simulated_prices = np.clip(simulated_prices, 48, 300)
+    simulated_prices = np.clip(simulated_prices, 48, 320)
 
     return simulated_prices, simulated_log_returns
 
