@@ -331,36 +331,36 @@ def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="di
 # Funzione principale che esegue tutto
 def analyze_simulation(sim_df, years):
     """
-    Calcola percentili mensili e annuali senza salvare nulla su disco.
-    Restituisce dizionari con percentili e medie.
+    Calcola percentili annuali senza salvare nulla su disco.
+    Restituisce dizionari con percentili e medie e la figura.
     """
     (
         monthly_distributions, monthly_percentiles, monthly_means,
         yearly_distributions, yearly_percentiles, yearly_means
     ) = get_monthly_and_yearly_distribution(sim_df, years)
-
-    # Genera il grafico ma non salva, restituisce la figura
-    fig, ax = plt.subplots(figsize=(14, 6))
-    selected_months = [k for k, v in monthly_distributions.items() if len(v) > 0]
-
-    for (year, month) in selected_months:
-        values = monthly_distributions.get((year, month), [])
+    
+    # Genera il grafico annuale
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    for year in years:
+        values = yearly_distributions.get(year, [])
         if len(values) == 0:
             continue
-        label = f"{year}-{month:02d}"
-        ax.hist(values, bins=100, alpha=0.4, label=label, density=True)
-        p5, p50, p95 = monthly_percentiles.get((year, month), (None, None, None))
+        label = str(year)
+        ax.hist(values, bins=50, alpha=0.4, label=label, density=True)
+        
+        p5, p50, p95 = yearly_percentiles.get(year, (None, None, None))
         if p5 is not None:
             ax.axvline(p5, color='blue', linestyle='--', alpha=0.3)
         if p50 is not None:
-            ax.axvline(p50, color='green', linestyle='-', alpha=0.3)
+            ax.axvline(p50, color='green', linestyle='-', alpha=0.8)
         if p95 is not None:
             ax.axvline(p95, color='red', linestyle='--', alpha=0.3)
 
-    ax.set_title("Distribuzione prezzi simulati per mese")
+    ax.set_title("Distribuzione prezzi simulati per anno")
     ax.set_xlabel("Prezzo simulato")
     ax.set_ylabel("Densità")
-    ax.legend()
+    ax.legend(title="Anno")
     ax.grid(True)
     plt.tight_layout()
 
