@@ -180,7 +180,7 @@ def simulate_heston(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate, n_simu
             dW1 = np.random.randn() * np.sqrt(dt)
             dW2 = rho * dW1 + np.sqrt(1 - rho**2) * np.random.randn() * np.sqrt(dt)
 
-            v_t = np.clip(v_t + kappa * (theta - v_t) * dt + sigma_v * np.sqrt(max(v_t, 0)) * dW2, 0, 0.2)
+            v_t = np.clip(v_t + kappa * (theta - v_t) * dt + sigma_v * np.sqrt(max(v_t, 0)) * dW2, 0, 0.3)
             dlogS = (mu - 0.5 * v_t) * dt + np.sqrt(v_t) * dW1
             simulated_log_returns[i, t] = dlogS
 
