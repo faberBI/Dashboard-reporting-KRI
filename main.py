@@ -181,7 +181,7 @@ if selected_kri == "⚡ Energy Risk":
         # ---------------------------
         # Simulazione Heston
         # ---------------------------
-        best_params, simulated_prices = run_heston(
+        _, simulated_prices = run_heston(
             df_filtered,
             n_trials=n_trials_heston,
             n_simulations=n_simulations,
