@@ -224,7 +224,11 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
     return best_params, simulated_prices
 
 
-def get_monthly_and_yearly_distribution(df, years):
+def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
+    """
+    Calcola distribuzioni e percentili mensili e annuali.
+    La media annuale può essere sostituita dalla media tra simulato e forward price.
+    """
     monthly_percentiles = {}
     monthly_distributions = {}
     monthly_means = {}
@@ -233,7 +237,7 @@ def get_monthly_and_yearly_distribution(df, years):
     yearly_distributions = {}
     yearly_means = {}
 
-    for year in years:
+    for i, year in enumerate(years):
         # ---- Mensile ----
         for month in range(1, 13):
             df_month = df[(df.index.year == year) & (df.index.month == month)]
@@ -261,7 +265,10 @@ def get_monthly_and_yearly_distribution(df, years):
             p5_y, _, p95_y = np.percentile(values_year, [5, 50, 95])
             mean_y = np.mean(values_year)
 
-            # Sostituisci il 50° percentile con la media
+            # Sostituisci media annuale con media tra simulato e forward, se fornito
+            if forward_prices is not None and i < len(forward_prices):
+                mean_y = (mean_y + forward_prices[i]) / 2
+
             yearly_percentiles[year] = (p5_y, mean_y, p95_y)
             yearly_means[year] = mean_y
             yearly_distributions[year] = values_year
@@ -275,13 +282,14 @@ def get_monthly_and_yearly_distribution(df, years):
         yearly_distributions, yearly_percentiles, yearly_means
     )
 
+
 # Funzione per simulare distribuzioni e percentili, salvare il grafico e il CSV
 def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="distribution_plot.png", csv_file_m="forecast_percentiles_monthly.csv", csv_file_y="forecast_percentiles_yearly.csv"):
     # Calcolare distribuzioni e percentili (sia mensili che annuali)
     (
         monthly_dist, monthly_percentiles, monthly_means,
         yearly_dist, yearly_percentiles, yearly_means
-    ) = get_monthly_and_yearly_distribution(sim_df, years)
+    ) = get_monthly_and_yearly_distribution(sim_df, years, forward_prices)
 
     # Seleziona solo i mesi con dati
     selected_months = [k for k, v in monthly_dist.items() if len(v) > 0]
