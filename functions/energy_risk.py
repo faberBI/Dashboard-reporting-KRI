@@ -329,15 +329,15 @@ def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="di
     return monthly_percentiles, monthly_means, yearly_percentiles, yearly_means
 
 # Funzione principale che esegue tutto
-def analyze_simulation(sim_df, years):
+def analyze_simulation(sim_df, years, forward_prices=None):
     """
     Calcola percentili annuali senza salvare nulla su disco.
-    Restituisce dizionari con percentili e medie e la figura.
+    La media annuale può essere sostituita dalla media tra simulato e forward price.
     """
     (
         monthly_distributions, monthly_percentiles, monthly_means,
         yearly_distributions, yearly_percentiles, yearly_means
-    ) = get_monthly_and_yearly_distribution(sim_df, years)
+    ) = get_monthly_and_yearly_distribution(sim_df, years, forward_prices=forward_prices)
     
     # Genera il grafico annuale
     fig, ax = plt.subplots(figsize=(10, 6))
