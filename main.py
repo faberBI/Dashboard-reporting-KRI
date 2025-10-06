@@ -199,7 +199,7 @@ if selected_kri == "⚡ Energy Risk":
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
 
-        # simulated_df = simulated_df.mask((simulated_df < 35) | (simulated_df >= 200))
+        simulated_df = simulated_df.mask((simulated_df < 40) | (simulated_df >= 350))
 
         # Analisi distribuzione
         monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years)
