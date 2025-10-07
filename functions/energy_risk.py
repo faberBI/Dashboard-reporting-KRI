@@ -388,7 +388,6 @@ def compute_downside_upperside_risk(
 ):
     import matplotlib.pyplot as plt
     import pandas as pd
-    from matplotlib.patches import Rectangle
 
     # === Calcolo Open Position ===
     open_position_no_solar = [max(f - c, 0) for f, c in zip(fabbisogno, covered)]
@@ -422,11 +421,12 @@ def compute_downside_upperside_risk(
     op_map = dict(zip(anni, open_position))
     op_nos_map = dict(zip(anni, open_position_no_solar))
 
-    open_pos = [op_map.get(y, None) * 1000 if op_map.get(y, None) is not None else None for y in anni_prezzi]
-    open_pos_nos = [op_nos_map.get(y, None) * 1000 if op_nos_map.get(y, None) is not None else None for y in anni_prezzi]
+    # open position in kWh
+    open_pos = [op_map.get(y, 0) * 1000 for y in anni_prezzi]
+    open_pos_nos = [op_nos_map.get(y, 0) * 1000 for y in anni_prezzi]
 
     def calc_product(diff, op):
-        return [(d * o if d is not None and o is not None else None) for d, o in zip(diff, op)]
+        return [(d * o if d is not None and o is not None else 0) for d, o in zip(diff, op)]
 
     diff_95_budget = calc_diff(p95, budget)
     diff_95_frwd = calc_diff(p95, frwd)
@@ -442,14 +442,8 @@ def compute_downside_upperside_risk(
     df_risk["Upside Forward"] = calc_product(diff_frwd_5, open_pos)
     df_risk["Upside Forward (no solar)"] = calc_product(diff_frwd_5, open_pos_nos)
 
-    # Replace zero with None
-    df_open.replace(0, None, inplace=True)
-    df_prezzi.replace(0, None, inplace=True)
-    df_risk.replace(0, None, inplace=True)
-
     # === Creazione grafico ===
     fig, ax = plt.subplots(figsize=(16, 6))
-
     ax.axvspan(2019.5, 2023.5, color="#ffffff", alpha=0.4)
     ax.axvspan(2023.5, 2027.5, color="#ffffff", alpha=0.2)
     anno_oggi = pd.Timestamp.today().year
@@ -459,6 +453,7 @@ def compute_downside_upperside_risk(
     ax.text(2024.2, 310, "Predictive data", fontsize=12, color="#5e7ab0", backgroundcolor="#daecff")
     ax.text(anno_oggi, -10, f"{observation_period}", ha="center", fontsize=10, color="gray")
 
+    # Funzione per sostituire eventuali 0 finali
     def replace_last_zero_with_value(lst, last_value):
         if 0 in lst:
             last_zero_index = len(lst) - 1 - lst[::-1].index(0)
@@ -471,6 +466,7 @@ def compute_downside_upperside_risk(
     frwd = replace_last_zero_with_value(frwd, last_historical_value)
     predictive = replace_last_zero_with_value(predictive, last_historical_value)
 
+    # Funzione grafico
     def plot_line(data, label, color, annotate=True):
         filtered_data = [d if d != 0 else None for d in data]
         ax.plot(anni_prezzi, filtered_data, label=label, color=color, linewidth=2.5)
@@ -497,11 +493,10 @@ def compute_downside_upperside_risk(
     for spine in ax.spines.values():
         spine.set_visible(False)
     ax.legend()
-
     plt.tight_layout()
 
-    # === Restituisco tutto in memoria ===
     return df_risk, df_open, df_prezzi, fig
+
 
 
 def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf'):
