@@ -9,92 +9,6 @@ from copulas.multivariate import GaussianMultivariate
 from copulas.univariate import ParametricType, Univariate
 
 
-# LE FUNZIONE GIRANO CORRETTAMENTE
-
-def get_risk_area_idro(lat, long, database):
-    # Crea un GeoDataFrame con il punto specificato
-    punto = gpd.GeoDataFrame(
-            {'geometry': [Point(long, lat)]},
-            crs=database.crs  # Assicura lo stesso CRS del database
-        )
-    punto_m = punto.to_crs(epsg=32632)# Buffer preciso di 10 metri
-    buffered_point = punto_m.buffer(600)
-    buffered_point = buffered_point.to_crs(epsg = 4326)
-
-    # Intersezione in metri
-    zone = database[database.intersects(buffered_point.iloc[0])]
-    if zone.empty:
-        return "Pericolosità idraulica bassa - LowProbabilityHazard"
-    else:
-        zone['area'] = zone.geometry.area
-        zona_scelta = zone.iloc[0]
-        return zona_scelta['scenario']
-
-
-def get_risk_area_frane(lat, long, database):
-    # Crea un GeoDataFrame con il punto specificato
-    punto = gpd.GeoDataFrame(
-            {'geometry': [Point(long, lat)]},
-            crs=database.crs  # Assicura lo stesso CRS del database
-        )
-    punto_m = punto.to_crs(epsg=32632)# Buffer preciso di 10 metri
-    buffered_point = punto_m.buffer(600)
-    buffered_point = buffered_point.to_crs(epsg = 4326)
-
-    # Intersezione in metri
-    zone = database[database.intersects(buffered_point.iloc[0])]
-    if zone.empty:
-        return "Molto bassa"
-    else:
-        zone['area'] = zone.geometry.area
-        zona_scelta = zone.iloc[0]
-        return zona_scelta['per_fr_ita']
-
-def get_risk_sismico(codice_comune, database):
-    # Filtro per il codice del comune
-    filtered_data = database[database['COD_ISTAT_COMUNE'] == codice_comune]
-
-    # Se non ci sono righe corrispondenti, ritorna '4'
-    if filtered_data.empty:
-        return '4'
-
-    # Ottieni il valore della colonna 'ZONA_SISMICA'
-    zona_sismica = filtered_data['ZONA_SISMICA'].iloc[0]
-
-    # Converti in stringa e poi controlla se è vuota o solo spazi
-    if not str(zona_sismica).strip():
-        return '4'
-
-    # Ritorna la zona sismica come stringa
-    return str(zona_sismica)
-
-    # Ritorna la zona sismica come stringa
-    return zona_sismica
-
-def get_risk_incendi(lat, long, database):
-    # Crea un GeoDataFrame con il punto centrale (EPSG:4326)
-    gdf = gpd.GeoDataFrame(geometry=[Point(long, lat)], crs="EPSG:4326")
-
-    # Converti in UTM zona 33N per calcolare il buffer in metri
-    gdf_utm = gdf.to_crs("EPSG:32633")
-    circle_utm = gdf_utm.geometry.buffer(3000)  # raggio = 1 km
-
-    # Riconverti il buffer in EPSG:4326
-    circle_gdf = gpd.GeoDataFrame(geometry=circle_utm, crs="EPSG:32633").to_crs("EPSG:4326")
-
-    # Assicurati che abbia il CRS corretto
-    database = database.set_crs("EPSG:4326", allow_override=True)
-
-    # Filtra i punti nel buffer
-    punti_nel_cerchio = database[database.within(circle_gdf.geometry.iloc[0])]
-
-    if punti_nel_cerchio.empty or punti_nel_cerchio['fire_index'].isna().all():
-        return 'Very Low'
-    else:
-        return punti_nel_cerchio['fire_index'].iloc[0]
-
-
-
 def get_index_costo_costruzione(data_inizio, data_valutazione, tipo_indicatore, database):
     # Converte le date e crea anno-mese
     data_inizio = pd.to_datetime(data_inizio)
@@ -119,8 +33,6 @@ def get_index_costo_costruzione(data_inizio, data_valutazione, tipo_indicatore, 
     # Calcola e ritorna il rapporto degli indici
     rapporto = indice_denom / indice_num
     return np.round(rapporto, 3)
-
-
 
 
 classi_rischio = {
@@ -411,20 +323,6 @@ def get_magnitudes_for_comune(codice_comune, df, default_values={"MwMin": 0, "Mw
     return (default_values["MwMin"], default_values["MwMax"], default_values["MwMed"]) if row.empty else (
         row["MwMin"].values[0], row["MwMax"].values[0], row["MwMed"].values[0])
 
-
-import pandas as pd
-import numpy as np
-
-import math
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import Point
-from scipy.stats import multivariate_normal, pearsonr, t
-from scipy.stats import lognorm, poisson
-from copulas.multivariate import GaussianMultivariate
-
-
 classi_rischio = {
     "Frane": {
         "Molto elevata P4": (0.05, 20),
@@ -692,30 +590,6 @@ def simula_danno_tempesta(valore_mercato, n_simulazioni=10000, eventi_in_25_anni
 
     return danni, np.quantile(danni, 0.995), np.quantile(danni, 0.997), np.quantile(danni, 0.999), percentili, np.std(danni)
 
-# funzioni geospaziali
-
-def get_risk_area_idro(lat, long, database):
-    punto = gpd.GeoDataFrame({'geometry': [Point(long, lat)]}, crs=database.crs)
-    punto_m = punto.to_crs(epsg=32632).buffer(600).to_crs(epsg=4326)
-    zone = database[database.intersects(punto_m.iloc[0])]
-    return "Pericolosità idraulica bassa - LowProbabilityHazard" if zone.empty else zone.iloc[0]['scenario']
-
-
-def get_risk_area_frane(lat, long, database):
-    punto = gpd.GeoDataFrame({'geometry': [Point(long, lat)]}, crs=database.crs)
-    punto_m = punto.to_crs(epsg=32632).buffer(600).to_crs(epsg=4326)
-    zone = database[database.intersects(punto_m.iloc[0])]
-    return "Molto bassa" if zone.empty else zone.iloc[0]['per_fr_ita']
-
-
-def get_magnitudes_for_comune(codice_comune, df, default_values={"MwMin": 0, "MwMax": 0, "MwMed": 0}):
-    row = df[df["codice_com"] == codice_comune]
-    return (default_values["MwMin"], default_values["MwMax"], default_values["MwMed"]) if row.empty else (
-        row["MwMin"].values[0], row["MwMax"].values[0], row["MwMed"].values[0])
-
-
-import pandas as pd
-import numpy as np
 
 def simulazione_portafoglio_con_rischi_correlati(excel_path, n_simulazioni=100_000, database_frane=None, database_idro=None, db_sismico=None):
     df = pd.read_excel(excel_path)
@@ -851,104 +725,4 @@ def simulazione_portafoglio_con_rischi_correlati(excel_path, n_simulazioni=100_0
 
     df_perdite = pd.DataFrame(results)
     return df_perdite
-
-def simulazione_portafoglio_con_rischi_correlati(
-    excel_path, 
-    n_simulazioni=100_000, 
-    db_frane=None, 
-    db_idro=None, 
-    df_sismico=None
-):
-    # Leggi dati immobili
-    df = pd.read_excel(excel_path)
-    results = []
-
-    # Chiave unica per zona + comune
-    df["key_zona"] = df["comune"].str.strip() + "_" + df["zona"].str.strip()
-
-    # Ciclo per ogni zona
-    for key_zona, gruppo in df.groupby("key_zona"):
-        immobili_zona = gruppo.to_dict(orient="records")
-
-        for immobile in immobili_zona:
-            id_immobile = immobile["id"]
-            valore_building = immobile["building"]
-            valore_content = immobile["content"]
-            valore_mercato = immobile["building"]
-            lat, long = immobile["lat"], immobile["long"]
-            codice_comune = immobile["codice_comune"]
-            h_idraulico = 1  # Valore di esempio, da aggiornare se disponibile
-
-            # --- Determina classe rischio ---
-            area_frane = get_risk_area_frane(lat, long, db_frane)
-            area_idro = get_risk_area_idro(lat, long, db_idro)
-            MwMin, MwMax, MwMed = get_magnitudes_for_comune(codice_comune, df_sismico)
-            b = 1
-            risk_factor = 1
-            VI = 0.1
-
-            # --- Simulazione danni building ---
-            danno_frane, frane_995, frane_997, frane_999, _ = calcola_perdita_attesa_frane(area_frane, valore_building, n_simulazioni)
-            danno_idro, idro_995, idro_997, idro_999, _, _, _ = simulazione_perdita_attesa_idro(area_idro, valore_building, h_idraulico, n_simulazioni)
-            danno_sismico, sismico_995, sismico_997, sismico_999, _ = simulazione_perdita_attesa_sismica(MwMin, MwMax, b, risk_factor, VI, valore_building, n_simulazioni)
-            danno_tempeste, tempesta_995, tempesta_997, tempesta_999, _, _ = simula_danno_tempesta(valore_mercato, n_simulazioni)
-
-            # --- Simulazione danni content ---
-            danno_frane_c, _, _, _, _ = calcola_perdita_attesa_frane(area_frane, valore_content, n_simulazioni)
-            danno_idro_c, _, _, _, _, _, _ = simulazione_perdita_attesa_idro(area_idro, valore_content, h_idraulico, n_simulazioni)
-            danno_sismico_c, _, _, _, _ = simulazione_perdita_attesa_sismica(MwMin, MwMax, b, risk_factor, VI, valore_content, n_simulazioni)
-            danno_tempeste_c, _, _, _, _, _ = simula_danno_tempesta(valore_content, n_simulazioni)
-
-            # --- Costruzione DataFrame per copula ---
-            X = pd.DataFrame({
-                'frane_building': danno_frane,
-                'frane_content': danno_frane_c,
-                'idro_building': danno_idro,
-                'idro_content': danno_idro_c,
-                'sismico_building': danno_sismico,
-                'sismico_content': danno_sismico_c,
-                'tempeste_building': danno_tempeste,
-                'tempeste_content': danno_tempeste_c,
-            })
-
-            # --- Fit copula gaussiana ---
-            model = GaussianMultivariate(distribution=Univariate)
-            model.fit(X)
-            Z = model.sample(n_simulazioni)
-            Z["total_loss"] = Z.sum(axis=1)
-
-            # Applica capping sul valore di mercato
-            exceeding = Z["total_loss"] > valore_mercato
-            Z.loc[exceeding, X.columns] = (
-                Z.loc[exceeding, X.columns]
-                .div(Z.loc[exceeding, "total_loss"], axis=0)
-                .mul(valore_mercato)
-            )
-            aggregated_losses = Z[X.columns].sum(axis=1).values
-
-            # --- Estrazione percentili aggregati ---
-            percentili_agg = {
-                f'perdite_aggregata_{p}': np.quantile(aggregated_losses, p) 
-                for p in [0.25, 0.5, 0.75, 0.90, 0.95, 0.97, 0.99, 0.995, 0.997, 0.999]
-            }
-
-            # --- Salvataggio risultati per immobile ---
-            results.append({
-                "id_immobile": id_immobile,
-                'rischio_frane': area_frane,
-                'rischio_idro': area_idro,
-                'Magnitudo_min': MwMin,
-                'Magnitudo_max': MwMax,
-                'zona_geografica': key_zona,
-                "Perdita_995_Frane": frane_995,
-                "Perdita_995_Idro": idro_995,
-                "Perdita_995_Sismico": sismico_995,
-                "Perdita_995_Tempesta": tempesta_995,
-                **percentili_agg
-            })
-
-    return pd.DataFrame(results)
-
-
-
 
