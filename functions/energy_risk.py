@@ -391,8 +391,8 @@ def compute_downside_upperside_risk(
     from matplotlib.patches import Rectangle
 
     # === Calcolo Open Position ===
-    open_position_no_solar = [f - c for f, c in zip(fabbisogno, covered)]
-    open_position = [f - (c + s) for f, c, s in zip(fabbisogno, covered, solar)]
+    open_position_no_solar = [max(f - c, 0) for f, c in zip(fabbisogno, covered)]
+    open_position = [max(f - (c + s), 0) for f, c, s in zip(fabbisogno, covered, solar)]
 
     df_open = pd.DataFrame({
         "Anno": anni,
