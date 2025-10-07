@@ -591,9 +591,7 @@ def simula_danno_tempesta(valore_mercato, n_simulazioni=10000, eventi_in_25_anni
     return danni, np.quantile(danni, 0.995), np.quantile(danni, 0.997), np.quantile(danni, 0.999), percentili, np.std(danni)
 
 
-def simulazione_portafoglio_con_rischi_correlati(excel_path, n_simulazioni=100_000, database_frane=None, database_idro=None, db_sismico=None):
-    df = pd.read_excel(excel_path)
-
+def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, database_frane=None, database_idro=None, db_sismico=None):
     results = []
 
     df["key_zona"] = df["comune"].str.strip() + "_" + df["zona"].str.strip()
