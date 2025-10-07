@@ -497,8 +497,6 @@ def compute_downside_upperside_risk(
 
     return df_risk, df_open, df_prezzi, fig
 
-
-
 def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf'):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
