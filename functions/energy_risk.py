@@ -441,7 +441,7 @@ def compute_downside_upperside_risk(
     df_risk["Upside Budget (no solar)"] = calc_product(diff_budget_5, open_pos_nos)
     df_risk["Upside Forward"] = calc_product(diff_frwd_5, open_pos)
     df_risk["Upside Forward (no solar)"] = calc_product(diff_frwd_5, open_pos_nos)
-
+    df_risk = df_risk[df_risk["Year"] >= 2025].reset_index(drop=True)
     # === Creazione grafico ===
     fig, ax = plt.subplots(figsize=(16, 6))
     ax.axvspan(2019.5, 2023.5, color="#ffffff", alpha=0.4)
@@ -494,7 +494,7 @@ def compute_downside_upperside_risk(
         spine.set_visible(False)
     ax.legend()
     plt.tight_layout()
-
+    
     return df_risk, df_open, df_prezzi, fig
 
 def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf'):
