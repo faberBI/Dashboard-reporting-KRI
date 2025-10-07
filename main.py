@@ -9,6 +9,8 @@ import warnings
 from scipy.stats import gaussian_kde
 import optuna
 import io
+import requests
+import zipfile
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
