@@ -1,3 +1,23 @@
+import geopandas as gpd
+import requests
+import io
+import zipfile
+
+def load_shapefile_from_drive(drive_url):
+    # Scarica lo zip da Google Drive
+    r = requests.get(drive_url)
+    r.raise_for_status()
+
+    # Leggi zip in memoria
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    
+    # Cerca il file .shp dentro lo zip
+    shp_file = [f for f in z.namelist() if f.endswith(".shp")][0]
+    
+    # Carica shapefile con geopandas
+    gdf = gpd.read_file(f"zip://{drive_url}!{shp_file}")
+    return gdf
+    
 # ==========================
 # Dizionari centralizzati
 # ==========================
