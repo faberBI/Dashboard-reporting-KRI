@@ -9,13 +9,6 @@ from copulas.multivariate import GaussianMultivariate
 from copulas.univariate import ParametricType, Univariate
 
 
-import math
-import numpy as np
-import pandas as pd
-from scipy.stats import lognorm, poisson
-from copulas.multivariate import GaussianMultivariate
-from copulas.univariate import Univariate
-
 # ==========================
 # Dizionari centralizzati
 # ==========================
