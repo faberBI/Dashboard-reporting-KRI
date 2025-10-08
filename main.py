@@ -368,6 +368,7 @@ if selected_kri == "⚡ Energy Risk":
         # Visualizza su Streamlit
         st.dataframe(df_styled)
         
+        from datetime import datetime
         # Grafico VaR EBITDA
         fig = var_ebitda_risk(
             periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"),
