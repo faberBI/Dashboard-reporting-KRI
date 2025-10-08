@@ -111,6 +111,7 @@ if selected_kri == "⚡ Energy Risk":
     solar = st.text_input("Solar (MWh)", df_to_str(df, "Solar", "0,203,422"))
     forward_price = st.text_input("Forward Price (€)", df_to_str(df, "Forward Price", "115.99,106.85,94.00"))
     budget_price = st.text_input("Budget Price (€)", df_to_str(df, "Budget Price", "115,121,120"))
+    ebitda = st.text_input("EBITDA (€)", df_to_str(df, "Ebitda", "1900000000"))
 
     # Parsing input
     try:
@@ -138,6 +139,7 @@ if selected_kri == "⚡ Energy Risk":
     days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date_sim)).days
     future_dates = pd.date_range(start=start_date_sim, periods=days_to_simulate, freq='D')
     unique_years = sorted(future_dates.year.unique().tolist())
+    
     # -----------------------
     # Lancia simulazione
     # -----------------------
@@ -227,7 +229,7 @@ if selected_kri == "⚡ Energy Risk":
 
         # Media storica PUN per gli anni storici
         historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
-        historical_price = historical_price[:-1]
+        # historical_price = historical_price[:-1]
 
         st.markdown("### 📅 Historical Price")  # Titolo con icona
         st.info("Media storica PUN per gli anni disponibili.")  # Box informativo
@@ -367,7 +369,7 @@ if selected_kri == "⚡ Energy Risk":
         st.dataframe(df_styled)
         
         # Grafico VaR EBITDA
-        fig = var_ebitda_risk(periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, font_path="utils/TIMSans-Medium.ttf")
+        fig = var_ebitda_risk(periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"), df_risk=df_risk, ebitda, font_path="utils/TIMSans-Medium.ttf")
         st.pyplot(fig)
 
         st.success("Simulazione completata!")
