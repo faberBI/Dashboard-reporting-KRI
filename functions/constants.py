@@ -7,57 +7,51 @@ import json
 import subprocess
 
 
-def load_kaggle_shapefiles(username, key, datasets_folder="./datasets"):
+def load_shapefiles_from_dropbox(frane_url, idro_url, extract_folder="./data"):
     """
-    Scarica i dataset da Kaggle (db-frane e db-idro-full), estrae e carica gli shapefile in GeoDataFrame.
-
+    Scarica gli shapefile DB-Frane e DB-Idro da Dropbox, li estrae e restituisce due GeoDataFrame.
+    
     Parametri:
-    - username: str, username Kaggle
-    - key: str, Kaggle API key
-    - datasets_folder: str, cartella dove salvare i dataset
-
+    - frane_url: str, link Dropbox DB-Frane.zip (modifica dl=0 → dl=1)
+    - idro_url: str, link Dropbox DB-Idro.zip (modifica dl=0 → dl=1)
+    - extract_folder: cartella dove estrarre i file
+    
     Ritorna:
     - db_frane: GeoDataFrame
     - db_idro: GeoDataFrame
     """
+    os.makedirs(extract_folder, exist_ok=True)
     
-    # --- 1. Crea il file kaggle.json ---
-    os.makedirs(os.path.expanduser("~/.kaggle"), exist_ok=True)
-    kaggle_credentials = {"username": username, "key": key}
-    with open(os.path.expanduser("~/.kaggle/kaggle.json"), "w") as f:
-        json.dump(kaggle_credentials, f)
-    os.chmod(os.path.expanduser("~/.kaggle/kaggle.json"), 0o600)
-    
-    # --- 2. Installa Kaggle API ---
-    subprocess.run(["pip", "install", "--quiet", "kaggle"], check=True)
-    
-    # --- 3. Scarica ed estrai i dataset ---
-    os.makedirs(datasets_folder, exist_ok=True)
-    
-    datasets = {
-        "db-frane": "faberbi/db-frane",
-        "db-idro_full": "faberbi/db-idro-full"
-    }
-    
-    for folder_name, kaggle_id in datasets.items():
-        subprocess.run([
-            "kaggle", "datasets", "download",
-            "-d", kaggle_id,
-            "-p", datasets_folder,
-            "--unzip"
-        ], check=True)
-    
-    # --- 4. Funzione interna per caricare shapefile ---
-    def _load_shapefile(folder_path, name_contains):
-        shp_files = [f for f in os.listdir(folder_path) if f.endswith('.shp') and name_contains in f]
+    def _download_and_load(url, name):
+        # Assicurati che il link Dropbox sia dl=1 per download diretto
+        url = url.replace("dl=0", "dl=1")
+        zip_path = os.path.join(extract_folder, f"{name}.zip")
+        
+        # Scarica il file
+        r = requests.get(url, stream=True)
+        r.raise_for_status()
+        with open(zip_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        # Estrai lo ZIP
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_folder)
+        
+        # Trova lo shapefile
+        shp_files = [f for f in os.listdir(extract_folder) if f.endswith(".shp") and name.lower() in f.lower()]
         if not shp_files:
-            raise FileNotFoundError(f"Nessun file .shp contenente '{name_contains}' trovato in {folder_path}")
-        shp_path = os.path.join(folder_path, shp_files[0])
-        return gpd.read_file(shp_path)
+            raise FileNotFoundError(f"Nessun file .shp trovato nello ZIP di {name}")
+        
+        shp_path = os.path.join(extract_folder, shp_files[0])
+        gdf = gpd.read_file(shp_path)
+        
+        # Rimuovi ZIP temporaneo
+        os.remove(zip_path)
+        return gdf
     
-    # --- 5. Carica shapefile ---
-    db_frane = _load_shapefile(datasets_folder, "db_frane")
-    db_idro = _load_shapefile(datasets_folder, "db_idro_full")
+    db_frane = _download_and_load(frane_url, "Frane")
+    db_idro = _download_and_load(idro_url, "Idro")
     
     return db_frane, db_idro
     
