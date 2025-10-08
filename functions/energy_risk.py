@@ -494,8 +494,28 @@ def compute_downside_upperside_risk(
         spine.set_visible(False)
     ax.legend()
     plt.tight_layout()
+
+    df_target_policy = pd.DataFrame({
+        "Anno": anni,
+        "Fabbisogno (MWh)": fabbisogno,
+        "Covered (MWh)": covered,
+        "Solar (MWh)": solar
+    })
+
+    # Rapporto coperto/fabbisogno
+    df_target_policy["% Purchased w/o Solar"] = (df_target_policy["Covered (MWh)"] / df_target_policy["Fabbisogno (MWh)"]) * 100
+    df_target_policy["% Purchased with Solar"] = ((df_target_policy["Covered (MWh)"] + df_target_policy["Solar (MWh)"]) / df_target_policy["Fabbisogno (MWh)"]) * 100
+
+    # Aggiungi colonna Target Policy
+    target_policies = [95, 85, 50]
+    df_target_policy_final = pd.DataFrame()
+
+    for target in target_policies:
+        temp = df_target_policy.copy()
+        temp.insert(0, "Target Policy", f"{target}%")
+        df_target_policy_final = pd.concat([df_target_policy_final, temp], ignore_index=True)
     
-    return df_risk, df_open, df_prezzi, fig
+    return df_risk, df_open, df_prezzi, df_target_policy_final, fig
 
 def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf'):
     import matplotlib.pyplot as plt
