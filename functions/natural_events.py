@@ -137,7 +137,7 @@ def simula_danno_tempesta(valore, n_simulazioni=10000, eventi_in_25_anni=9, s=0.
         danno = np.sum(np.clip(lognorm.rvs(s, loc=loc, scale=scale, size=n_tempeste), 0, 0.003))*valore if n_tempeste>0 else 0.0
         danni.append(danno)
     danni = np.array(danni)
-    return danni,np.quantile(danni, 0.95) np.quantile(danni, 0.995), np.quantile(danni, 0.997), np.quantile(danni, 0.999), calcola_percentili(danni), np.std(danni)
+    return danni,np.quantile(danni, 0.95), np.quantile(danni, 0.995), np.quantile(danni, 0.997), np.quantile(danni, 0.999), calcola_percentili(danni), np.std(danni)
 
 def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, database_frane=None, database_idro=None, db_sismico=None):
     results = []
