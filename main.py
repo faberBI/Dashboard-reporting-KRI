@@ -375,7 +375,122 @@ if selected_kri == "⚡ Energy Risk":
             data=buffer,
             file_name="KRI_Energy_Risk.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+# -----------------------
+# 🌪️ Natural Event Risk
+# -----------------------
+elif selected_kri == "🌪️ Natural Event Risk":
+    st.subheader("🌪️ Simulazione Eventi Naturali – Portafoglio Immobiliare")
+    st.info("Esegui la simulazione di rischio multi-events (idro, frane, sismico, tempeste)")
 
+    # Parametri simulazione
+    n_simulazioni = st.number_input(
+        "Numero di simulazioni Monte Carlo",
+        min_value=1000,
+        max_value=100_000,
+        value=10_000,
+        step=1000
+    )
+
+    # Caricamento librerie e database
+    try:
+        from functions.constants import classi_rischio, alpha_tilde_classi_frane, load_shapefile_from_drive
+
+        from functions.natural_events import (
+            simulazione_portafoglio_con_rischi_correlati,
+            calcola_vulnerabilita_intrinseca_frane,
+            calcola_perdita_attesa_frane,
+            vulnerabilita_profondita_pol,
+            simulazione_perdita_attesa_idro,
+            calculate_IEMS,
+            calculate_mu_D,
+            generate_damage_probability,
+            calculate_value_loss,
+            simulazione_perdita_attesa_sismica,
+            simula_danno_tempesta
+        )
+
+        from functions.geospatial import (
+            get_risk_area_idro,
+            get_risk_area_frane,
+            get_magnitudes_for_comune
+        )
+
+        import folium
+        from streamlit_folium import st_folium
+        import os
+
+        # Database locali (oppure sostituibili con upload)
+        id_idro  ='1ShY5mQTYwospC9UzjXe-460EgfcFO__F'
+        id_frane = '1A2kJ-H5PStaDKMLgxLMuhvFKp60Q8oUJ'
+        try:
+            db_frane = load_shapefile_from_drive(id_frane) if os.path.exists("Data/db_frane.shp")
+            db_idro = load_shapefile_from_drive(id_idro) if os.path.exists("Data/db_idro.shp")
+        except:
+            st.error(f"❌ Errore nel caricamento dei database in formato shape")
+            db_frane = pd.DataFrame()
+            db_idro = pd.DataFrame()
+            
+        df_sismico = pd.read_excel("Data/class_comune_rischio_sismico.xlsx") if os.path.exists("Data/class_comune_rischio_sismico.xlsx") else pd.DataFrame()
+
+    except Exception as e:
+        st.error(f"❌ Errore nel caricamento librerie o database: {e}")
+        st.stop()
+
+    # Mostra mappa immobili
+    st.subheader("📍 Mappa Immobili")
+    if not df.empty and "lat" in df.columns and "long" in df.columns:
+        mappa = folium.Map(location=[df["lat"].mean(), df["long"].mean()], zoom_start=10)
+        for idx, row in df.iterrows():
+            popup_text = f"ID: {row['id']}<br>Building Value: €{row['building']}"
+            folium.Marker([row["lat"], row["long"]], popup=popup_text).add_to(mappa)
+        st_folium(mappa, width=700, height=500)
+    else:
+        st.warning("📌 Nessun dato geografico disponibile per la mappa.")
+
+    # Esecuzione simulazione
+    if st.button("🚀 Avvia Simulazione Natural Event Risk"):
+        with st.spinner("Esecuzione simulazione in corso..."):
+            try:
+                results = simulazione_portafoglio_con_rischi_correlati(
+                    df=df,
+                    db_frane=db_frane,
+                    db_idro=db_idro,
+                    df_sismico=df_sismico,
+                    n_simulazioni=int(n_simulazioni)
+                )
+
+                st.success("✅ Simulazione completata!")
+
+                # Mostra risultati
+                st.subheader("📊 Risultati Simulazione")
+                st.dataframe(results.head())
+
+                # Grafico distribuzione perdite
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots()
+                ax.hist(results["Perdita_aggregata_50"], bins=50, alpha=0.7)
+                ax.set_title("Distribuzione Perdite Simulate")
+                ax.set_xlabel("Perdita (€)")
+                ax.set_ylabel("Frequenza")
+                st.pyplot(fig)
+
+                # Download Excel
+                import io
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    results.to_excel(writer, index=False, sheet_name='Risultati Simulazione')
+                    df.to_excel(writer, index=False, sheet_name='Immobili')
+                    buffer.seek(0)
+
+                st.download_button(
+                    label="💾 Scarica risultati in Excel",
+                    data=buffer,
+                    file_name="Simulazione_Natural_Event_Risk.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+            except Exception as e:
+                st.error(f"❌ Errore durante la simulazione: {e}")
 
 
 
