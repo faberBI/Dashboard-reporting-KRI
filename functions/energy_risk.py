@@ -515,7 +515,13 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TI
     from datetime import datetime
     
     anno_bis = datetime.strptime(periodo_di_analisi.replace("as of ", ""), "%d/%m/%Y").year
-    ebitda_vs_budget = (df_open.loc[df_open['Anno']==anno_bis, 'Open Position'].values[0]) / ebitda
+    
+    open_pos_row = df_open.loc[df_open['Anno'] == anno_bis, 'Open Position']
+
+    if not open_pos_row.empty:
+        ebitda_vs_budget = open_pos_row / ebitda
+    else:
+        ebitda_vs_budget = None
     
     df_risk.dropna(inplace=True)
     anni = df_risk['Year']
