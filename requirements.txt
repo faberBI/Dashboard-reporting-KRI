@@ -17,3 +17,4 @@ pyproj
 rtree
 streamlit-folium
 pydrive
+folium
