@@ -420,8 +420,11 @@ elif selected_kri == "🌪️ Natural Event Risk":
         import folium
         from streamlit_folium import st_folium
         import os
-        try:
-            db_frane, db_idro = load_kaggle_shapefiles_from_file("~/.kaggle/kaggle.json")
+        try: 
+            username = st.secrets["KAGGLE_USERNAME"]
+            key = st.secrets["KAGGLE_KEY"]
+            
+            db_frane, db_idro = load_kaggle_shapefiles_from_file(username, key)
         except:
             st.error(f"❌ Errore nel caricamento dei database in formato shape")
             db_frane = pd.DataFrame()
