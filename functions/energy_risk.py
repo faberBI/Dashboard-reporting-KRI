@@ -384,8 +384,8 @@ def replace_last_zero_with_value(lst, last_value):
 
 def compute_downside_upperside_risk(
     anni, fabbisogno, covered, solar,
-    anni_prezzi, media_pun, predictive, p95, p5, frwd, budget, observation_period):
-    
+    anni_prezzi, media_pun, predictive, p95, p5, frwd, budget, observation_period
+):
     import matplotlib.pyplot as plt
     import pandas as pd
 
@@ -421,7 +421,6 @@ def compute_downside_upperside_risk(
     op_map = dict(zip(anni, open_position))
     op_nos_map = dict(zip(anni, open_position_no_solar))
 
-    # open position in kWh
     open_pos = [op_map.get(y, 0) * 1000 for y in anni_prezzi]
     open_pos_nos = [op_nos_map.get(y, 0) * 1000 for y in anni_prezzi]
 
@@ -442,6 +441,7 @@ def compute_downside_upperside_risk(
     df_risk["Upside Forward"] = calc_product(diff_frwd_5, open_pos)
     df_risk["Upside Forward (no solar)"] = calc_product(diff_frwd_5, open_pos_nos)
     df_risk = df_risk[df_risk["Year"] >= 2025].reset_index(drop=True)
+
     # === Creazione grafico ===
     fig, ax = plt.subplots(figsize=(16, 6))
     ax.axvspan(2019.5, 2023.5, color="#ffffff", alpha=0.4)
@@ -453,7 +453,6 @@ def compute_downside_upperside_risk(
     ax.text(2024.2, 310, "Predictive data", fontsize=12, color="#5e7ab0", backgroundcolor="#daecff")
     ax.text(anno_oggi, -10, f"{observation_period}", ha="center", fontsize=10, color="gray")
 
-    # Funzione per sostituire eventuali 0 finali
     def replace_last_zero_with_value(lst, last_value):
         if 0 in lst:
             last_zero_index = len(lst) - 1 - lst[::-1].index(0)
@@ -466,7 +465,6 @@ def compute_downside_upperside_risk(
     frwd = replace_last_zero_with_value(frwd, last_historical_value)
     predictive = replace_last_zero_with_value(predictive, last_historical_value)
 
-    # Funzione grafico
     def plot_line(data, label, color, annotate=True):
         filtered_data = [d if d != 0 else None for d in data]
         ax.plot(anni_prezzi, filtered_data, label=label, color=color, linewidth=2.5)
@@ -495,22 +493,22 @@ def compute_downside_upperside_risk(
     ax.legend()
     plt.tight_layout()
 
-   df_target_policy = pd.DataFrame({
+    # === Calcolo Target Policy ===
+    df_target_policy = pd.DataFrame({
         "Anno": anni,
         "Fabbisogno (MWh)": fabbisogno,
         "Covered (MWh)": covered,
         "Solar (MWh)": solar
-        })
+    })
 
-    # Rapporto coperto/fabbisogno
     df_target_policy["% Purchased w/o Solar"] = (df_target_policy["Covered (MWh)"] / df_target_policy["Fabbisogno (MWh)"]) * 100
     df_target_policy["% Purchased with Solar"] = ((df_target_policy["Covered (MWh)"] + df_target_policy["Solar (MWh)"]) / df_target_policy["Fabbisogno (MWh)"]) * 100
 
-    # Se vuoi includere i target policy come colonne (95%, 85%, 50%) senza duplicare le righe:
     for target in [95, 85, 50]:
         df_target_policy[f"Target {target}%"] = target
- 
+
     return df_risk, df_open, df_prezzi, df_target_policy, fig
+
 
 def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf'):
     import matplotlib.pyplot as plt
