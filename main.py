@@ -13,6 +13,7 @@ import requests
 import zipfile
 import json
 import subprocess
+from folium.plugins import HeatMap
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
@@ -437,12 +438,18 @@ elif selected_kri == "🌪️ Natural Event Risk":
         st.stop()
 
     # Mostra mappa immobili
-    st.subheader("📍 Mappa Immobili")
-    if not df.empty and "lat" in df.columns and "long" in df.columns:
+    st.subheader("📍 Heatmap Immobili per Valore Building")
+
+    if not df.empty and "lat" in df.columns and "long" in df.columns and "building" in df.columns:
+        # Centra la mappa sulla media delle coordinate
         mappa = folium.Map(location=[df["lat"].mean(), df["long"].mean()], zoom_start=10)
-        for idx, row in df.iterrows():
-            popup_text = f"ID: {row['id']}<br>Building Value: €{row['building']}"
-            folium.Marker([row["lat"], row["long"]], popup=popup_text).add_to(mappa)
+    
+        # Prepara dati per la HeatMap: [lat, long, peso]
+        heat_data = [[row["lat"], row["long"], row["building"]] for idx, row in df.iterrows()]
+    
+        # Aggiungi la HeatMap
+        HeatMap(heat_data, radius=15, max_zoom=13).add_to(mappa)
+    
         st_folium(mappa, width=700, height=500)
     else:
         st.warning("📌 Nessun dato geografico disponibile per la mappa.")
