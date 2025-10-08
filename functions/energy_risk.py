@@ -512,8 +512,9 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TI
     from matplotlib.patches import Rectangle
     import matplotlib.font_manager as fm
     import numpy as np
-
-    ebitda_vs_budget = df_open[df_open['Anno']==periodo_di_analisi.year]['Open Position']/ebitda
+    periodo_di_analisi_bis = datetime.strptime(periodo_di_analisi_str.replace("as of ", ""), "%d/%m/%Y")
+    anno_bis = periodo_di_analisi_bis.year
+    ebitda_vs_budget = df_open[df_open['Anno']==anno_bis]['Open Position']/ebitda
     
     df_risk.dropna(inplace=True)
     anni = df_risk['Year']
