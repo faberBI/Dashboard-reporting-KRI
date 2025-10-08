@@ -425,8 +425,8 @@ elif selected_kri == "🌪️ Natural Event Risk":
             key = st.secrets["KAGGLE_KEY"]
             
             db_frane, db_idro = load_kaggle_shapefiles_from_file(username, key)
-        except:
-            st.error(f"❌ Errore nel caricamento dei database in formato shape")
+        except Exception as e:
+            st.error(f"❌ Errore nel caricament dei database in formato shape : {e}")
             db_frane = pd.DataFrame()
             db_idro = pd.DataFrame()
             
