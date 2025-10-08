@@ -382,6 +382,37 @@ if selected_kri == "⚡ Energy Risk":
 
         st.pyplot(fig)
 
+        st.subheader("📌 Acquisto energia aggiuntiva per anno")
+        extra_purchase = []
+        for i, anno in enumerate(unique_years):
+            qta = st.number_input(f"Anno {anno} - MWh da acquistare", min_value=0.0, value=0.0, step=10.0)
+            extra_purchase.append(qta)
+
+        covered_adjusted = [c + extra for c, extra in zip(covered, extra_purchase)]
+
+        # Chiamata funzione aggiornata
+        df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
+            anni=unique_years,
+            fabbisogno=fabbisogno,
+            covered=covered_adjusted,  # qui il nuovo valore
+            solar=solar,
+            anni_prezzi=anni_prezzi,
+            media_pun=historical_price,
+            predictive=predict_price,
+            p95=p95,
+            p5=p5,
+            frwd=forward_price_full,
+            budget=budget_price_full,
+            observation_period=start_date_sim
+            )
+
+        # --- Mostra tabella su Streamlit ---
+        st.subheader("📋 Tabella Open Position")
+        st.dataframe(df_open)
+
+        st.subheader("📋 Tabella Risk")
+        st.dataframe(df_risk)
+
         st.success("Simulazione completata!")
         # Pulsante per scaricare Excel
         buffer = io.BytesIO()
