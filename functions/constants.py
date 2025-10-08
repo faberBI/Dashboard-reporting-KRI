@@ -5,53 +5,40 @@ import zipfile
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
-def load_all_shapefiles_from_drive_folder(folder_id, local_folder="shapefiles_temp"):
+def load_shapefile_from_drive(file_id, zip_name="data.zip", extract_folder="data"):
     """
-    Scarica tutti gli shapefile da una cartella Google Drive e ritorna un dizionario di GeoDataFrame.
+    Scarica un file ZIP da Google Drive tramite ID, estrae il contenuto
+    e restituisce il GeoDataFrame del primo shapefile trovato.
     
     Args:
-        folder_id (str): ID della cartella di Google Drive.
-        local_folder (str): Cartella locale temporanea dove salvare i file.
+        file_id (str): ID del file Google Drive.
+        zip_name (str): Nome del file ZIP locale.
+        extract_folder (str): Cartella dove estrarre i file.
     
     Returns:
-        dict: chiavi = nome shapefile, valori = GeoDataFrame
+        gpd.GeoDataFrame: GeoDataFrame dello shapefile, oppure None se non trovato.
     """
-    # Autenticazione
-    gauth = GoogleAuth()
-    gauth.LocalWebserverAuth()
-    drive = GoogleDrive(gauth)
+    url = f"https://drive.google.com/uc?id={file_id}"
 
-    # Crea cartella locale
-    os.makedirs(local_folder, exist_ok=True)
+    # Scarica il file ZIP solo se non esiste già
+    if not os.path.exists(zip_name):
+        gdown.download(url, zip_name, quiet=False)
 
-    # Lista file nella cartella
-    file_list = drive.ListFile({'q': f"'{folder_id}' in parents and trashed=false"}).GetList()
+    # Estrai il contenuto del file ZIP
+    if not os.path.exists(extract_folder):
+        with zipfile.ZipFile(zip_name, 'r') as zip_ref:
+            zip_ref.extractall(extract_folder)
 
-    # Raggruppa i file per shapefile (nome base senza estensione)
-    shapefiles = {}
-    for file in file_list:
-        name = file['title']
-        if '.' in name:
-            base, ext = name.rsplit('.', 1)
-            if ext.lower() in ['shp', 'shx', 'dbf', 'prj']:
-                if base not in shapefiles:
-                    shapefiles[base] = []
-                shapefiles[base].append(file)
+    # Trova il primo file .shp nella cartella estratta
+    shp_files = [f for f in os.listdir(extract_folder) if f.endswith('.shp')]
 
-    if not shapefiles:
-        raise ValueError("Nessuno shapefile trovato nella cartella!")
-
-    # Scarica tutti i file di ogni shapefile
-    gdfs = {}
-    for base_name, files in shapefiles.items():
-        for f in files:
-            f.GetContentFile(os.path.join(local_folder, f['title']))
-        # Trova il file .shp
-        shp_file = [f for f in os.listdir(local_folder) if f.startswith(base_name) and f.endswith(".shp")][0]
-        shp_path = os.path.join(local_folder, shp_file)
-        gdfs[base_name] = gpd.read_file(shp_path)
-    
-    return gdfs
+    if shp_files:
+        shp_path = os.path.join(extract_folder, shp_files[0])
+        gdf = gpd.read_file(shp_path)
+        return gdf
+    else:
+        print("Nessun file .shp trovato nello ZIP.")
+        return None
     
 # ==========================
 # Dizionari centralizzati
