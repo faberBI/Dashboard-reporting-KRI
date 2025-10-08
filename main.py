@@ -133,9 +133,10 @@ if selected_kri == "⚡ Energy Risk":
     n_simulations = st.number_input("Numero di simulazioni", min_value=100, max_value=100_000, value=10_000, step=100)
     n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
     end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
-    start_date = pd.Timestamp.today().normalize()
-    days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-    future_dates = pd.date_range(start=start_date, periods=days_to_simulate, freq='D')
+    start_date = st.date_input("Dati aggiornati al", pd.Timestamp.today().date())
+    start_date_sim = pd.Timestamp.today().normalize()
+    days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date_sim)).days
+    future_dates = pd.date_range(start=start_date_sim, periods=days_to_simulate, freq='D')
     unique_years = sorted(future_dates.year.unique().tolist())
     # -----------------------
     # Lancia simulazione
@@ -292,7 +293,7 @@ if selected_kri == "⚡ Energy Risk":
         p5=p5,
         frwd=forward_price_full,
         budget=budget_price_full,
-        observation_period=start_date.strftime("%d/%m/%Y"))
+        observation_period=start_date_sim.strftime("%d/%m/%Y"))
 
         # Visualizzazione su Streamlit
         st.pyplot(fig)
