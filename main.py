@@ -11,6 +11,8 @@ import optuna
 import io
 import requests
 import zipfile
+import json
+import subprocess
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
@@ -393,7 +395,7 @@ elif selected_kri == "🌪️ Natural Event Risk":
 
     # Caricamento librerie e database
     try:
-        from functions.constants import classi_rischio, alpha_tilde_classi_frane, load_shapefile_from_drive
+        from functions.constants import classi_rischio, alpha_tilde_classi_frane, load_kaggle_shapefiles
 
         from functions.natural_events import (
             simulazione_portafoglio_con_rischi_correlati,
@@ -418,13 +420,8 @@ elif selected_kri == "🌪️ Natural Event Risk":
         import folium
         from streamlit_folium import st_folium
         import os
-
-        # Database locali (oppure sostituibili con upload)
-        id_idro  ='1lWkRV87zcec1dxIGOlujKqnlgBky4Xze'
-        id_frane = '1BgH9e_1pxxpNOWZJKyrVpIQ2rGJVt3Cc'
         try:
-            db_frane = load_shapefile_from_drive(id_frane)
-            db_idro = load_shapefile_from_drive(id_idro)
+            db_frane, db_idro = load_kaggle_shapefiles_from_file("~/.kaggle/kaggle.json")
         except:
             st.error(f"❌ Errore nel caricamento dei database in formato shape")
             db_frane = pd.DataFrame()
