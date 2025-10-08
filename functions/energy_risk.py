@@ -503,10 +503,7 @@ def compute_downside_upperside_risk(
 
     df_target_policy["% Purchased w/o Solar"] = (df_target_policy["Covered (MWh)"] / df_target_policy["Fabbisogno (MWh)"]) * 100
     df_target_policy["% Purchased with Solar"] = ((df_target_policy["Covered (MWh)"] + df_target_policy["Solar (MWh)"]) / df_target_policy["Fabbisogno (MWh)"]) * 100
-
-    for target in [95, 85, 50]:
-        df_target_policy[f"Target {target}%"] = target
-
+    df_target_policy['Target Policy']  = [95, 85, 50] 
     return df_risk, df_open, df_prezzi, df_target_policy, fig
 
 
