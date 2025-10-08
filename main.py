@@ -308,7 +308,7 @@ if selected_kri == "⚡ Energy Risk":
         df_target_display = df_target_policy.copy()
 
         # Formattazione percentuali
-        cols_to_format = ["% Purchased w/o Solar", "% Purchased with Solar"]
+        cols_to_format = ["% Purchased w/o Solar", "% Purchased with Solar", "Target Policy"]
 
         for col in cols_to_format:
             df_target_display[col] = df_target_display[col].apply(lambda x: f"{x:.2f}%" if pd.notnull(x) else "")
