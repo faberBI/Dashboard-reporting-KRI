@@ -298,9 +298,6 @@ if selected_kri == "⚡ Energy Risk":
         # Visualizzazione su Streamlit
         st.pyplot(fig)
         
-        st.markdown("### 📈 Analisi Prezzi PUN ")
-        st.info("Tabella contenente media PUN, percentili, Forward e Budget per ogni anno.")
-
         # -------------------------------
         # 📋 Tabella Target Policy
         # -------------------------------
@@ -318,7 +315,9 @@ if selected_kri == "⚡ Energy Risk":
 
         # Mostra la tabella
         st.dataframe(df_target_display)
-        
+
+        st.markdown("### 📈 Analisi Prezzi PUN ")
+        st.info("Tabella contenente media PUN, percentili, Forward e Budget per ogni anno.")
         import pandas as pd
         
         # Applica la formattazione a tutte le colonne tranne eventualmente l'anno
