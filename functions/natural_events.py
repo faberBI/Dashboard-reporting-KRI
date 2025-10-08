@@ -265,7 +265,8 @@ def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, data
                 "Perdita_aggregata_99": perdita_aggregata_99,
                 "Perdite_aggregata_995":perdita_aggregata_995,
                 "Perdite_aggregata_997":perdita_aggregata_997,
-                "Perdite_aggregata_999":perdita_aggregata_999
+                "Perdite_aggregata_999":perdita_aggregata_999,
+                "KRI_99" :perdita_aggregata_99 / valore_mercato
 
             }
 
