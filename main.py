@@ -111,7 +111,7 @@ if selected_kri == "⚡ Energy Risk":
     solar = st.text_input("Solar (MWh)", df_to_str(df, "Solar", "0,203,422"))
     forward_price = st.text_input("Forward Price (€)", df_to_str(df, "Forward Price", "115.99,106.85,94.00"))
     budget_price = st.text_input("Budget Price (€)", df_to_str(df, "Budget Price", "115,121,120"))
-    ebitda = st.text_input("EBITDA (€)", df_to_str(df, "Ebitda", "1900000000"))
+   
 
     # Parsing input
     try:
@@ -135,6 +135,8 @@ if selected_kri == "⚡ Energy Risk":
     n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
     end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
     start_date = st.date_input("Dati aggiornati al", pd.Timestamp.today().date())
+    ebitda = st.text_input("EBITDA (€)", df_to_str(df, "Ebitda", "1900000000"))
+    
     start_date_sim = pd.Timestamp.today().normalize()
     days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date_sim)).days
     future_dates = pd.date_range(start=start_date_sim, periods=days_to_simulate, freq='D')
