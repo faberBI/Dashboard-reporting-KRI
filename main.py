@@ -393,7 +393,7 @@ elif selected_kri == "🌪️ Natural Event Risk":
 
     # Caricamento librerie e database
     try:
-        from functions.constants import classi_rischio, alpha_tilde_classi_frane, load_all_shapefiles_from_drive_folder
+        from functions.constants import classi_rischio, alpha_tilde_classi_frane, load_shapefile_from_drive
 
         from functions.natural_events import (
             simulazione_portafoglio_con_rischi_correlati,
@@ -420,11 +420,11 @@ elif selected_kri == "🌪️ Natural Event Risk":
         import os
 
         # Database locali (oppure sostituibili con upload)
-        id_idro  ='1ShY5mQTYwospC9UzjXe-460EgfcFO__F'
-        id_frane = '1A2kJ-H5PStaDKMLgxLMuhvFKp60Q8oUJ'
+        id_idro  ='1lWkRV87zcec1dxIGOlujKqnlgBky4Xze'
+        id_frane = '1BgH9e_1pxxpNOWZJKyrVpIQ2rGJVt3Cc'
         try:
-            db_frane = load_all_shapefiles_from_drive_folder(id_frane)
-            db_idro = load_all_shapefiles_from_drive_folder(id_idro)
+            db_frane = load_shapefile_from_drive(id_frane)
+            db_idro = load_shapefile_from_drive(id_idro)
         except:
             st.error(f"❌ Errore nel caricamento dei database in formato shape")
             db_frane = pd.DataFrame()
