@@ -280,7 +280,7 @@ if selected_kri == "⚡ Energy Risk":
         forward_price_full = [0]*missing_len_f + forward_price_full
 
         # Chiamata alla funzione principale
-        df_risk, df_open, df_prezzi, fig, df_target_policy = compute_downside_upperside_risk(
+        df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
         anni=unique_years,
         fabbisogno=fabbisogno,
         covered=covered,
