@@ -250,10 +250,10 @@ def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, data
                 'rischio_idro': area_idro,
                 'Magnitudo_min': MwMin,
                 'Magnitudo_max': MwMax,
-                "Perdita_995_Frane": (frane_perc_95* pesi_danno_per_rischio['frane']['building'] )+ (frane_perc_95_content* pesi_danno_per_rischio['frane']['content']),
-                "Perdita_995_Idro": (idro_perc_95* pesi_danno_per_rischio['idro']['building'] )+(idro_perc_95_content* pesi_danno_per_rischio['idro']['content'] ),
-                "Perdita_995_Sismico": (terremoto_perc_95* pesi_danno_per_rischio['sismico']['building'] )+(terremoto_perc_95_content* pesi_danno_per_rischio['sismico']['content'] ),
-                "Perdita_995_Tempesta": (tempesta_perc_95* pesi_danno_per_rischio['tempeste']['building'] )+(tempesta_perc_95_content* pesi_danno_per_rischio['tempeste']['content'] ),
+                "Perdita_95_Frane": (frane_perc_95* pesi_danno_per_rischio['frane']['building'] )+ (frane_perc_95_content* pesi_danno_per_rischio['frane']['content']),
+                "Perdita_95_Idro": (idro_perc_95* pesi_danno_per_rischio['idro']['building'] )+(idro_perc_95_content* pesi_danno_per_rischio['idro']['content'] ),
+                "Perdita_95_Sismico": (terremoto_perc_95* pesi_danno_per_rischio['sismico']['building'] )+(terremoto_perc_95_content* pesi_danno_per_rischio['sismico']['content'] ),
+                "Perdita_95_Tempesta": (tempesta_perc_95* pesi_danno_per_rischio['tempeste']['building'] )+(tempesta_perc_95_content* pesi_danno_per_rischio['tempeste']['content'] ),
                 "Perdita_aggregata_25": perdita_aggregata_25,
                 "Perdita_aggregata_50": perdita_aggregata_50,
                 "Perdita_aggregata_75": perdita_aggregata_75,
@@ -264,12 +264,17 @@ def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, data
                 "Perdite_aggregata_995":perdita_aggregata_995,
                 "Perdite_aggregata_997":perdita_aggregata_997,
                 "Perdite_aggregata_999":perdita_aggregata_999,
-                "KRI_99" :perdita_aggregata_99 / valore_mercato
+                "KRI_95" :perdita_aggregata_95 / valore_mercato
 
             }
 
             results.append(immobile_results)
 
     df_perdite = pd.DataFrame(results)
+
+    df_perdite['Peso_frane'] = df['Perdita_95_Frane']/(df_perdite['Perdita_95_Frane']+df_perdite['Perdita_95_Idro']+df_perdite['Perdita_95_Tempesta']+df_perdite['Perdita_95_Sismico'])
+    df_perdite['Peso_idro'] = df['Perdita_95_Idro']/(df_perdite['Perdita_95_Frane']+df_perdite['Perdita_95_Idro']+df_perdite['Perdita_95_Tempesta']+df_perdite['Perdita_95_Sismico'])
+    df_perdite['Peso_tempeste']=df['Perdita_95_Tempesta']/(df_perdite['Perdita_95_Frane']+df_perdite['Perdita_95_Idro']+df_perdite['Perdita_95_Tempesta']+df_perdite['Perdita_95_Sismico'])
+    df_perdite['Peso_terremoto'] = df['Perdita_95_Sismico']/(df_perdite['Perdita_95_Frane']+df_perdite['Perdita_95_Idro']+df_perdite['Perdita_95_Tempesta']+df_perdite['Perdita_95_Sismico'])
     return df_perdite
 
