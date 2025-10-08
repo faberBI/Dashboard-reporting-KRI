@@ -280,7 +280,7 @@ if selected_kri == "⚡ Energy Risk":
         forward_price_full = [0]*missing_len_f + forward_price_full
 
         # Chiamata alla funzione principale
-        df_risk, df_open, df_prezzi, fig = compute_downside_upperside_risk(
+        df_risk, df_open, df_prezzi, fig, df_target_policy = compute_downside_upperside_risk(
         anni=unique_years,
         fabbisogno=fabbisogno,
         covered=covered,
@@ -299,6 +299,24 @@ if selected_kri == "⚡ Energy Risk":
         
         st.markdown("### 📈 Analisi Prezzi PUN ")
         st.info("Tabella contenente media PUN, percentili, Forward e Budget per ogni anno.")
+
+        # -------------------------------
+        # 📋 Tabella Target Policy
+        # -------------------------------
+        st.markdown("### 🎯 Target Policy Analysis")
+        st.info("Rapporto tra coperto e fabbisogno con e senza energia solare, confrontato con i livelli di Target Policy (95%, 85%, 50%).")
+
+        # Copia per visualizzazione
+        df_target_display = df_target_policy.copy()
+
+        # Formattazione percentuali
+        cols_to_format = ["% Purchased w/o Solar", "% Purchased with Solar"]
+
+        for col in cols_to_format:
+            df_target_display[col] = df_target_display[col].apply(lambda x: f"{x:.2f}%" if pd.notnull(x) else "")
+
+        # Mostra la tabella
+        st.dataframe(df_target_display)
         
         import pandas as pd
         
@@ -314,7 +332,7 @@ if selected_kri == "⚡ Energy Risk":
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
         st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
 
-            # Copia del DataFrame per styling
+        # Copia del DataFrame per styling
         df_styled = df_risk.style
         
         # Colonne da escludere dalla formattazione in milioni
