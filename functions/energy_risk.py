@@ -588,7 +588,7 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TI
     axes[1].invert_yaxis()
 
     # --- Riquadro in alto a destra ---
-    fig.text(0.85, 0.95, f'{ebitda_vs_budget.values[0]:.1%} Organic EBITDAaL budget 25',
+    fig.text(0.85, 0.95, f'{ebitda_vs_budget:.1%} Organic EBITDAaL budget 25',
              ha='center', va='center', fontsize=10, color=colore_testo_riquadro,
              bbox=dict(facecolor=colore_riquadro, edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
 
