@@ -496,11 +496,11 @@ def compute_downside_upperside_risk(
     plt.tight_layout()
 
    df_target_policy = pd.DataFrame({
-    "Anno": anni,
-    "Fabbisogno (MWh)": fabbisogno,
-    "Covered (MWh)": covered,
-    "Solar (MWh)": solar
-    })
+        "Anno": anni,
+        "Fabbisogno (MWh)": fabbisogno,
+        "Covered (MWh)": covered,
+        "Solar (MWh)": solar
+        })
 
     # Rapporto coperto/fabbisogno
     df_target_policy["% Purchased w/o Solar"] = (df_target_policy["Covered (MWh)"] / df_target_policy["Fabbisogno (MWh)"]) * 100
