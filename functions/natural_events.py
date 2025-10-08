@@ -60,7 +60,7 @@ def calcola_perdita_attesa_frane(classe, valore, n_simulazioni=10000, sigma_alph
         perdite.append(perdita)
 
     perdite = np.array(perdite)
-    return perdite, np.quantile(perdite, 0.995), np.quantile(perdite, 0.997), np.quantile(perdite, 0.999), calcola_percentili(perdite)
+    return perdite,np.quantile(perdite, 0.95),np.quantile(perdite, 0.995), np.quantile(perdite, 0.997), np.quantile(perdite, 0.999), calcola_percentili(perdite)
 
 # ==========================
 # Idro
@@ -87,7 +87,7 @@ def simulazione_perdita_attesa_idro(classe, valore, h, n_simulazioni=1000, sigma
         perdite.append(perdita)
 
     perdite = np.array(perdite)
-    return perdite, np.quantile(perdite, 0.995), np.quantile(perdite, 0.997), np.quantile(perdite, 0.999), calcola_percentili(perdite), p_evento, perdite.std()
+    return perdite, np.quantile(perdite, 0.95), np.quantile(perdite, 0.995), np.quantile(perdite, 0.997), np.quantile(perdite, 0.999), calcola_percentili(perdite), p_evento, perdite.std()
 
 # ==========================
 # Sismico
@@ -124,7 +124,7 @@ def simulazione_perdita_attesa_sismica(m_min, m_max, b, risk_factor, VI, valore,
         perdite.append(calculate_value_loss(dpm, loss_values)*valore)
 
     perdite = np.array(perdite)
-    return perdite, np.quantile(perdite, 0.995), np.quantile(perdite, 0.997), np.quantile(perdite, 0.999), calcola_percentili(perdite)
+    return perdite, np.quantile(perdite, 0.95), np.quantile(perdite, 0.995), np.quantile(perdite, 0.997), np.quantile(perdite, 0.999), calcola_percentili(perdite)
 
 # ==========================
 # Tempeste
@@ -137,9 +137,7 @@ def simula_danno_tempesta(valore, n_simulazioni=10000, eventi_in_25_anni=9, s=0.
         danno = np.sum(np.clip(lognorm.rvs(s, loc=loc, scale=scale, size=n_tempeste), 0, 0.003))*valore if n_tempeste>0 else 0.0
         danni.append(danno)
     danni = np.array(danni)
-    return danni, np.quantile(danni, 0.995), np.quantile(danni, 0.997), np.quantile(danni, 0.999), calcola_percentili(danni), np.std(danni)
-
-
+    return danni,np.quantile(danni, 0.95) np.quantile(danni, 0.995), np.quantile(danni, 0.997), np.quantile(danni, 0.999), calcola_percentili(danni), np.std(danni)
 
 def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, database_frane=None, database_idro=None, db_sismico=None):
     results = []
@@ -166,8 +164,8 @@ def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, data
             print('classe rischio frane: ', area_frane)
 
             # building
-            danno_frane, frane_perc_995,frane_perc_997,frane_perc_999, percentili_frane, = calcola_perdita_attesa_frane(area_frane, valore_esposto, n_simulazioni)
-            danno_idro, idro_perc_995,idro_perc_997,idro_perc_999, percentili_idro, _, _ = simulazione_perdita_attesa_idro(area_idro, valore_esposto, h_idraulico, n_simulazioni)
+            danno_frane,frane_perc_95,  frane_perc_995,frane_perc_997,frane_perc_999, percentili_frane, = calcola_perdita_attesa_frane(area_frane, valore_esposto, n_simulazioni)
+            danno_idro, idro_perc_95, idro_perc_995,idro_perc_997,idro_perc_999, percentili_idro, _, _ = simulazione_perdita_attesa_idro(area_idro, valore_esposto, h_idraulico, n_simulazioni)
 
             MwMin, MwMax, MwMed = get_magnitudes_for_comune(immobile["codice_comune"], df_sismico)
             b = 1
@@ -175,15 +173,15 @@ def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, data
             VI = 0.1
             print('classe rischio sismico: ', MwMin, MwMax, MwMed)
 
-            danno_sismico, terremoto_perc_995,terremoto_perc_997,terremoto_perc_999, _ = simulazione_perdita_attesa_sismica(MwMin, MwMax, b, risk_factor, VI, valore_esposto, n_simulazioni)
+            danno_sismico,terremoto_perc_95,  terremoto_perc_995,terremoto_perc_997,terremoto_perc_999, _ = simulazione_perdita_attesa_sismica(MwMin, MwMax, b, risk_factor, VI, valore_esposto, n_simulazioni)
 
-            danno_tempeste, tempesta_perc_995,tempesta_perc_997,tempesta_perc_999,  _, _= simula_danno_tempesta(valore_mercato, n_simulazioni)
-
+            danno_tempeste, tempesta_perc_95, tempesta_perc_995,tempesta_perc_997,tempesta_perc_999,  _, _= simula_danno_tempesta(valore_mercato, n_simulazioni)
+ 
             # content
-            danno_frane_content, frane_perc_995_content,_,_, _, = calcola_perdita_attesa_frane(area_frane, valore_content, n_simulazioni)
-            danno_idro_content, idro_perc_995_content,_,_, _, _, _ = simulazione_perdita_attesa_idro(area_idro, valore_content, h_idraulico, n_simulazioni)
-            danno_sismico_content, terremoto_perc_995_content,_,_, _ = simulazione_perdita_attesa_sismica(MwMin, MwMax, b, risk_factor, VI, valore_content, n_simulazioni)
-            danno_tempeste_content, tempesta_perc_995_content,_,_,  _, _= simula_danno_tempesta(valore_content, n_simulazioni)
+            danno_frane_content, frane_perc_95_content, frane_perc_995_content,_,_, _, = calcola_perdita_attesa_frane(area_frane, valore_content, n_simulazioni)
+            danno_idro_content, idro_perc_95_content, idro_perc_995_content,_,_, _, _, _ = simulazione_perdita_attesa_idro(area_idro, valore_content, h_idraulico, n_simulazioni)
+            danno_sismico_content, terremoto_perc_95_content , terremoto_perc_995_content,_,_, _ = simulazione_perdita_attesa_sismica(MwMin, MwMax, b, risk_factor, VI, valore_content, n_simulazioni)
+            danno_tempeste_content, tempesta_perc_95_content, tempesta_perc_995_content,_,_,  _, _= simula_danno_tempesta(valore_content, n_simulazioni)
 
             # X = np.vstack([danno_frane, danno_idro, danno_sismico, danno_tempeste]).T
             # mu = X.mean(axis=0)
@@ -252,10 +250,10 @@ def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, data
                 'rischio_idro': area_idro,
                 'Magnitudo_min': MwMin,
                 'Magnitudo_max': MwMax,
-                "Perdita_995_Frane": (frane_perc_995* pesi_danno_per_rischio['frane']['building'] )+ (frane_perc_995_content* pesi_danno_per_rischio['frane']['content']),
-                "Perdita_995_Idro": (idro_perc_995* pesi_danno_per_rischio['idro']['building'] )+(idro_perc_995_content* pesi_danno_per_rischio['idro']['content'] ),
-                "Perdita_995_Sismico": (terremoto_perc_995* pesi_danno_per_rischio['sismico']['building'] )+(terremoto_perc_995_content* pesi_danno_per_rischio['sismico']['content'] ),
-                "Perdita_995_Tempesta": (tempesta_perc_995* pesi_danno_per_rischio['tempeste']['building'] )+(tempesta_perc_995_content* pesi_danno_per_rischio['tempeste']['content'] ),
+                "Perdita_995_Frane": (frane_perc_95* pesi_danno_per_rischio['frane']['building'] )+ (frane_perc_95_content* pesi_danno_per_rischio['frane']['content']),
+                "Perdita_995_Idro": (idro_perc_95* pesi_danno_per_rischio['idro']['building'] )+(idro_perc_95_content* pesi_danno_per_rischio['idro']['content'] ),
+                "Perdita_995_Sismico": (terremoto_perc_95* pesi_danno_per_rischio['sismico']['building'] )+(terremoto_perc_95_content* pesi_danno_per_rischio['sismico']['content'] ),
+                "Perdita_995_Tempesta": (tempesta_perc_95* pesi_danno_per_rischio['tempeste']['building'] )+(tempesta_perc_95_content* pesi_danno_per_rischio['tempeste']['content'] ),
                 "Perdita_aggregata_25": perdita_aggregata_25,
                 "Perdita_aggregata_50": perdita_aggregata_50,
                 "Perdita_aggregata_75": perdita_aggregata_75,
