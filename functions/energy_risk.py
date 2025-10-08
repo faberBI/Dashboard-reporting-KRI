@@ -384,8 +384,8 @@ def replace_last_zero_with_value(lst, last_value):
 
 def compute_downside_upperside_risk(
     anni, fabbisogno, covered, solar,
-    anni_prezzi, media_pun, predictive, p95, p5, frwd, budget, observation_period
-):
+    anni_prezzi, media_pun, predictive, p95, p5, frwd, budget, observation_period):
+    
     import matplotlib.pyplot as plt
     import pandas as pd
 
