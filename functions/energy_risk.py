@@ -384,8 +384,7 @@ def replace_last_zero_with_value(lst, last_value):
 
 def compute_downside_upperside_risk(
     anni, fabbisogno, covered, solar,
-    anni_prezzi, media_pun, predictive, p95, p5, frwd, budget, observation_period
-):
+    anni_prezzi, media_pun, predictive, p95, p5, frwd, budget, observation_period):
     import matplotlib.pyplot as plt
     import pandas as pd
 
@@ -442,6 +441,7 @@ def compute_downside_upperside_risk(
     df_risk["Upside Forward (no solar)"] = calc_product(diff_frwd_5, open_pos_nos)
     df_risk = df_risk[df_risk["Year"] >= 2025].reset_index(drop=True)
 
+    
     # === Creazione grafico ===
     fig, ax = plt.subplots(figsize=(16, 6))
     ax.axvspan(2019.5, 2023.5, color="#ffffff", alpha=0.4)
@@ -507,12 +507,14 @@ def compute_downside_upperside_risk(
     return df_risk, df_open, df_prezzi, df_target_policy, fig
 
 
-def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf'):
+def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TIMSans-Medium.ttf'):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
     import matplotlib.font_manager as fm
     import numpy as np
 
+    ebitda_vs_budget = df_open[df_open['Year']==periodo_di_analisi.year]['Open Position']/ebitda
+    
     df_risk.dropna(inplace=True)
     anni = df_risk['Year']
     data_sez1_no_solar = np.round(df_risk['Downside Budget (no solar)']/1_000_000, 1)
@@ -527,6 +529,8 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf')
     colore_etichette_anni = '#000000'
     colore_linea_divisoria = '#dadada'
     colore_testo = '#335193'
+    colore_riquadro = '#404040'  # riquadro in alto a destra
+    colore_testo_riquadro = 'white'
 
     prop = fm.FontProperties(fname=font_path)
     fig, axes = plt.subplots(2, 1, figsize=(8, 9), sharex=True, gridspec_kw={'height_ratios':[1,1],'hspace':0.25})
@@ -575,7 +579,12 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, font_path='TIMSans-Medium.ttf')
         axes[1].plot([0,0],[y_pos[i]-0.4, y_pos[i]+0.4], color='black', linewidth=0.5)
     axes[1].invert_yaxis()
 
+    # --- Riquadro in alto a destra ---
+    fig.text(0.85, 0.95, f'{ebitda_vs_budget.values[0]:.1%} Organic EBITDAaL budget 25',
+             ha='center', va='center', fontsize=10, color=colore_testo_riquadro,
+             bbox=dict(facecolor=colore_riquadro, edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
+
     plt.tight_layout(rect=[0,0.03,1,0.95])
-    return fig  # <-- restituisce la figura direttamente
+    return fig
 
 
