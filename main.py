@@ -423,8 +423,8 @@ elif selected_kri == "🌪️ Natural Event Risk":
         id_idro  ='1ShY5mQTYwospC9UzjXe-460EgfcFO__F'
         id_frane = '1A2kJ-H5PStaDKMLgxLMuhvFKp60Q8oUJ'
         try:
-            db_frane = load_shapefile_from_drive(id_frane) if os.path.exists("Data/db_frane.shp")
-            db_idro = load_shapefile_from_drive(id_idro) if os.path.exists("Data/db_idro.shp")
+            db_frane = load_shapefile_from_drive(id_frane)
+            db_idro = load_shapefile_from_drive(id_idro)
         except:
             st.error(f"❌ Errore nel caricamento dei database in formato shape")
             db_frane = pd.DataFrame()
