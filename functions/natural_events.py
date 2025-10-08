@@ -276,5 +276,11 @@ def simulazione_portafoglio_con_rischi_correlati(df, n_simulazioni=100_000, data
     df_perdite['Peso_idro'] = df['Perdita_95_Idro']/(df_perdite['Perdita_95_Frane']+df_perdite['Perdita_95_Idro']+df_perdite['Perdita_95_Tempesta']+df_perdite['Perdita_95_Sismico'])
     df_perdite['Peso_tempeste']=df['Perdita_95_Tempesta']/(df_perdite['Perdita_95_Frane']+df_perdite['Perdita_95_Idro']+df_perdite['Perdita_95_Tempesta']+df_perdite['Perdita_95_Sismico'])
     df_perdite['Peso_terremoto'] = df['Perdita_95_Sismico']/(df_perdite['Perdita_95_Frane']+df_perdite['Perdita_95_Idro']+df_perdite['Perdita_95_Tempesta']+df_perdite['Perdita_95_Sismico'])
+
+    df_perdite['Perdita_95_Frane_new'] = df_perdite['Peso_frane'] * df['Perdita_aggregata_95']
+    df_perdite['Perdita_95_Idro_new'] = df_perdite['Peso_idro'] * df['Perdita_aggregata_95']
+    df_perdite['Perdita_95_Tempesta_new'] = df_perdite['Peso_tempeste'] * df['Perdita_aggregata_95']
+    df_perdite['Perdita_95_Sismico_new'] = df_perdite['Peso_terremoto'] * df['Perdita_aggregata_95']
+    
     return df_perdite
 
