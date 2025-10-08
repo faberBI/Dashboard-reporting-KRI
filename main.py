@@ -395,7 +395,7 @@ elif selected_kri == "🌪️ Natural Event Risk":
 
     # Caricamento librerie e database
     try:
-        from functions.constants import classi_rischio, alpha_tilde_classi_frane, load_kaggle_shapefiles
+        from functions.constants import classi_rischio, alpha_tilde_classi_frane, load_shapefiles_from_dropbox
 
         from functions.natural_events import (
             simulazione_portafoglio_con_rischi_correlati,
@@ -421,10 +421,10 @@ elif selected_kri == "🌪️ Natural Event Risk":
         from streamlit_folium import st_folium
         import os
         try: 
-            username = st.secrets["KAGGLE_USERNAME"]
-            key = st.secrets["KAGGLE_KEY"]
+            frane_url = st.secrets["FRANE_URL"]
+            idro_url = st.secrets["IDRO_URL"]
+            db_frane, db_idro = load_shapefiles_from_dropbox(frane_url, idro_url)
             
-            db_frane, db_idro = load_kaggle_shapefiles(username, key)
         except Exception as e:
             st.error(f"❌ Errore nel caricament dei database in formato shape : {e}")
             db_frane = pd.DataFrame()
