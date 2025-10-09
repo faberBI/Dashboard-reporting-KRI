@@ -335,6 +335,9 @@ if selected_kri == "⚡ Energy Risk":
             st.dataframe(df_open_new)
 
             st.subheader("📈📉 Risk Analysis")
+            # Formattazione in euro (tranne 'Year')
+            euro_columns = [col for col in df_risk_new.columns if col != "Year"]
+            df_risk_formatted = df_risk_new.style.format({col: "€{:,.2f}".format for col in euro_columns})
             st.dataframe(df_risk_new)
     
             # --- Profit/Loss ---
