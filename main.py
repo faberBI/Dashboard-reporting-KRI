@@ -220,6 +220,7 @@ if selected_kri == "⚡ Energy Risk":
         historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
         df_historical = pd.DataFrame({"Historical Price": historical_price, "Year": anni_prezzi[:len(historical_price)]})
         df_hist_styled = df_historical.style.format({"Historical Price": format_euro}).background_gradient(cmap='Greens', low=0.1, high=0.4)
+        st.session_state.df_historical = df_historical
         st.dataframe(df_hist_styled)
 
         predict_price = forecast_price['50%'].values.tolist()
@@ -333,8 +334,6 @@ if selected_kri == "⚡ Energy Risk":
             st.dataframe(df_gain_loss)
             st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
 
-        
-       
         # Pulsante per scaricare Excel
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
@@ -345,7 +344,8 @@ if selected_kri == "⚡ Energy Risk":
             df_risk.to_excel(writer, sheet_name='Analisi Rischio', index=False)
     
             # df_historical
-            df_historical.to_excel(writer, sheet_name='Historical Price', index=False)
+            if "df_historical" in st.session_state:
+                st.session_state.df_historical.to_excel(writer, sheet_name='Historical Price', index=False)
     
             # forecast_price
             forecast_price.to_excel(writer, sheet_name='Forecast PUN', index=True)
