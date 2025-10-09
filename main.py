@@ -334,40 +334,61 @@ if selected_kri == "⚡ Energy Risk":
             st.dataframe(df_gain_loss)
             st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
 
-        # Pulsante per scaricare Excel
+        # -----------------------
+        # 💾 Esportazione in Excel
+        # -----------------------
         buffer = io.BytesIO()
+
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            # df_prezzi
-            df_prezzi.to_excel(writer, sheet_name='Prezzi PUN', index=False)
-    
-            # df_risk
-            df_risk.to_excel(writer, sheet_name='Analisi Rischio', index=False)
-    
-            # df_historical
-            if "df_historical" in st.session_state:
+            written = False  # Flag per capire se almeno un foglio è stato scritto
+
+            # Prezzi PUN
+            if "df_prezzi" in locals() and not df_prezzi.empty:
+                df_prezzi.to_excel(writer, sheet_name='Prezzi PUN', index=False)
+                written = True
+
+            # Analisi rischio
+            if "df_risk" in locals() and not df_risk.empty:
+                df_risk.to_excel(writer, sheet_name='Analisi Rischio', index=False)
+                written = True
+
+            # Historical Price
+            if "df_historical" in st.session_state and not st.session_state.df_historical.empty:
                 st.session_state.df_historical.to_excel(writer, sheet_name='Historical Price', index=False)
-    
-            # forecast_price
-            forecast_price.to_excel(writer, sheet_name='Forecast PUN', index=True)
-    
+                written = True
+
+            # Forecast PUN
+            if "forecast_price" in locals() and not forecast_price.empty:
+                forecast_price.to_excel(writer, sheet_name='Forecast PUN', index=True)
+                written = True
+
             # Serie PUN storica
-            if 'energy_df' in st.session_state:
+            if "energy_df" in st.session_state and not st.session_state.energy_df.empty:
                 st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
-            
-            # Target Policy 
-            df_target_policy.to_excel(writer, sheet_name='Target Policy', index=False)
-    
+                written = True
+
+            # Target Policy
+            if "df_target_policy" in locals() and not df_target_policy.empty:
+                df_target_policy.to_excel(writer, sheet_name='Target Policy', index=False)
+                written = True
+
+            # Riacquisto Profit/Loss
             if "df_gain_loss" in locals() and not df_gain_loss.empty:
-                # Rimuove il simbolo € e converte per sicurezza a numerico
                 df_gain_loss_clean = df_gain_loss.copy()
                 for col in ["Profit/Loss (€)", "Δ Prezzo (Budget - Forward)"]:
                     df_gain_loss_clean[col] = (
-                    df_gain_loss_clean[col]
-                    .replace("€", "", regex=True)
-                    .replace(",", "", regex=True)
-                    .astype(float, errors='ignore'))
+                        df_gain_loss_clean[col]
+                        .replace("€", "", regex=True)
+                        .replace(",", "", regex=True)
+                        .astype(float, errors='ignore')
+                    )
                 df_gain_loss_clean.to_excel(writer, sheet_name='Riacquisto Profit-Loss', index=False)
-            
+                written = True
+
+            # Se nessun foglio è stato scritto, scrive uno sheet placeholder
+            if not written:
+                pd.DataFrame({"Info": ["Nessun dato disponibile"]}).to_excel(writer, sheet_name="Empty", index=False)
+
             buffer.seek(0)
 
         st.download_button(
