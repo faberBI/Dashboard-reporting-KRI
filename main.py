@@ -256,6 +256,42 @@ if selected_kri == "⚡ Energy Risk":
         )
 
         st.pyplot(fig)
+        st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
+        st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
+
+        # Copia del DataFrame per styling
+        df_styled = df_risk.style
+        
+        # Colonne da escludere dalla formattazione in milioni
+        exclude_cols = ["Year", "Anno", "year", "anno"]
+        
+        # Colonne da formattare in milioni di euro
+        cols_to_format = [c for c in df_risk.columns if c not in exclude_cols]
+        
+        # Applica rosso tenue alle colonne "Downside"
+        downside_cols = [c for c in df_risk.columns if c.startswith("Downside")]
+        if downside_cols:
+            df_styled = df_styled.background_gradient(
+                cmap='Reds', low=0.1, high=0.4, subset=downside_cols
+            )
+        
+        # Applica verde tenue alle colonne "Upside"
+        upside_cols = [c for c in df_risk.columns if c.startswith("Upside")]
+        if upside_cols:
+            df_styled = df_styled.background_gradient(
+                cmap='Greens', low=0.1, high=0.4, subset=upside_cols
+            )
+        
+        # Funzione di formattazione in milioni di euro
+        def format_mln_euro(x):
+            return f"€ {x/1e6:,.2f} Mln" if pd.notnull(x) else ""
+        
+        # Applica la formattazione a tutte le colonne selezionate in **un unico passaggio**
+        format_dict = {col: format_mln_euro for col in cols_to_format}
+        df_styled = df_styled.format(format_dict)
+        
+        # Visualizza su Streamlit
+        st.dataframe(df_styled)
 
         fig_var = var_ebitda_risk(
             periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"),
@@ -334,11 +370,41 @@ if selected_kri == "⚡ Energy Risk":
             st.subheader("📋 Tabella Open Position (aggiornata)")
             st.dataframe(df_open_new)
 
-            st.subheader("📈📉 Risk Analysis")
-            # Formattazione in euro (tranne 'Year')
-            df_risk_new.set_index('Year', inplace = True)
-            def format_euro(x): return f"€ {x:.2f}" if pd.notnull(x) else ""
-            st.dataframe(df_risk_new.style.format({col: format_euro for col in df_risk_new.columns}).background_gradient(cmap='Greens', low=0.1, high=0.4))
+            st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
+
+            # Copia del DataFrame per styling
+            df_styled_new = df_risk_new.style
+        
+            # Colonne da escludere dalla formattazione in milioni
+            exclude_cols = ["Year", "Anno", "year", "anno"]
+        
+            # Colonne da formattare in milioni di euro
+            cols_to_format = [c for c in df_risk.columns if c not in exclude_cols]
+        
+            # Applica rosso tenue alle colonne "Downside"
+            downside_cols = [c for c in df_risk.columns if c.startswith("Downside")]
+            if downside_cols:
+                df_styled_new = df_styled_new.background_gradient(
+                    cmap='Reds', low=0.1, high=0.4, subset=downside_cols
+                )
+        
+            # Applica verde tenue alle colonne "Upside"
+            upside_cols = [c for c in df_risk.columns if c.startswith("Upside")]
+            if upside_cols:
+                df_styled_new = df_styled_new.background_gradient(
+                    cmap='Greens', low=0.1, high=0.4, subset=upside_cols
+                )
+        
+            # Funzione di formattazione in milioni di euro
+            def format_mln_euro(x):
+                return f"€ {x/1e6:,.2f} Mln" if pd.notnull(x) else ""
+        
+            # Applica la formattazione a tutte le colonne selezionate in **un unico passaggio**
+            format_dict = {col: format_mln_euro for col in cols_to_format}
+            df_styled_new = df_styled_new.format(format_dict)
+        
+            # Visualizza su Streamlit
+            st.dataframe(df_styled)
 
             # --- Profit/Loss ---
             df_gain_loss = pd.DataFrame({
