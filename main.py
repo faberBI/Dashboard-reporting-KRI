@@ -333,6 +333,9 @@ if selected_kri == "⚡ Energy Risk":
     
             st.subheader("📋 Tabella Open Position (aggiornata)")
             st.dataframe(df_open_new)
+
+            st.subheader("📈📉 Risk Analysis")
+            st.dataframe(df_risk_new)
     
             # --- Profit/Loss ---
             df_gain_loss = pd.DataFrame({
