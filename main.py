@@ -336,10 +336,10 @@ if selected_kri == "⚡ Energy Risk":
 
             st.subheader("📈📉 Risk Analysis")
             # Formattazione in euro (tranne 'Year')
-            euro_columns = [col for col in df_risk_new.columns if col != "Year"]
-            df_risk_formatted = df_risk_new.style.format({col: "€{:,.2f}".format for col in euro_columns})
-            st.dataframe(df_risk_new)
-    
+            df_risk_new.set_index('Year', inplace = True)
+            def format_euro(x): return f"€ {x:.2f}" if pd.notnull(x) else ""
+            st.dataframe(df_risk_new.style.format({col: format_euro for col in df_risk_new.columns}).background_gradient(cmap='Greens', low=0.1, high=0.4))
+
             # --- Profit/Loss ---
             df_gain_loss = pd.DataFrame({
                 "Anno": st.session_state.unique_years,
