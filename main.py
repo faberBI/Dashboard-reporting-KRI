@@ -382,76 +382,88 @@ if selected_kri == "⚡ Energy Risk":
 
         st.pyplot(fig)
         
-        st.subheader("📌 Acquisto energia aggiuntiva per anno")
+        # ==============================
+        # 📌 Acquisto energia aggiuntiva per anno
+        # ==============================
         
-        # 🔹 Inizializza lo stato se non esiste
-        if "extra_purchase" not in st.session_state:
-            st.session_state.extra_purchase = {anno: 0.0 for anno in unique_years}
+        # Mostra solo se la simulazione è stata completata
+        if "df_open" not in st.session_state:
+            st.warning("⚠️ Esegui prima la simulazione per attivare il calcolo dei riacquisti.")
+        else:
+            st.subheader("📌 Acquisto energia aggiuntiva per anno")
         
-        # --- Inserimento quantità per ogni anno ---
-        extra_purchase = []
-        for i, anno in enumerate(unique_years):
-            qta = st.number_input(
-                f"Anno {anno} - MWh da acquistare",
-                min_value=0.0,
-                value=st.session_state.extra_purchase.get(anno, 0.0),
-                step=10.0,
-                key=f"extra_{anno}"
-            )
-            st.session_state.extra_purchase[anno] = qta
-            extra_purchase.append(qta)
+            # 🔹 Inizializza lo stato dei riacquisti se non esiste
+            if "extra_purchase" not in st.session_state:
+                st.session_state.extra_purchase = {anno: 0.0 for anno in unique_years}
         
-        # --- Pulsante dedicato ---
-        if st.button("🔄 Ricalcola Open Position con riacquisti", key="recalc_btn"):
-            st.info("Ricalcolo in corso...")
+            # --- Inserimento quantità per ogni anno ---
+            for anno in unique_years:
+                qta = st.number_input(
+                    f"Anno {anno} - MWh da acquistare",
+                    min_value=0.0,
+                    value=st.session_state.extra_purchase.get(anno, 0.0),
+                    step=10.0,
+                    key=f"extra_{anno}"
+                )
+                st.session_state.extra_purchase[anno] = qta
         
-            # Aggiorna covered in base agli extra acquistati
-            covered_adjusted = [c + st.session_state.extra_purchase[anno] for c, anno in zip(covered, unique_years)]
+            # --- Pulsante di ricalcolo ---
+            if st.button("🔄 Ricalcola Open Position con riacquisti", key="recalc_btn"):
+                st.info("Ricalcolo in corso...")
         
-            # 🔹 Esegui ricalcolo con la funzione principale
-            df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
-                anni=unique_years,
-                fabbisogno=fabbisogno,
-                covered=covered_adjusted,
-                solar=solar,
-                anni_prezzi=anni_prezzi,
-                media_pun=historical_price,
-                predictive=predict_price,
-                p95=p95,
-                p5=p5,
-                frwd=forward_price_full,
-                budget=budget_price_full,
-                observation_period=start_date_sim
-            )
+                # Recupera i dati della simulazione precedente
+                df_risk = st.session_state.df_risk
+                df_open = st.session_state.df_open
+                df_prezzi = st.session_state.df_prezzi
+                df_target_policy = st.session_state.df_target_policy
         
-            # --- Mostra tabella Open Position ---
-            st.subheader("📋 Tabella Open Position (aggiornata)")
-            st.dataframe(df_open)
+                # Aggiorna covered
+                covered_adjusted = [c + st.session_state.extra_purchase[anno] for c, anno in zip(covered, unique_years)]
         
-            # --- Calcolo profit/loss per riacquisto ---
-            st.subheader("💰 Analisi Guadagno/Perdita Riacquisto")
-            df_gain_loss = pd.DataFrame({
-                "Anno": unique_years,
-                "MWh Acquistati": extra_purchase,
-                "Prezzo Forward (€)": forward_price_full[-len(unique_years):],
-                "Prezzo Budget (€)": budget_price_full[-len(unique_years):]
-            })
+                # Ricalcolo
+                df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
+                    anni=unique_years,
+                    fabbisogno=fabbisogno,
+                    covered=covered_adjusted,
+                    solar=solar,
+                    anni_prezzi=anni_prezzi,
+                    media_pun=historical_price,
+                    predictive=predict_price,
+                    p95=p95,
+                    p5=p5,
+                    frwd=forward_price_full,
+                    budget=budget_price_full,
+                    observation_period=start_date_sim
+                )
         
-            # Calcolo differenza economica
-            df_gain_loss["Δ Prezzo (Budget - Forward)"] = (
-                df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
-            )
-            df_gain_loss["Profit/Loss (€)"] = (
-                df_gain_loss["MWh Acquistati"] * df_gain_loss["Δ Prezzo (Budget - Forward)"]
-            )
+                # 🔹 Salva i nuovi risultati nello stato
+                st.session_state.df_open = df_open
+                st.session_state.df_risk = df_risk
         
-            # Formattazione
-            df_gain_loss["Profit/Loss (€)"] = df_gain_loss["Profit/Loss (€)"].apply(lambda x: f"€ {x:,.0f}")
-            df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Δ Prezzo (Budget - Forward)"].apply(lambda x: f"€ {x:,.2f}")
+                # Mostra tabella aggiornata
+                st.subheader("📋 Tabella Open Position (aggiornata)")
+                st.dataframe(df_open)
         
-            st.dataframe(df_gain_loss)
+                # Calcolo Profit/Loss
+                st.subheader("💰 Analisi Guadagno/Perdita Riacquisto")
+                df_gain_loss = pd.DataFrame({
+                    "Anno": unique_years,
+                    "MWh Acquistati": [st.session_state.extra_purchase[a] for a in unique_years],
+                    "Prezzo Forward (€)": forward_price_full[-len(unique_years):],
+                    "Prezzo Budget (€)": budget_price_full[-len(unique_years):]
+                })
+                df_gain_loss["Δ Prezzo (Budget - Forward)"] = (
+                    df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
+                )
+                df_gain_loss["Profit/Loss (€)"] = (
+                    df_gain_loss["MWh Acquistati"] * df_gain_loss["Δ Prezzo (Budget - Forward)"]
+                )
+                df_gain_loss["Profit/Loss (€)"] = df_gain_loss["Profit/Loss (€)"].apply(lambda x: f"€ {x:,.0f}")
+                df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Δ Prezzo (Budget - Forward)"].apply(lambda x: f"€ {x:,.2f}")
         
-            st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
+                st.dataframe(df_gain_loss)
+                st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
+        
        
         # Pulsante per scaricare Excel
         buffer = io.BytesIO()
