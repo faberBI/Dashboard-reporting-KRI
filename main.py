@@ -293,6 +293,10 @@ if selected_kri == "⚡ Energy Risk":
         # Visualizza su Streamlit
         st.dataframe(df_styled)
 
+        st.markdown("### ⚠️ Target Policy")
+        st.info("Valori % di copertura del fabbisogno.")
+        st.dataframe(df_target_policy)
+
         fig_var = var_ebitda_risk(
             periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"),
             df_risk=df_risk,
@@ -324,7 +328,7 @@ if selected_kri == "⚡ Energy Risk":
             "ebitda": ebitda
         })
 
-        # -----------------------
+    # -----------------------
     # Riacquisti Energia
     # -----------------------
     if "df_open" in st.session_state:
@@ -405,6 +409,11 @@ if selected_kri == "⚡ Energy Risk":
         
             # Visualizza su Streamlit
             st.dataframe(df_styled_new)
+
+
+            st.markdown("### ⚠️ Target Policy Aggiornato")
+            st.info("Valori % di copertura del fabbisogno.")
+            st.dataframe(df_target_policy_new)
 
             # --- Profit/Loss ---
             df_gain_loss = pd.DataFrame({
