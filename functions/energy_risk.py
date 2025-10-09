@@ -507,26 +507,23 @@ def compute_downside_upperside_risk(
     return df_risk, df_open, df_prezzi, df_target_policy, fig
 
 
-def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TIMSans-Medium.ttf'):
+def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='TIMSans-Medium.ttf'):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
     import matplotlib.font_manager as fm
     import numpy as np
     from datetime import datetime
-    
-    anno_bis = datetime.strptime(periodo_di_analisi.replace("as of ", ""), "%d/%m/%Y").year
-    
-    open_pos_row = df_open.loc[df_open['Anno'] == anno_bis, 'Open Position']
 
-    try:
-        ebitda_vs_budget = open_pos_row.iloc[0] / ebitda
-    except:
-        ebitda_vs_budget = 0
-    
-    df_risk.dropna(inplace=True)
+    # --- Calcolo EBITDA vs Budget per ogni anno ---
+    df_calc = df_open.copy()
+    df_calc['ebitda_vs_budget'] = df_open['Open Position'] / df_ebitda['Ebitda']
+
+    # --- Pulizia dati e barre ---
+    df_risk = df_risk.dropna()
     anni = df_risk['Year']
     data_sez1_no_solar = np.round(df_risk['Downside Budget (no solar)']/1_000_000, 1)
     data_sez1_solar = np.round(df_risk['Downside Budget']/1_000_000, 1)
+    y_pos = np.arange(len(anni))
 
     # --- Stile e colori ---
     plt.style.use('seaborn-v0_8-whitegrid')
@@ -537,8 +534,6 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TI
     colore_etichette_anni = '#000000'
     colore_linea_divisoria = '#dadada'
     colore_testo = '#335193'
-    colore_riquadro = '#404040'  # riquadro in alto a destra
-    colore_testo_riquadro = 'white'
 
     prop = fm.FontProperties(fname=font_path)
     fig, axes = plt.subplots(2, 1, figsize=(8, 9), sharex=True, gridspec_kw={'height_ratios':[1,1],'hspace':0.25})
@@ -554,8 +549,8 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TI
     bordo = Rectangle((0,0),1,1, transform=fig.transFigure, fill=False, edgecolor='black', linewidth=1.5)
     fig.patches.append(bordo)
 
+    # --- Configurazione assi ---
     larghezza_barra = 0.6
-    y_pos = np.arange(len(anni))
     for ax in axes:
         ax.set_facecolor(colore_sfondo)
         ax.grid(False)
@@ -563,7 +558,7 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TI
             spine.set_visible(False)
         ax.tick_params(left=False, bottom=False, labelbottom=False)
 
-    # Grafico w/o solar
+    # --- Grafico w/o solar ---
     axes[0].barh(y_pos, data_sez1_no_solar, larghezza_barra, color=colore_barre)
     axes[0].set_yticks(y_pos)
     axes[0].set_yticklabels(anni, color=colore_etichette_anni, fontweight='bold', fontsize=12, fontproperties=prop)
@@ -573,11 +568,11 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TI
         axes[0].plot([0,0],[y_pos[i]-0.4, y_pos[i]+0.4], color='black', linewidth=0.5)
     axes[0].invert_yaxis()
 
-    # Linea divisoria
+    # --- Linea divisoria ---
     line = plt.Line2D([0.05,0.95],[0.525,0.525], transform=fig.transFigure, color=colore_linea_divisoria, linewidth=1)
     fig.add_artist(line)
 
-    # Grafico w/ solar
+    # --- Grafico w/ solar ---
     axes[1].barh(y_pos, data_sez1_solar, larghezza_barra, color=colore_barre)
     axes[1].set_yticks(y_pos)
     axes[1].set_yticklabels(anni, color=colore_etichette_anni, fontweight='bold', fontsize=12, fontproperties=prop)
@@ -587,12 +582,24 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, ebitda , font_path='TI
         axes[1].plot([0,0],[y_pos[i]-0.4, y_pos[i]+0.4], color='black', linewidth=0.5)
     axes[1].invert_yaxis()
 
-    # --- Riquadro in alto a destra ---
-    fig.text(0.85, 0.95, f'{ebitda_vs_budget:.1%} Organic EBITDAaL budget 25',
-             ha='center', va='center', fontsize=10, color=colore_testo_riquadro,
-             bbox=dict(facecolor='#06B052', edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
+    # --- Riquadri verdi accanto alle barre ---
+    x_max = max(np.max(data_sez1_solar), np.max(data_sez1_no_solar)) * 1.05  # leggermente oltre la barra
+    for i, anno in enumerate(anni):
+        val = df_calc.loc[df_calc['Anno'] == anno, 'ebitda_vs_budget'].values[0]
+        fig.text(
+            x=x_max, 
+            y=y_pos[i], 
+            s=f"{val:.1%}", 
+            ha='left', 
+            va='center', 
+            fontsize=10, 
+            color='white',
+            bbox=dict(facecolor='#06B052', edgecolor='none', boxstyle='round,pad=0.3'),
+            fontproperties=prop
+        )
 
     plt.tight_layout(rect=[0,0.03,1,0.95])
     return fig
+
 
 
