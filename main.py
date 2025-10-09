@@ -111,7 +111,7 @@ if selected_kri == "⚡ Energy Risk":
     solar = st.text_input("Solar (MWh)", df_to_str(df, "Solar", "0,203,422"))
     forward_price = st.text_input("Forward Price (€)", df_to_str(df, "Forward Price", "115.99,106.85,94.00"))
     budget_price = st.text_input("Budget Price (€)", df_to_str(df, "Budget Price", "115,121,120"))
-   
+    ebitda = st.text_input("EBITDA (€)", df_to_str(df, "Ebitda", "1900000000"))
 
     # Parsing input
     try:
@@ -120,6 +120,7 @@ if selected_kri == "⚡ Energy Risk":
         solar = [float(x) for x in solar.split(",")]
         forward_price = [float(x) for x in forward_price.split(",")]
         budget_price = [float(x) for x in budget_price.split(",")]
+        ebitda = float(ebitda.replace(",", ""))
     except Exception as e:
         st.error(f"❌ Errore nei parametri: {e}")
         st.stop()
@@ -130,32 +131,32 @@ if selected_kri == "⚡ Energy Risk":
 
     st.success("✅ Parametri validi, pronti per la simulazione!")
 
-    # Simulazione
+    # -----------------------
+    # Parametri simulazione
+    # -----------------------
     n_simulations = st.number_input("Numero di simulazioni", min_value=100, max_value=100_000, value=10_000, step=100)
     n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
     end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
     start_date = st.date_input("Dati aggiornati al", pd.Timestamp.today().date())
-    ebitda = st.text_input("EBITDA (€)", df_to_str(df, "Ebitda", "1900000000"))
-    
     start_date_sim = pd.Timestamp.today().normalize()
+
     days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date_sim)).days
     future_dates = pd.date_range(start=start_date_sim, periods=days_to_simulate, freq='D')
     unique_years = sorted(future_dates.year.unique().tolist())
-    
+
     # -----------------------
-    # Lancia simulazione
+    # Pulsante Simulazione
     # -----------------------
     if st.button("💹 Esegui simulazione Energy Risk"):
         st.info("Simulazione in corso...")
 
-        # Prova a caricare il file Excel locale
+        # Carica file Excel PUN
         data_path = "Data/Pun 10_04_2025.xlsx"
         df_excel = None
         if os.path.exists(data_path):
             df_excel = pd.read_excel(data_path)
-            st.success(f"🔄 Dati Caricati")
+            st.success("🔄 Dati Caricati")
 
-        # Se il file locale non esiste o è vuoto, richiedi upload
         if df_excel is None or df_excel.empty:
             uploaded_file = st.file_uploader("Seleziona il file Excel PUN", type=["xlsx"])
             if uploaded_file:
@@ -164,20 +165,15 @@ if selected_kri == "⚡ Energy Risk":
                 st.warning("Carica il file Excel per procedere con la simulazione.")
                 st.stop()
 
-        # Controllo colonne obbligatorie
         if 'Date' not in df_excel.columns or 'GMEPIT24 Index' not in df_excel.columns:
             st.error("Il file Excel deve contenere 'Date' e 'GMEPIT24 Index'.")
             st.stop()
 
-        # Converte Date e calcola Log_Returns
         df_excel['Date'] = pd.to_datetime(df_excel['Date'])
         df_excel['Log_Returns'] = np.log(df_excel['GMEPIT24 Index'] / df_excel['GMEPIT24 Index'].shift(1))
         df_excel = df_excel.dropna(subset=['Log_Returns'])
-
-        # Salva in session_state
         st.session_state.energy_df = df_excel
 
-        # Filtra per intervallo date selezionato
         df_filtered = df_excel
         if df_filtered.empty:
             st.error("Il filtro ha prodotto un DataFrame vuoto")
@@ -203,295 +199,140 @@ if selected_kri == "⚡ Energy Risk":
             index=future_dates_sim,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-
         simulated_df = simulated_df.mask((simulated_df < 40) | (simulated_df >= 350))
 
-        # Analisi distribuzione
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years, forward_prices= forward_price)  # <-- PASSA qui il forward price
+        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(
+            simulated_df, unique_years, forward_prices=forward_price)
         st.pyplot(fig)
 
-        # --------------------------------------
-        # Forecast + Storico
-        # --------------------------------------
+        # -----------------------
+        # Forecast + storico
+        # -----------------------
+        forecast_price = pd.DataFrame.from_dict(yearly_percentiles, orient='index', columns=['5%', '50%', '95%'])
+        st.markdown("### 📊 Forecast Output")
+        st.info("Questi sono i valori previsionali basati sui percentili annuali.")
+        def format_euro(x): return f"€ {x:.2f}" if pd.notnull(x) else ""
+        st.dataframe(forecast_price.style.format({col: format_euro for col in forecast_price.columns}).background_gradient(cmap='Greens', low=0.1, high=0.4))
 
-        forecast_price = df = pd.DataFrame.from_dict(yearly_percentiles, orient='index', columns=['5%', '50%', '95%'])
-        st.markdown("### 📊 Forecast Output")  # titolo con icona
-        st.info("Questi sono i valori previsionali basati sui percentili annuali.")  # box informativo
-        # Funzione di formattazione in euro
-        def format_euro(x):
-            return f"€ {x:.2f}" if pd.notnull(x) else ""
-
-        # Applica formattazione solo alle colonne numeriche
-        cols_to_format = [c for c in forecast_price.columns]  # qui non c'è Year, quindi tutte le colonne
-        st.dataframe(forecast_price.style.format({col: format_euro for col in cols_to_format}).background_gradient(cmap='Greens', low=0.1, high=0.4, subset=cols_to_format))
-
-        # Combinazione anni storico + forecast
         anni_prezzi = [2020, 2021, 2022, 2023, 2024] + unique_years
         anni_prezzi = [int(y) for y in anni_prezzi]
 
-        # Media storica PUN per gli anni storici
         historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
-        # historical_price = historical_price[:-1]
-
-        st.markdown("### 📅 Historical Price")  # Titolo con icona
-        st.info("Media storica PUN per gli anni disponibili.")  # Box informativo
-        
         df_historical = pd.DataFrame({"Historical Price": historical_price, "Year": anni_prezzi[:len(historical_price)]})
-
-        # Copia per styling
-        df_hist_styled = df_historical.style
-
-        # Colonne da escludere dalla formattazione
-        exclude_cols = ["Year", "Anno", "year", "anno"]
-
-        # Colonne da formattare in euro
-        cols_to_format = [c for c in df_historical.columns if c not in exclude_cols]
-
-        # Funzione di formattazione
-        def format_euro(x):
-            return f"€ {x:.2f}" if pd.notnull(x) else ""
-
-        # Applica formattazione in un unico passaggio
-        format_dict = {col: format_euro for col in cols_to_format}
-        df_hist_styled = df_hist_styled.format(format_dict)
-
-        # Applica gradiente solo sulle colonne numeriche
-        df_hist_styled = df_hist_styled.background_gradient(cmap='Greens', low=0.1, high=0.4, subset=cols_to_format)
-
-        # Mostra su Streamlit
+        df_hist_styled = df_historical.style.format({"Historical Price": format_euro}).background_gradient(cmap='Greens', low=0.1, high=0.4)
         st.dataframe(df_hist_styled)
 
         predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
 
-        # Lista forward price corrispondente agli anni forecast
-        forward_price_full = forward_price.copy()  # assume forward_price contiene solo i valori forecast
+        forward_price_full = forward_price.copy()
+        budget_price_full = [0]*(len(anni_prezzi)-len(budget_price)) + budget_price
 
-        # Budget price (allinea lunghezza aggiungendo zeri davanti)
-        budget_price_full = [0] * (len(anni_prezzi) - len(budget_price)) + budget_price
+        # Allinea lunghezze
+        historical_price = historical_price + [0]*(len(anni_prezzi)-len(historical_price))
+        predict_price = [0]*(len(anni_prezzi)-len(predict_price)) + predict_price
+        p95 = [0]*(len(anni_prezzi)-len(p95)) + p95
+        p5 = [0]*(len(anni_prezzi)-len(p5)) + p5
+        forward_price_full = [0]*(len(anni_prezzi)-len(forward_price_full)) + forward_price_full
 
-        # Allineamento lunghezze di tutte le liste con anni_prezzi
-        missing_len_hp = len(anni_prezzi) - len(historical_price)
-        missing_len_pp = len(anni_prezzi) - len(predict_price)
-        missing_len_p95 = len(anni_prezzi) - len(p95)
-        missing_len_p5 = len(anni_prezzi) - len(p5)
-        missing_len_f = len(anni_prezzi) - len(forward_price_full)
-
-        historical_price = historical_price + [0] * missing_len_hp
-        predict_price = [0]*missing_len_pp + predict_price
-        p95 = [0]*missing_len_p95 + p95
-        p5 = [0]*missing_len_p5 + p5
-        forward_price_full = [0]*missing_len_f + forward_price_full
-
-        # Chiamata alla funzione principale
+        # -----------------------
+        # Calcolo Open Position e Risk
+        # -----------------------
         df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
-        anni=unique_years,
-        fabbisogno=fabbisogno,
-        covered=covered,
-        solar=solar,
-        anni_prezzi=anni_prezzi,
-        media_pun=historical_price,
-        predictive=predict_price,
-        p95=p95,
-        p5=p5,
-        frwd=forward_price_full,
-        budget=budget_price_full,
-        observation_period=start_date_sim.strftime("%d/%m/%Y"))
-
-        # Visualizzazione su Streamlit
-        st.pyplot(fig)
-        
-        # -------------------------------
-        # 📋 Tabella Target Policy
-        # -------------------------------
-        st.markdown("### 🎯 Target Policy Analysis")
-        st.info("Rapporto tra coperto e fabbisogno con e senza energia solare, confrontato con i livelli di Target Policy (95%, 85%, 50%).")
-
-        # Copia per visualizzazione
-        df_target_display = df_target_policy.copy()
-
-        # Formattazione percentuali
-        cols_to_format = ["% Purchased w/o Solar", "% Purchased with Solar", "Target Policy"]
-
-        for col in cols_to_format:
-            df_target_display[col] = df_target_display[col].apply(lambda x: f"{x:.2f}%" if pd.notnull(x) else "")
-
-        # Mostra la tabella
-        st.dataframe(df_target_display)
-
-        st.markdown("### 📈 Analisi Prezzi PUN ")
-        st.info("Tabella contenente media PUN, percentili, Forward e Budget per ogni anno.")
-        import pandas as pd
-        
-        # Applica la formattazione a tutte le colonne tranne eventualmente l'anno
-        cols_to_format = [c for c in df_prezzi.columns if c.lower()  not in ["year", "anno", "Year"]]
-        
-        df_display = df_prezzi.copy()
-        # Aggiungi € e arrotonda a 2 decimali
-        for col in cols_to_format:
-            df_display[col] = df_display[col].apply(lambda x: f"€ {x:.2f}" if pd.notnull(x) else "")
-        st.dataframe(df_display)
-        
-        st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
-        st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
-
-        # Copia del DataFrame per styling
-        df_styled = df_risk.style
-        
-        # Colonne da escludere dalla formattazione in milioni
-        exclude_cols = ["Year", "Anno", "year", "anno"]
-        
-        # Colonne da formattare in milioni di euro
-        cols_to_format = [c for c in df_risk.columns if c not in exclude_cols]
-        
-        # Applica rosso tenue alle colonne "Downside"
-        downside_cols = [c for c in df_risk.columns if c.startswith("Downside")]
-        if downside_cols:
-            df_styled = df_styled.background_gradient(
-                cmap='Reds', low=0.1, high=0.4, subset=downside_cols
-            )
-        
-        # Applica verde tenue alle colonne "Upside"
-        upside_cols = [c for c in df_risk.columns if c.startswith("Upside")]
-        if upside_cols:
-            df_styled = df_styled.background_gradient(
-                cmap='Greens', low=0.1, high=0.4, subset=upside_cols
-            )
-        
-        # Funzione di formattazione in milioni di euro
-        def format_mln_euro(x):
-            return f"€ {x/1e6:,.2f} Mln" if pd.notnull(x) else ""
-        
-        # Applica la formattazione a tutte le colonne selezionate in **un unico passaggio**
-        format_dict = {col: format_mln_euro for col in cols_to_format}
-        df_styled = df_styled.format(format_dict)
-        
-        # Visualizza su Streamlit
-        st.dataframe(df_styled)
-        
-        from datetime import datetime
-        # Grafico VaR EBITDA
-        fig = var_ebitda_risk(
-            periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"),
-            df_risk=df_risk,
-            df_open=df_open,
-            ebitda=ebitda,
-            font_path="utils/TIMSans-Medium.ttf"
-            )
+            anni=unique_years,
+            fabbisogno=fabbisogno,
+            covered=covered,
+            solar=solar,
+            anni_prezzi=anni_prezzi,
+            media_pun=historical_price,
+            predictive=predict_price,
+            p95=p95,
+            p5=p5,
+            frwd=forward_price_full,
+            budget=budget_price_full,
+            observation_period=start_date_sim.strftime("%d/%m/%Y")
+        )
 
         st.pyplot(fig)
-        st.session_state.df_risk = df_risk
-        st.session_state.df_open = df_open
-        st.session_state.df_prezzi = df_prezzi
-        st.session_state.df_target_policy = df_target_policy
-        st.session_state.historical_price = historical_price
-        st.session_state.predict_price = predict_price
-        st.session_state.p95 = p95
-        st.session_state.p5 = p5
-        st.session_state.forward_price_full = forward_price_full
-        st.session_state.budget_price_full = budget_price_full
-        st.session_state.covered = covered
-        st.session_state.fabbisogno = fabbisogno
-        st.session_state.solar = solar
-        st.session_state.unique_years = unique_years
-        st.session_state.anni_prezzi = anni_prezzi
-        st.session_state.start_date_sim = start_date_sim
-        st.session_state.ebitda = ebitda
-        
-        # ==============================
-        # 📌 Acquisto energia aggiuntiva per anno
-        # ==============================
-        
-        # Mostra solo se la simulazione è stata completata
-        if "df_open" not in st.session_state:
-            st.warning("⚠️ Esegui prima la simulazione per attivare il calcolo dei riacquisti.")
-        else:
-            st.subheader("📌 Acquisto energia aggiuntiva per anno")
-        
-            # 🔹 Inizializza lo stato dei riacquisti se non esiste
-            if "extra_purchase" not in st.session_state:
-                st.session_state.extra_purchase = {anno: 0.0 for anno in unique_years}
-        
-            # --- Inserimento quantità per ogni anno ---
-            for anno in unique_years:
-                qta = st.number_input(
-                    f"Anno {anno} - MWh da acquistare",
-                    min_value=0.0,
-                    value=st.session_state.extra_purchase.get(anno, 0.0),
-                    step=10.0,
-                    key=f"extra_{anno}"
-                )
-                st.session_state.extra_purchase[anno] = qta
-        
-            # --- Pulsante di ricalcolo ---
-            if st.button("🔄 Ricalcola Open Position con riacquisti", key="recalc_btn"):
-                st.info("Ricalcolo in corso...")
-        
-                # Recupera i dati della simulazione precedente
-                df_risk = st.session_state.df_risk
-                df_open = st.session_state.df_open
-                df_prezzi = st.session_state.df_prezzi
-                df_target_policy = st.session_state.df_target_policy
-                historical_price = st.session_state.historical_price
-                predict_price = st.session_state.predict_price
-                p95 = st.session_state.p95
-                p5 = st.session_state.p5
-                forward_price_full = st.session_state.forward_price_full
-                budget_price_full = st.session_state.budget_price_full
-                covered = st.session_state.covered
-                fabbisogno = st.session_state.fabbisogno
-                solar = st.session_state.solar
-                unique_years = st.session_state.unique_years
-                anni_prezzi = st.session_state.anni_prezzi
-                start_date_sim = st.session_state.start_date_sim
-        
-                # Aggiorna covered
-                covered_adjusted = [c + st.session_state.extra_purchase[anno] for c, anno in zip(covered, unique_years)]
-        
-                # Ricalcolo
-                df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
-                    anni=unique_years,
-                    fabbisogno=fabbisogno,
-                    covered=covered_adjusted,
-                    solar=solar,
-                    anni_prezzi=anni_prezzi,
-                    media_pun=historical_price,
-                    predictive=predict_price,
-                    p95=p95,
-                    p5=p5,
-                    frwd=forward_price_full,
-                    budget=budget_price_full,
-                    observation_period=start_date_sim
-                )
-        
-                # 🔹 Salva i nuovi risultati nello stato
-                st.session_state.df_open = df_open
-                st.session_state.df_risk = df_risk
-        
-                # Mostra tabella aggiornata
-                st.subheader("📋 Tabella Open Position (aggiornata)")
-                st.dataframe(df_open)
-        
-                # Calcolo Profit/Loss
-                st.subheader("💰 Analisi Guadagno/Perdita Riacquisto")
-                df_gain_loss = pd.DataFrame({
-                    "Anno": unique_years,
-                    "MWh Acquistati": [st.session_state.extra_purchase[a] for a in unique_years],
-                    "Prezzo Forward (€)": forward_price_full[-len(unique_years):],
-                    "Prezzo Budget (€)": budget_price_full[-len(unique_years):]
-                })
-                df_gain_loss["Δ Prezzo (Budget - Forward)"] = (
-                    df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
-                )
-                df_gain_loss["Profit/Loss (€)"] = (
-                    df_gain_loss["MWh Acquistati"] * df_gain_loss["Δ Prezzo (Budget - Forward)"]
-                )
-                df_gain_loss["Profit/Loss (€)"] = df_gain_loss["Profit/Loss (€)"].apply(lambda x: f"€ {x:,.0f}")
-                df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Δ Prezzo (Budget - Forward)"].apply(lambda x: f"€ {x:,.2f}")
-        
-                st.dataframe(df_gain_loss)
-                st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
+
+        # Salvataggio in session_state
+        st.session_state.update({
+            "df_risk": df_risk,
+            "df_open": df_open,
+            "df_prezzi": df_prezzi,
+            "df_target_policy": df_target_policy,
+            "historical_price": historical_price,
+            "predict_price": predict_price,
+            "p95": p95,
+            "p5": p5,
+            "forward_price_full": forward_price_full,
+            "budget_price_full": budget_price_full,
+            "covered": covered,
+            "fabbisogno": fabbisogno,
+            "solar": solar,
+            "unique_years": unique_years,
+            "anni_prezzi": anni_prezzi,
+            "start_date_sim": start_date_sim,
+            "ebitda": ebitda
+        })
+
+    # -----------------------
+    # Riacquisti Energia
+    # -----------------------
+    if "df_open" in st.session_state:
+        st.subheader("📌 Acquisto energia aggiuntiva per anno")
+        if "extra_purchase" not in st.session_state:
+            st.session_state.extra_purchase = {anno: 0.0 for anno in st.session_state.unique_years}
+
+        for anno in st.session_state.unique_years:
+            qta = st.number_input(
+                f"Anno {anno} - MWh da acquistare",
+                min_value=0.0,
+                value=st.session_state.extra_purchase.get(anno, 0.0),
+                step=10.0,
+                key=f"extra_{anno}"
+            )
+            st.session_state.extra_purchase[anno] = qta
+
+        if st.button("🔄 Ricalcola Open Position con riacquisti", key="recalc_btn"):
+            covered_adjusted = [c + st.session_state.extra_purchase[a] for c, a in zip(st.session_state.covered, st.session_state.unique_years)]
+            df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
+                anni=st.session_state.unique_years,
+                fabbisogno=st.session_state.fabbisogno,
+                covered=covered_adjusted,
+                solar=st.session_state.solar,
+                anni_prezzi=st.session_state.anni_prezzi,
+                media_pun=st.session_state.historical_price,
+                predictive=st.session_state.predict_price,
+                p95=st.session_state.p95,
+                p5=st.session_state.p5,
+                frwd=st.session_state.forward_price_full,
+                budget=st.session_state.budget_price_full,
+                observation_period=st.session_state.start_date_sim
+            )
+
+            st.session_state.df_open = df_open
+            st.session_state.df_risk = df_risk
+
+            st.subheader("📋 Tabella Open Position (aggiornata)")
+            st.dataframe(df_open)
+
+            # Profit/Loss
+            df_gain_loss = pd.DataFrame({
+                "Anno": st.session_state.unique_years,
+                "MWh Acquistati": [st.session_state.extra_purchase[a] for a in st.session_state.unique_years],
+                "Prezzo Forward (€)": st.session_state.forward_price_full[-len(st.session_state.unique_years):],
+                "Prezzo Budget (€)": st.session_state.budget_price_full[-len(st.session_state.unique_years):]
+            })
+            df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
+            df_gain_loss["Profit/Loss (€)"] = df_gain_loss["MWh Acquistati"] * df_gain_loss["Δ Prezzo (Budget - Forward)"]
+            df_gain_loss["Profit/Loss (€)"] = df_gain_loss["Profit/Loss (€)"].apply(lambda x: f"€ {x:,.0f}")
+            df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Δ Prezzo (Budget - Forward)"].apply(lambda x: f"€ {x:,.2f}")
+            st.subheader("💰 Analisi Guadagno/Perdita Riacquisto")
+            st.dataframe(df_gain_loss)
+            st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
+
         
        
         # Pulsante per scaricare Excel
