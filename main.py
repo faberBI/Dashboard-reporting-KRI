@@ -111,8 +111,21 @@ if selected_kri == "⚡ Energy Risk":
     solar = st.text_input("Solar (MWh)", df_to_str(df, "Solar", "0,203,422"))
     forward_price = st.text_input("Forward Price (€)", df_to_str(df, "Forward Price", "115.99,106.85,94.00"))
     budget_price = st.text_input("Budget Price (€)", df_to_str(df, "Budget Price", "115,121,120"))
-    ebitda = st.text_input("EBITDA (€)", df_to_str(df, "Ebitda", "1900000000"))
+    st.subheader("📌 Inserisci EBITDA per anno")
 
+    ebitda_inputs = {}
+    for i, row in df.iterrows():
+        anno = row["Anno"]
+        default_value = row["Ebitda"]
+        ebitda_inputs[anno] = st.number_input(
+            f"EBITDA per {anno} (€)",
+            min_value=0,
+            value=int(default_value),
+            step=1000000,
+            format="%d"
+        )
+    df["Ebitda"] = [ebitda_inputs[anno] for anno in df["Anno"]]
+    
     # Parsing input
     try:
         fabbisogno = [float(x) for x in fabbisogno.split(",")]
@@ -296,12 +309,12 @@ if selected_kri == "⚡ Energy Risk":
         st.markdown("### ⚠️ Target Policy")
         st.info("Valori % di copertura del fabbisogno.")
         st.dataframe(df_target_policy)
-
+        df_ebitda
         fig_var = var_ebitda_risk(
             periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"),
             df_risk=df_risk,
             df_open=df_open,
-            ebitda=ebitda,
+            df_ebitda=df,
             font_path="utils/TIMSans-Medium.ttf"
             )
 
