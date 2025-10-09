@@ -384,28 +384,35 @@ if selected_kri == "⚡ Energy Risk":
         
         st.subheader("📌 Acquisto energia aggiuntiva per anno")
         
+        # 🔹 Inizializza lo stato se non esiste
+        if "extra_purchase" not in st.session_state:
+            st.session_state.extra_purchase = {anno: 0.0 for anno in unique_years}
+        
         # --- Inserimento quantità per ogni anno ---
         extra_purchase = []
         for i, anno in enumerate(unique_years):
             qta = st.number_input(
                 f"Anno {anno} - MWh da acquistare",
-                min_value=0.0, value=0.0, step=10.0,
-                key=f"extra_{anno}"  # chiave unica per evitare reset
+                min_value=0.0,
+                value=st.session_state.extra_purchase.get(anno, 0.0),
+                step=10.0,
+                key=f"extra_{anno}"
             )
+            st.session_state.extra_purchase[anno] = qta
             extra_purchase.append(qta)
         
         # --- Pulsante dedicato ---
-        if st.button("🔄 Ricalcola Open Position con riacquisti"):
+        if st.button("🔄 Ricalcola Open Position con riacquisti", key="recalc_btn"):
             st.info("Ricalcolo in corso...")
         
-            # Aggiorna covered
-            covered_adjusted = [c + extra for c, extra in zip(covered, extra_purchase)]
+            # Aggiorna covered in base agli extra acquistati
+            covered_adjusted = [c + st.session_state.extra_purchase[anno] for c, anno in zip(covered, unique_years)]
         
-            # Chiamata funzione aggiornata
+            # 🔹 Esegui ricalcolo con la funzione principale
             df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
                 anni=unique_years,
                 fabbisogno=fabbisogno,
-                covered=covered_adjusted,  # valori aggiornati
+                covered=covered_adjusted,
                 solar=solar,
                 anni_prezzi=anni_prezzi,
                 media_pun=historical_price,
@@ -429,7 +436,7 @@ if selected_kri == "⚡ Energy Risk":
                 "Prezzo Forward (€)": forward_price_full[-len(unique_years):],
                 "Prezzo Budget (€)": budget_price_full[-len(unique_years):]
             })
-            
+        
             # Calcolo differenza economica
             df_gain_loss["Δ Prezzo (Budget - Forward)"] = (
                 df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
@@ -441,11 +448,9 @@ if selected_kri == "⚡ Energy Risk":
             # Formattazione
             df_gain_loss["Profit/Loss (€)"] = df_gain_loss["Profit/Loss (€)"].apply(lambda x: f"€ {x:,.0f}")
             df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Δ Prezzo (Budget - Forward)"].apply(lambda x: f"€ {x:,.2f}")
-            
+        
             st.dataframe(df_gain_loss)
         
-            # Grafico aggiornato
-            #st.pyplot(fig)
             st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
        
         # Pulsante per scaricare Excel
