@@ -288,14 +288,15 @@ if selected_kri == "⚡ Energy Risk":
             "ebitda": ebitda
         })
 
-    # -----------------------
+        # -----------------------
     # Riacquisti Energia
     # -----------------------
     if "df_open" in st.session_state:
         st.subheader("📌 Acquisto energia aggiuntiva per anno")
+    
         if "extra_purchase" not in st.session_state:
             st.session_state.extra_purchase = {anno: 0.0 for anno in st.session_state.unique_years}
-
+    
         for anno in st.session_state.unique_years:
             qta = st.number_input(
                 f"Anno {anno} - MWh da acquistare",
@@ -305,10 +306,11 @@ if selected_kri == "⚡ Energy Risk":
                 key=f"extra_{anno}"
             )
             st.session_state.extra_purchase[anno] = qta
-
+    
         if st.button("🔄 Ricalcola Open Position con riacquisti", key="recalc_btn"):
             covered_adjusted = [c + st.session_state.extra_purchase[a] for c, a in zip(st.session_state.covered, st.session_state.unique_years)]
-            df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
+    
+            df_risk_new, df_open_new, df_prezzi_new, df_target_policy_new, fig = compute_downside_upperside_risk(
                 anni=st.session_state.unique_years,
                 fabbisogno=st.session_state.fabbisogno,
                 covered=covered_adjusted,
@@ -322,90 +324,95 @@ if selected_kri == "⚡ Energy Risk":
                 budget=st.session_state.budget_price_full,
                 observation_period=st.session_state.start_date_sim
             )
-
-            st.session_state.df_open = df_open
-            st.session_state.df_risk = df_risk
-
+    
+            # ✅ Mantiene sia le versioni vecchie che le nuove
+            st.session_state.df_open_new = df_open_new
+            st.session_state.df_risk_new = df_risk_new
+            st.session_state.df_prezzi_new = df_prezzi_new
+            st.session_state.df_target_policy_new = df_target_policy_new
+    
             st.subheader("📋 Tabella Open Position (aggiornata)")
-            st.dataframe(df_open)
-
-            # Profit/Loss
+            st.dataframe(df_open_new)
+    
+            # --- Profit/Loss ---
             df_gain_loss = pd.DataFrame({
                 "Anno": st.session_state.unique_years,
                 "MWh Acquistati": [st.session_state.extra_purchase[a] for a in st.session_state.unique_years],
                 "Prezzo Forward (€)": st.session_state.forward_price_full[-len(st.session_state.unique_years):],
                 "Prezzo Budget (€)": st.session_state.budget_price_full[-len(st.session_state.unique_years):]
             })
-            df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
-            df_gain_loss["Profit/Loss (€)"] = df_gain_loss["MWh Acquistati"] * 1000 * df_gain_loss["Δ Prezzo (Budget - Forward)"]
+            df_gain_loss["Δ Prezzo (Budget - Forward)"] = (
+                df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
+            )
+            df_gain_loss["Profit/Loss (€)"] = (
+                df_gain_loss["MWh Acquistati"] * 1000 * df_gain_loss["Δ Prezzo (Budget - Forward)"]
+            )
+    
             df_gain_loss["Profit/Loss (€)"] = df_gain_loss["Profit/Loss (€)"].apply(lambda x: f"€ {x:,.0f}")
             df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Δ Prezzo (Budget - Forward)"].apply(lambda x: f"€ {x:,.2f}")
+    
+            st.session_state.df_gain_loss = df_gain_loss
+    
             st.subheader("💰 Analisi Guadagno/Perdita Riacquisto")
             st.dataframe(df_gain_loss)
             st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
-
+    
         # -----------------------
         # 💾 Esportazione in Excel
         # -----------------------
         buffer = io.BytesIO()
-
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            written = False  # Flag per capire se almeno un foglio è stato scritto
-
-            # Prezzi PUN
+            written = False
+    
+            # --- Versioni ORIGINALI ---
+            if "df_open" in st.session_state and not st.session_state.df_open.empty:
+                st.session_state.df_open.to_excel(writer, sheet_name='Open Position (orig)', index=False)
+                written = True
+            if "df_risk" in st.session_state and not st.session_state.df_risk.empty:
+                st.session_state.df_risk.to_excel(writer, sheet_name='Analisi Rischio (orig)', index=False)
+                written = True
+            if "df_target_policy" in locals() and not df_target_policy.empty:
+                df_target_policy.to_excel(writer, sheet_name='Target Policy (orig)', index=False)
+                written = True
+    
+            # --- Versioni NUOVE (dopo riacquisto) ---
+            if "df_open_new" in st.session_state and not st.session_state.df_open_new.empty:
+                st.session_state.df_open_new.to_excel(writer, sheet_name='Open Position (new)', index=False)
+                written = True
+            if "df_risk_new" in st.session_state and not st.session_state.df_risk_new.empty:
+                st.session_state.df_risk_new.to_excel(writer, sheet_name='Analisi Rischio (new)', index=False)
+                written = True
+            if "df_target_policy_new" in st.session_state and not st.session_state.df_target_policy_new.empty:
+                st.session_state.df_target_policy_new.to_excel(writer, sheet_name='Target Policy (new)', index=False)
+                written = True
+    
+            # --- Profit/Loss ---
+            if "df_gain_loss" in st.session_state and not st.session_state.df_gain_loss.empty:
+                st.session_state.df_gain_loss.to_excel(writer, sheet_name='Riacquisto Profit-Loss', index=False)
+                written = True
+    
+            # --- Serie storiche e prezzi ---
             if "df_prezzi" in locals() and not df_prezzi.empty:
                 df_prezzi.to_excel(writer, sheet_name='Prezzi PUN', index=False)
                 written = True
-
-            # Analisi rischio
-            if "df_risk" in locals() and not df_risk.empty:
-                df_risk.to_excel(writer, sheet_name='Analisi Rischio', index=False)
-                written = True
-
-            # Historical Price
             if "df_historical" in st.session_state and not st.session_state.df_historical.empty:
                 st.session_state.df_historical.to_excel(writer, sheet_name='Historical Price', index=False)
                 written = True
-
-            # Forecast PUN
-            if "forecast_price" in locals() and not forecast_price.empty:
-                forecast_price.to_excel(writer, sheet_name='Forecast PUN', index=True)
-                written = True
-
-            # Serie PUN storica
             if "energy_df" in st.session_state and not st.session_state.energy_df.empty:
                 st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
                 written = True
-
-            # Target Policy
-            if "df_target_policy" in locals() and not df_target_policy.empty:
-                df_target_policy.to_excel(writer, sheet_name='Target Policy', index=False)
-                written = True
-
-            # Riacquisto Profit/Loss
-            if "df_gain_loss" in locals() and not df_gain_loss.empty:
-                df_gain_loss_clean = df_gain_loss.copy()
-                for col in ["Profit/Loss (€)", "Δ Prezzo (Budget - Forward)"]:
-                    df_gain_loss_clean[col] = (
-                        df_gain_loss_clean[col]
-                        .replace("€", "", regex=True)
-                        .replace(",", "", regex=True)
-                        .astype(float, errors='ignore')
-                    )
-                df_gain_loss_clean.to_excel(writer, sheet_name='Riacquisto Profit-Loss', index=False)
-                written = True
-
-            # Se nessun foglio è stato scritto, scrive uno sheet placeholder
+    
             if not written:
                 pd.DataFrame({"Info": ["Nessun dato disponibile"]}).to_excel(writer, sheet_name="Empty", index=False)
-
+    
             buffer.seek(0)
-
+    
         st.download_button(
             label="💾 Scarica tutti i dati del Energy Risk in Excel ",
             data=buffer,
             file_name="KRI_Energy_Risk.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 # -----------------------
 # 🌪️ Natural Event Risk
 # -----------------------
