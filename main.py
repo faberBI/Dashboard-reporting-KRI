@@ -327,7 +327,7 @@ if selected_kri == "⚡ Energy Risk":
                 "Prezzo Budget (€)": st.session_state.budget_price_full[-len(st.session_state.unique_years):]
             })
             df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
-            df_gain_loss["Profit/Loss (€)"] = df_gain_loss["MWh Acquistati"] * df_gain_loss["Δ Prezzo (Budget - Forward)"]
+            df_gain_loss["Profit/Loss (€)"] = df_gain_loss["MWh Acquistati"] * 1000 * df_gain_loss["Δ Prezzo (Budget - Forward)"]
             df_gain_loss["Profit/Loss (€)"] = df_gain_loss["Profit/Loss (€)"].apply(lambda x: f"€ {x:,.0f}")
             df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Δ Prezzo (Budget - Forward)"].apply(lambda x: f"€ {x:,.2f}")
             st.subheader("💰 Analisi Guadagno/Perdita Riacquisto")
