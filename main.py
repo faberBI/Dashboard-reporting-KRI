@@ -379,17 +379,17 @@ if selected_kri == "⚡ Energy Risk":
             exclude_cols = ["Year", "Anno", "year", "anno"]
         
             # Colonne da formattare in milioni di euro
-            cols_to_format = [c for c in df_risk.columns if c not in exclude_cols]
+            cols_to_format = [c for c in df_risk_new.columns if c not in exclude_cols]
         
             # Applica rosso tenue alle colonne "Downside"
-            downside_cols = [c for c in df_risk.columns if c.startswith("Downside")]
+            downside_cols = [c for c in df_risk_new.columns if c.startswith("Downside")]
             if downside_cols:
                 df_styled_new = df_styled_new.background_gradient(
                     cmap='Reds', low=0.1, high=0.4, subset=downside_cols
                 )
         
             # Applica verde tenue alle colonne "Upside"
-            upside_cols = [c for c in df_risk.columns if c.startswith("Upside")]
+            upside_cols = [c for c in df_risk_new.columns if c.startswith("Upside")]
             if upside_cols:
                 df_styled_new = df_styled_new.background_gradient(
                     cmap='Greens', low=0.1, high=0.4, subset=upside_cols
@@ -404,7 +404,7 @@ if selected_kri == "⚡ Energy Risk":
             df_styled_new = df_styled_new.format(format_dict)
         
             # Visualizza su Streamlit
-            st.dataframe(df_styled)
+            st.dataframe(df_styled_new)
 
             # --- Profit/Loss ---
             df_gain_loss = pd.DataFrame({
