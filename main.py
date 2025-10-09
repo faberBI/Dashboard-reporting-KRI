@@ -381,6 +381,23 @@ if selected_kri == "⚡ Energy Risk":
             )
 
         st.pyplot(fig)
+        st.session_state.df_risk = df_risk
+        st.session_state.df_open = df_open
+        st.session_state.df_prezzi = df_prezzi
+        st.session_state.df_target_policy = df_target_policy
+        st.session_state.historical_price = historical_price
+        st.session_state.predict_price = predict_price
+        st.session_state.p95 = p95
+        st.session_state.p5 = p5
+        st.session_state.forward_price_full = forward_price_full
+        st.session_state.budget_price_full = budget_price_full
+        st.session_state.covered = covered
+        st.session_state.fabbisogno = fabbisogno
+        st.session_state.solar = solar
+        st.session_state.unique_years = unique_years
+        st.session_state.anni_prezzi = anni_prezzi
+        st.session_state.start_date_sim = start_date_sim
+        st.session_state.ebitda = ebitda
         
         # ==============================
         # 📌 Acquisto energia aggiuntiva per anno
@@ -416,6 +433,18 @@ if selected_kri == "⚡ Energy Risk":
                 df_open = st.session_state.df_open
                 df_prezzi = st.session_state.df_prezzi
                 df_target_policy = st.session_state.df_target_policy
+                historical_price = st.session_state.historical_price
+                predict_price = st.session_state.predict_price
+                p95 = st.session_state.p95
+                p5 = st.session_state.p5
+                forward_price_full = st.session_state.forward_price_full
+                budget_price_full = st.session_state.budget_price_full
+                covered = st.session_state.covered
+                fabbisogno = st.session_state.fabbisogno
+                solar = st.session_state.solar
+                unique_years = st.session_state.unique_years
+                anni_prezzi = st.session_state.anni_prezzi
+                start_date_sim = st.session_state.start_date_sim
         
                 # Aggiorna covered
                 covered_adjusted = [c + st.session_state.extra_purchase[anno] for c, anno in zip(covered, unique_years)]
