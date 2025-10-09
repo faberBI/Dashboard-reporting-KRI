@@ -257,6 +257,16 @@ if selected_kri == "⚡ Energy Risk":
 
         st.pyplot(fig)
 
+        fig_var = var_ebitda_risk(
+            periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"),
+            df_risk=df_risk,
+            df_open=df_open,
+            ebitda=ebitda,
+            font_path="utils/TIMSans-Medium.ttf"
+            )
+
+        st.pyplot(fig_var)
+
         # Salvataggio in session_state
         st.session_state.update({
             "df_risk": df_risk,
