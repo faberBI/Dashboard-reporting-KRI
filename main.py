@@ -334,7 +334,7 @@ if selected_kri == "⚡ Energy Risk":
         df_ebitda=df,  # qui passi il DataFrame df con la colonna "Ebitda"
         font_path="utils/TIMSans-Medium.ttf"    
             )
-        st.pyplot(fig_var, dpi=80)
+        st.pyplot(fig_var, dpi=160)
 
         # Salvataggio in session_state
         st.session_state.update({
