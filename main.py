@@ -328,7 +328,7 @@ if selected_kri == "⚡ Energy Risk":
         st.dataframe(df_target_policy)
        
         fig = var_ebitda_risk(
-        periodo_di_analisi=periodo_di_analisi,
+        periodo_di_analisi= start_date.strftime("as of %d/%m/%Y"),
         df_risk=df_risk,
         df_open=df_open,
         df_ebitda=df,
