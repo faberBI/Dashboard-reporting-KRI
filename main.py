@@ -326,15 +326,14 @@ if selected_kri == "⚡ Energy Risk":
         st.markdown("### ⚠️ Target Policy")
         st.info("Valori % di copertura del fabbisogno.")
         st.dataframe(df_target_policy)
-        df_ebitda
+       
         fig_var = var_ebitda_risk(
-            periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"),
-            df_risk=df_risk,
-            df_open=df_open,
-            df_ebitda=df,
-            font_path="utils/TIMSans-Medium.ttf"
+        periodo_di_analisi=start_date.strftime("as of %d/%m/%Y"),
+        df_risk=df_risk,
+        df_open=df_open,
+        df_ebitda=df,  # qui passi il DataFrame df con la colonna "Ebitda"
+        font_path="utils/TIMSans-Medium.ttf"    
             )
-
         st.pyplot(fig_var)
 
         # Salvataggio in session_state
