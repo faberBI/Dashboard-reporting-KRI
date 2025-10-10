@@ -334,6 +334,8 @@ if selected_kri == "⚡ Energy Risk":
         df_ebitda=df,  # qui passi il DataFrame df con la colonna "Ebitda"
         font_path="utils/TIMSans-Medium.ttf"    
             )
+        from PIL import Image
+        Image.MAX_IMAGE_PIXELS = None
         st.pyplot(fig_var)
 
         # Salvataggio in session_state
