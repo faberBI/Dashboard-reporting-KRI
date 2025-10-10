@@ -593,7 +593,7 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
     # --- Riquadri verdi accanto alle barre ---
     for i, anno in enumerate(anni):
         val = df_calc.loc[df_calc['Anno'] == anno, 'ebitda_vs_budget'].values[0]
-        label = f"={val:.1%}Organic EBITDA Budget {anno}"  # aggiunta scritta con anno
+        label = f"={val:.1%}Organic \nEBITDA Budget {anno}"  # aggiunta scritta con anno
         # W/O solar
         axes[0].text(
             data_sez1_no_solar[i] + 0.05*np.max(data_sez1_no_solar),
