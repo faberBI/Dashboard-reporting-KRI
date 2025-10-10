@@ -536,10 +536,10 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
 
     prop = fm.FontProperties(fname=font_path)
 
-    # --- FIGURA GRANDE ---
+    # --- FIGURA GRANDE E COMPATTA ---
     fig, axes = plt.subplots(
         2, 1,
-        figsize=(14, 10),  # aumentata larghezza e altezza
+        figsize=(14, 8),
         sharex=True,
         gridspec_kw={'height_ratios':[1,1], 'hspace':0.25}
     )
@@ -591,16 +591,29 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
     axes[1].invert_yaxis()
 
     # --- Riquadri verdi accanto alle barre ---
-    x_max = max(np.max(data_sez1_solar), np.max(data_sez1_no_solar)) * 1.05
     for i, anno in enumerate(anni):
         val = df_calc.loc[df_calc['Anno'] == anno, 'ebitda_vs_budget'].values[0]
-        fig.text(
-            x=x_max,
-            y=y_pos[i],
-            s=f"{val:.1%}",
+        label = f"={val:.1%}Organic EBITDA Budget {anno}"  # aggiunta scritta con anno
+        # W/O solar
+        axes[0].text(
+            data_sez1_no_solar[i] + 0.05*np.max(data_sez1_no_solar),
+            y_pos[i],
+            label,
             ha='left',
             va='center',
-            fontsize=12,
+            fontsize=10,
+            color='white',
+            bbox=dict(facecolor='#06B052', edgecolor='none', boxstyle='round,pad=0.3'),
+            fontproperties=prop
+        )
+        # W/ solar
+        axes[1].text(
+            data_sez1_solar[i] + 0.05*np.max(data_sez1_solar),
+            y_pos[i],
+            label,
+            ha='left',
+            va='center',
+            fontsize=10,
             color='white',
             bbox=dict(facecolor='#06B052', edgecolor='none', boxstyle='round,pad=0.3'),
             fontproperties=prop
