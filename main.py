@@ -150,7 +150,7 @@ if selected_kri == "⚡ Energy Risk":
         solar = [float(x) for x in solar.split(",")]
         forward_price = [float(x) for x in forward_price.split(",")]
         budget_price = [float(x) for x in budget_price.split(",")]
-        ebitda = float(ebitda.replace(",", ""))
+        ebitda = [float(x) for x in ebitda.split(",")]
     except Exception as e:
         st.error(f"❌ Errore nei parametri: {e}")
         st.stop()
