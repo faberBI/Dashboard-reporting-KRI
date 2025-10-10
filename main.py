@@ -111,20 +111,37 @@ if selected_kri == "⚡ Energy Risk":
     solar = st.text_input("Solar (MWh)", df_to_str(df, "Solar", "0,203,422"))
     forward_price = st.text_input("Forward Price (€)", df_to_str(df, "Forward Price", "115.99,106.85,94.00"))
     budget_price = st.text_input("Budget Price (€)", df_to_str(df, "Budget Price", "115,121,120"))
-    st.subheader("📌 Inserisci EBITDA per anno")
+    
+    st.subheader("💰 Inserisci o modifica EBITDA per anno")
+    # Verifica che il DataFrame non sia vuoto
+    if df.empty:
+        st.warning("⚠️ Nessun dato disponibile nel DataFrame!")
+    else:
+        # Se la colonna Ebitda non esiste, la aggiunge con un valore predefinito
+        if "Ebitda" not in df.columns:
+            df["Ebitda"] = [1_900_000_000] * len(df)
 
-    ebitda_inputs = {}
-    for i, row in df.iterrows():
-        anno = row["Anno"]
-        default_value = row["Ebitda"]
-        ebitda_inputs[anno] = st.number_input(
-            f"EBITDA per {anno} (€)",
-            min_value=0,
-            value=int(default_value),
-            step=1000000,
-            format="%d"
-        )
-    df["Ebitda"] = [ebitda_inputs[anno] for anno in df["Anno"]]
+        # Dizionario per i valori inseriti
+        ebitda_inputs = {}
+
+        # Crea un campo numerico per ogni anno
+        for i, row in df.iterrows():
+            anno = int(row["Anno"]) if "Anno" in df.columns else (2025 + i)
+            default_value = float(row["Ebitda"])
+
+            ebitda_inputs[anno] = st.number_input(
+                f"EBITDA per {anno} (€)",
+                min_value=0.0,
+                value=default_value,
+                step=1_000_000.0,
+                format="%.0f"
+            )
+
+    # Aggiorna la colonna Ebitda con i valori inseriti
+        df["Ebitda"] = [ebitda_inputs[anno] for anno in df["Anno"]]
+
+    # Mostra il DataFrame aggiornato
+        st.dataframe(df.style.format({"Ebitda": "€{:,.0f}"}))
     
     # Parsing input
     try:
