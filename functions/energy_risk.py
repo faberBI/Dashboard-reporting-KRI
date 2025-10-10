@@ -512,7 +512,6 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
     from matplotlib.patches import Rectangle
     import matplotlib.font_manager as fm
     import numpy as np
-    from datetime import datetime
 
     # --- Calcolo EBITDA vs Budget per ogni anno ---
     df_calc = df_open.copy()
@@ -521,8 +520,8 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
     # --- Pulizia dati e barre ---
     df_risk = df_risk.dropna()
     anni = df_risk['Year']
-    data_sez1_no_solar = np.round(df_risk['Downside Budget (no solar)']/1_000_000, 1)
-    data_sez1_solar = np.round(df_risk['Downside Budget']/1_000_000, 1)
+    data_sez1_no_solar = np.round(df_risk['Downside Budget (no solar)'] / 1_000_000, 1)
+    data_sez1_solar = np.round(df_risk['Downside Budget'] / 1_000_000, 1)
     y_pos = np.arange(len(anni))
 
     # --- Stile e colori ---
@@ -536,11 +535,18 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
     colore_testo = '#335193'
 
     prop = fm.FontProperties(fname=font_path)
-    fig, axes = plt.subplots(2, 1, figsize=(8, 9), sharex=True, gridspec_kw={'height_ratios':[1,1],'hspace':0.25})
+
+    # --- FIGURA GRANDE ---
+    fig, axes = plt.subplots(
+        2, 1,
+        figsize=(14, 10),  # aumentata larghezza e altezza
+        sharex=True,
+        gridspec_kw={'height_ratios':[1,1], 'hspace':0.25}
+    )
     fig.patch.set_facecolor(colore_sfondo)
 
     # Titolo e periodo di analisi
-    fig.text(0.5, 1.02, 'VaR (EBITDA@Risk)', ha='center', va='center', fontsize=14, color=colore_testo,
+    fig.text(0.5, 1.02, 'VaR (EBITDA@Risk)', ha='center', va='center', fontsize=16, color=colore_testo,
              bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
     fig.text(0.5, 0.98, periodo_di_analisi, ha='center', va='center', fontsize=14, color='white',
              bbox=dict(facecolor='#404040', edgecolor='none', boxstyle='round,pad=0.5'), fontproperties=prop)
@@ -564,7 +570,8 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
     axes[0].set_yticklabels(anni, color=colore_etichette_anni, fontweight='bold', fontsize=12, fontproperties=prop)
     axes[0].set_title('w/o solar', loc='left', color=colore_titolo, fontweight='bold', fontproperties=prop)
     for i, v in enumerate(data_sez1_no_solar):
-        axes[0].text(v/2, y_pos[i], f'{v:.1f} mln €', color=colore_testo_barre, va='center', ha='center', fontweight='bold', fontproperties=prop)
+        axes[0].text(v/2, y_pos[i], f'{v:.1f} mln €', color=colore_testo_barre,
+                     va='center', ha='center', fontweight='bold', fontproperties=prop)
         axes[0].plot([0,0],[y_pos[i]-0.4, y_pos[i]+0.4], color='black', linewidth=0.5)
     axes[0].invert_yaxis()
 
@@ -578,21 +585,22 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
     axes[1].set_yticklabels(anni, color=colore_etichette_anni, fontweight='bold', fontsize=12, fontproperties=prop)
     axes[1].set_title('w solar', loc='left', color=colore_titolo, fontweight='bold', fontproperties=prop)
     for i, v in enumerate(data_sez1_solar):
-        axes[1].text(v/2, y_pos[i], f'{v:.1f} mln €', color=colore_testo_barre, va='center', ha='center', fontweight='bold', fontproperties=prop)
+        axes[1].text(v/2, y_pos[i], f'{v:.1f} mln €', color=colore_testo_barre,
+                     va='center', ha='center', fontweight='bold', fontproperties=prop)
         axes[1].plot([0,0],[y_pos[i]-0.4, y_pos[i]+0.4], color='black', linewidth=0.5)
     axes[1].invert_yaxis()
 
     # --- Riquadri verdi accanto alle barre ---
-    x_max = max(np.max(data_sez1_solar), np.max(data_sez1_no_solar)) * 1.05  # leggermente oltre la barra
+    x_max = max(np.max(data_sez1_solar), np.max(data_sez1_no_solar)) * 1.05
     for i, anno in enumerate(anni):
         val = df_calc.loc[df_calc['Anno'] == anno, 'ebitda_vs_budget'].values[0]
         fig.text(
-            x=x_max, 
-            y=y_pos[i], 
-            s=f"{val:.1%}", 
-            ha='left', 
-            va='center', 
-            fontsize=10, 
+            x=x_max,
+            y=y_pos[i],
+            s=f"{val:.1%}",
+            ha='left',
+            va='center',
+            fontsize=12,
             color='white',
             bbox=dict(facecolor='#06B052', edgecolor='none', boxstyle='round,pad=0.3'),
             fontproperties=prop
@@ -600,6 +608,5 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
 
     plt.tight_layout(rect=[0,0.03,1,0.95])
     return fig
-
 
 
