@@ -334,10 +334,6 @@ if selected_kri == "⚡ Energy Risk":
         df_ebitda=df,  # qui passi il DataFrame df con la colonna "Ebitda"
         font_path="utils/TIMSans-Medium.ttf")
         
-        fig_var, axes = plt.subplots(2, 1, figsize=(14, 10),  # <-- aumenta qui (larghezza, altezza)
-        sharex=True,
-        gridspec_kw={'height_ratios':[1,1], 'hspace':0.25}
-        )
         st.pyplot(fig_var, dpi=200)
 
         
