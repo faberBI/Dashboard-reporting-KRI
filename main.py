@@ -332,12 +332,15 @@ if selected_kri == "⚡ Energy Risk":
         df_risk=df_risk,
         df_open=df_open,
         df_ebitda=df,  # qui passi il DataFrame df con la colonna "Ebitda"
-        font_path="utils/TIMSans-Medium.ttf"    
-            )
-        from PIL import Image
-        Image.MAX_IMAGE_PIXELS = None
-        st.pyplot(fig_var)
+        font_path="utils/TIMSans-Medium.ttf")
+        
+        fig_var, axes = plt.subplots(2, 1, figsize=(14, 10),  # <-- aumenta qui (larghezza, altezza)
+        sharex=True,
+        gridspec_kw={'height_ratios':[1,1], 'hspace':0.25}
+        )
+        st.pyplot(fig_var, dpi=200)
 
+        
         # Salvataggio in session_state
         st.session_state.update({
             "df_risk": df_risk,
