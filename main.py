@@ -354,7 +354,7 @@ if selected_kri == "⚡ Energy Risk":
             "unique_years": unique_years,
             "anni_prezzi": anni_prezzi,
             "start_date_sim": start_date_sim,
-            "ebitda": ebitda
+            "df_ebitda": df[["Anno", "Ebitda"]]
         })
 
     # -----------------------
