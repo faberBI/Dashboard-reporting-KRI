@@ -605,13 +605,12 @@ elif selected_kri == "🌪️ Natural Event Risk":
         with st.spinner("Esecuzione simulazione in corso..."):
             try:
                 results = simulazione_portafoglio_con_rischi_correlati(
-                    df=df,
-                    db_frane=db_frane,
-                    db_idro=db_idro,
-                    df_sismico=df_sismico,
-                    n_simulazioni=int(n_simulazioni)
-                )
-
+                df=df,
+                n_simulazioni=int(n_simulazioni),
+                database_frane=db_frane,
+                database_idro=db_idro,
+                db_sismico=df_sismico
+                    )
                 st.success("✅ Simulazione completata!")
 
                 # Mostra risultati
