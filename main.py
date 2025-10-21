@@ -284,8 +284,8 @@ if selected_kri == "⚡ Energy Risk":
             budget=budget_price_full,
             observation_period=start_date_sim.strftime("%d/%m/%Y")
         )
-
-        st.dataframe(df_open)
+        st.markdown("### ⚠️ Open position ")
+        st.dataframe(df_risk)
         st.pyplot(fig)
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
         st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
