@@ -516,6 +516,7 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
     # --- Calcolo EBITDA vs Budget per ogni anno ---
     df_calc = df_open.copy()
     df_calc['ebitda_vs_budget'] = df_open['Open Position Value (€)']  / df_ebitda['Ebitda']
+    df_calc['ebitda_vs_budget_no_solar'] = df_open['Open Position Value No Solar (€)'] / df_ebitda['Ebitda']
 
     # --- Pulizia dati e barre ---
     df_risk = df_risk.dropna()
@@ -592,13 +593,13 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
 
     # --- Riquadri verdi accanto alle barre ---
     for i, anno in enumerate(anni):
-        val = df_calc.loc[df_calc['Anno'] == anno, 'ebitda_vs_budget'].values[0]
-        label = f"={val:.3%}Organic \nEBITDA Budget {anno}"  # aggiunta scritta con anno
+        val_no_solar = df_calc.loc[df_calc['Anno'] == anno, 'ebitda_vs_budget_no_solar'].values[0]
+        label_no_solar = f"={val_no_solar:.2%}Organic \nEBITDA Budget {anno}"  # aggiunta scritta con anno
         # W/O solar
         axes[0].text(
             data_sez1_no_solar[i] + 0.05*np.max(data_sez1_no_solar),
             y_pos[i],
-            label,
+            label_no_solar,
             ha='left',
             va='center',
             fontsize=10,
@@ -607,10 +608,12 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
             fontproperties=prop
         )
         # W/ solar
+        val_solar = df_calc.loc[df_calc['Anno'] == anno, 'ebitda_vs_budget'].values[0]
+        label_solar = f"={val_solar:.3%} Organic \nEBITDA Budget {anno}"
         axes[1].text(
             data_sez1_solar[i] + 0.05*np.max(data_sez1_solar),
             y_pos[i],
-            label,
+            label_solar,
             ha='left',
             va='center',
             fontsize=10,
