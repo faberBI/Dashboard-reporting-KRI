@@ -515,7 +515,7 @@ def var_ebitda_risk(periodo_di_analisi, df_risk, df_open, df_ebitda, font_path='
 
     # --- Calcolo EBITDA vs Budget per ogni anno ---
     df_calc = df_open.copy()
-    df_calc['ebitda_vs_budget'] = df_open['Open Position'] / df_ebitda['Ebitda']
+    df_calc['ebitda_vs_budget'] = df_open['Open Position Value (€)']  / df_ebitda['Ebitda']
 
     # --- Pulizia dati e barre ---
     df_risk = df_risk.dropna()
