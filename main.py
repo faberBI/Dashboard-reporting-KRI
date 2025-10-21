@@ -286,7 +286,7 @@ if selected_kri == "⚡ Energy Risk":
         )
         st.markdown("### ⚠️ Open position ")
 
-        df_open['Open Position Value (€)'] = df_open['Open Position'].values * budget_price_full * 1000
+        df_open['Open Position Value (€)'] = df_open['Open Position'].values * budget_price* 1000
         st.dataframe(df_open)
         st.pyplot(fig)
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
