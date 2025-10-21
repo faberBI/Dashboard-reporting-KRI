@@ -285,7 +285,9 @@ if selected_kri == "⚡ Energy Risk":
             observation_period=start_date_sim.strftime("%d/%m/%Y")
         )
         st.markdown("### ⚠️ Open position ")
-        st.dataframe(df_risk)
+
+        df_open['Open Position Value (€)'] = df_open['Open Position'].values * budget_price_full * 1000
+        st.dataframe(df_open)
         st.pyplot(fig)
         st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
         st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
