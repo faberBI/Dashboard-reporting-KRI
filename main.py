@@ -22,7 +22,7 @@ from functions.energy_risk import (historical_VaR, run_heston, analyze_simulatio
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
-st.set_page_config(page_title="KRI Dashboard", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Risk Situation Room", page_icon="📊", layout="wide")
 st.title("📊 Dashboard KRI")
 
 # -----------------------
