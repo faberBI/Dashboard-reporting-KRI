@@ -36,11 +36,8 @@ st.image(logo, width=300)  # logo centrato grazie al div
 
 st.markdown("""
 <h1 style='color: white; font-weight: 800; font-family: Arial, sans-serif;'>
-Risk Situation Room
-</h1>
-<p style='color: #cccccc; font-size: 18px; font-family: Arial, sans-serif;'>
-Simula scenari finanziari e analizza i progetti di investimento con DCF
-</p>
+Risk Situation Room </h1>
+<p style='color: #cccccc; font-size: 18px; font-family: Arial, sans-serif;'></p>
 </div>
 """, unsafe_allow_html=True)
 
