@@ -14,6 +14,7 @@ import zipfile
 import json
 import subprocess
 from folium.plugins import HeatMap
+from PIL import Image
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
