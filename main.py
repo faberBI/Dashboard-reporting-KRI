@@ -22,8 +22,29 @@ from functions.energy_risk import (historical_VaR, run_heston, analyze_simulatio
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
-st.set_page_config(page_title="Risk Situation Room", page_icon="📊", layout="wide")
-st.title("📊 Dashboard KRI")
+
+# Carica il logo
+logo = Image.open("Image/logo_fibercop.PNG")
+
+st.set_page_config(page_title="Risk Situation Room", page_icon=logo , layout="wide")
+st.markdown("""
+<div style='text-align: center;'>
+""", unsafe_allow_html=True)
+
+st.image(logo, width=300)  # logo centrato grazie al div
+
+st.markdown("""
+<h1 style='color: white; font-weight: 800; font-family: Arial, sans-serif;'>
+Risk Situation Room
+</h1>
+<p style='color: #cccccc; font-size: 18px; font-family: Arial, sans-serif;'>
+Simula scenari finanziari e analizza i progetti di investimento con DCF
+</p>
+</div>
+""", unsafe_allow_html=True)
+
+# st.set_page_config(page_title="Risk Situation Room", page_icon="📊", layout="wide")
+# st.title("📊 Dashboard KRI")
 
 # -----------------------
 # Selezione KRI
