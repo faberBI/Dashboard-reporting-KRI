@@ -459,12 +459,28 @@ def compute_downside_upperside_risk(
             lst[last_zero_index] = last_value
         return lst
 
-    last_historical_value = next((x for x in reversed(media_pun) if x != 0), None)
-    p95 = replace_last_zero_with_value(p95, last_historical_value)
-    p5 = replace_last_zero_with_value(p5, last_historical_value)
-    frwd = replace_last_zero_with_value(frwd, last_historical_value)
-    predictive = replace_last_zero_with_value(predictive, last_historical_value)
+    # last_historical_value = next((x for x in reversed(media_pun) if x != 0), None)
+    # p95 = replace_last_zero_with_value(p95, last_historical_value)
+    # p5 = replace_last_zero_with_value(p5, last_historical_value)
+    # frwd = replace_last_zero_with_value(frwd, last_historical_value)
+    # predictive = replace_last_zero_with_value(predictive, last_historical_value)
+    
+    def connect_with_history(pred_list, hist_list):
+    """Sostituisce il primo valore non nullo della predizione con il valore storico precedente per continuità visiva."""
+    last_hist_val = next((x for x in reversed(hist_list) if x != 0), None)
+    for i, v in enumerate(pred_list):
+        if v != 0 and last_hist_val is not None:
+            # Inserisce un punto fittizio all'inizio della previsione
+            pred_list[i] = (pred_list[i] + last_hist_val) / 2
+            break
+    return pred_list
 
+    p95 = connect_with_history(p95, media_pun)
+    p5 = connect_with_history(p5, media_pun)
+    frwd = connect_with_history(frwd, media_pun)
+    predictive = connect_with_history(predictive, media_pun)
+
+        
     def plot_line(data, label, color, annotate=True):
         filtered_data = [d if d != 0 else None for d in data]
         ax.plot(anni_prezzi, filtered_data, label=label, color=color, linewidth=2.5)
