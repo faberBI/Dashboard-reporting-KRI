@@ -42,7 +42,7 @@ Risk Situation Room </h1>
 """, unsafe_allow_html=True)
 
 # st.set_page_config(page_title="Risk Situation Room", page_icon="📊", layout="wide")
-# st.title("📊 Dashboard KRI")
+st.title("📊 Risk Situation Room")
 
 # -----------------------
 # Selezione KRI
