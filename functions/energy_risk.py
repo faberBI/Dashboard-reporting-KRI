@@ -466,14 +466,14 @@ def compute_downside_upperside_risk(
     # predictive = replace_last_zero_with_value(predictive, last_historical_value)
     
     def connect_with_history(pred_list, hist_list):
-    """Sostituisce il primo valore non nullo della predizione con il valore storico precedente per continuità visiva."""
-    last_hist_val = next((x for x in reversed(hist_list) if x != 0), None)
-    for i, v in enumerate(pred_list):
-        if v != 0 and last_hist_val is not None:
-            # Inserisce un punto fittizio all'inizio della previsione
-            pred_list[i] = (pred_list[i] + last_hist_val) / 2
-            break
-    return pred_list
+        """Sostituisce il primo valore non nullo della predizione con il valore storico precedente per continuità visiva."""
+        last_hist_val = next((x for x in reversed(hist_list) if x != 0), None)
+        for i, v in enumerate(pred_list):
+            if v != 0 and last_hist_val is not None:
+                # Inserisce un punto fittizio all'inizio della previsione
+                pred_list[i] = (pred_list[i] + last_hist_val) / 2
+                break
+        return pred_list
 
     p95 = connect_with_history(p95, media_pun)
     p5 = connect_with_history(p5, media_pun)
