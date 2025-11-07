@@ -349,7 +349,11 @@ if selected_kri == "⚡ Energy Risk":
         st.markdown("### ⚠️ Target Policy")
         st.info("Valori % di copertura del fabbisogno.")
         st.dataframe(df_target_policy)
-       
+
+
+        anni_comuni = set(df_risk['Year']).intersection(df_open['Anno'])
+        df_risk = df_risk[df_risk['Year'].isin(anni_comuni)]
+        
         fig_var = var_ebitda_risk(
         periodo_di_analisi= start_date.strftime("as of %d/%m/%Y"),
         df_risk=df_risk,
