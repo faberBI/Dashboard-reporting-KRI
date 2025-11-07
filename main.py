@@ -290,7 +290,7 @@ if selected_kri == "⚡ Energy Risk":
         # Calcolo Open Position e Risk
         # -----------------------
         df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
-            anni=unique_years,
+            anni=anni=df["Anno"].tolist(),
             fabbisogno=fabbisogno,
             covered=covered,
             solar=solar,
