@@ -352,7 +352,8 @@ if selected_kri == "⚡ Energy Risk":
 
 
         anni_comuni = set(df_risk['Year']).intersection(df_open['Anno'])
-        df_risk = df_risk[df_risk['Year'].isin(anni_comuni)]
+        df_risk = df_risk[df_risk['Year'].isin(anni_comuni)].reset_index(drop=True)
+
         
         fig_var = var_ebitda_risk(
         periodo_di_analisi= start_date.strftime("as of %d/%m/%Y"),
