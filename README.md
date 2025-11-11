@@ -1,2 +1,2 @@
 # Dashboard-reporting-KRI
-Dashboard for reporting KRI (ERM Fibercop)
+Dashboard for reporting KRI
