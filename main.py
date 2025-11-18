@@ -710,8 +710,8 @@ elif selected_kri == "🌪️ Copper Risk":
     with open('utils/egarch_fit.pkl', 'rb') as file:
         egarch_fit = pickle.load(file)
 
-    S0_test = df['PX_LAST'][-1:]
-
+    S0_test = float(df['PX_LAST'].iloc[-1])
+    
     # 📅 Selezione della data finale per la simulazione
     end_date = st.date_input(
         "📅 Seleziona la data di fine simulazione",
