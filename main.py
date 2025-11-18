@@ -21,6 +21,7 @@ from copulas.multivariate import GaussianMultivariate
 import pickle
 from datetime import datetime
 
+
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk)
