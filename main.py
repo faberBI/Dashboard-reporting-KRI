@@ -682,42 +682,78 @@ elif selected_kri == "🌪️ Natural Event Risk":
 elif selected_kri == "🌪️ Copper Risk":
     st.subheader("🌪️ Simulazione Future a 3 mesi su Copper")
     st.info("Esegui la simulazione multivariata sul future del copper a 3 mesi")
+
     df = pd.read_excel('Data/df.xlsx')
-    df.set_index('Date', inplace = True)
+    df.set_index('Date', inplace=True)
+
     N = len(df)
     train_end = int(0.8 * N)
     val_end = train_end + int(0.1 * N)
 
     train = df.iloc[:train_end]
-    val   = df.iloc[train_end:val_end]
-    test  = df.iloc[val_end:]
-    
+    val = df.iloc[train_end:val_end]
+    test = df.iloc[val_end:]
+
     now = datetime.now()
     last_date = now.strftime("%d-%m-%Y")
-    
-    with open('utils/catboost_model.pkl', 'rb') as file:  
-    model_cb = pickle.load(file)
-    with open('utils/copula_model.pkl', 'rb') as file:  
-    copula_model = pickle.load(file)
-    with open('utils/egarch_model.pkl', 'rb') as file:  
-    egarch_model = pickle.load(file)
-    with open('utils/egarch_fit.pkl', 'rb') as file:  
-    egarch_fit = pickle.load(file)
+
+    # Caricamento modelli
+    with open('utils/catboost_model.pkl', 'rb') as file:
+        model_cb = pickle.load(file)
+
+    with open('utils/copula_model.pkl', 'rb') as file:
+        copula_model = pickle.load(file)
+
+    with open('utils/egarch_model.pkl', 'rb') as file:
+        egarch_model = pickle.load(file)
+
+    with open('utils/egarch_fit.pkl', 'rb') as file:
+        egarch_fit = pickle.load(file)
 
     S0_test = df['PX_LAST'][-1:]
-    result_df, sim_prices = simulate_cb_egarch_outsample(
-    copula_model= copula_model,
-    model_cb= model_cb,
-    egarch_model= egarch_model,
-    egarch_fit= egarch_fit,
-    last_date= last_date,
-    end_date='2028-12-31',
-    S0=S0_test,
-    n_sims=10
+
+    # 📅 Selezione della data finale per la simulazione
+    end_date = st.date_input(
+        "📅 Seleziona la data di fine simulazione",
+        value=datetime(2028, 12, 31),
+        min_value=datetime.now()
     )
-    get_forecast_plot(df, result_df)
-    st.subheader("📊 Risultati Simulazione")
-    st.dataframe(result_df.head())
+
+    if st.button("💹 Esegui simulazione Copper Risk"):
+        st.info("Simulazione in corso...")
+
+        result_df, sim_prices = simulate_cb_egarch_outsample(
+            copula_model=copula_model,
+            model_cb=model_cb,
+            egarch_model=egarch_model,
+            egarch_fit=egarch_fit,
+            last_date=last_date,
+            end_date=end_date.strftime("%Y-%m-%d"),
+            S0=S0_test,
+            n_sims=10
+        )
+
+        get_forecast_plot(df, result_df)
+
+        st.subheader("📊 Risultati Simulazione")
+        st.dataframe(result_df.head())
+
+        # Download Excel
+        import io
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            result_df.to_excel(writer, index=False, sheet_name='Risultati Simulazione')
+            df.to_excel(writer, index=False, sheet_name='Copper Price')
+            buffer.seek(0)
+
+        st.download_button(
+            label="💾 Scarica risultati in Excel",
+            data=buffer,
+            file_name="Simulazione_Copper_price.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+
 
     
 
