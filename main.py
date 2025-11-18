@@ -15,11 +15,16 @@ import json
 import subprocess
 from folium.plugins import HeatMap
 from PIL import Image
+from arch import arch_model
+from catboost import CatBoostRegressor
+from copulas.multivariate import GaussianMultivariate
+import pickle
+from datetime import datetime
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk)
-
+from functions.copper import simulate_cb_egarch_outsample, get_forecast_plot
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
@@ -47,7 +52,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "📌 KRI 3"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "📌 Copper Risk", "Altri rischi"]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -671,6 +676,49 @@ elif selected_kri == "🌪️ Natural Event Risk":
 
             except Exception as e:
                 st.error(f"❌ Errore durante la simulazione: {e}")
+# -----------------------
+# 🌪️ Copper Risk
+# -----------------------
+elif selected_kri == "🌪️ Copper Risk":
+    st.subheader("🌪️ Simulazione Future a 3 mesi su Copper")
+    st.info("Esegui la simulazione multivariata sul future del copper a 3 mesi")
+    df = pd.read_excel('Data/df.xlsx')
+    df.set_index('Date', inplace = True)
+    N = len(df)
+    train_end = int(0.8 * N)
+    val_end = train_end + int(0.1 * N)
 
+    train = df.iloc[:train_end]
+    val   = df.iloc[train_end:val_end]
+    test  = df.iloc[val_end:]
+    
+    now = datetime.now()
+    last_date = now.strftime("%d-%m-%Y")
+    
+    with open('utils/catboost_model.pkl', 'rb') as file:  
+    model_cb = pickle.load(file)
+    with open('utils/copula_model.pkl', 'rb') as file:  
+    copula_model = pickle.load(file)
+    with open('utils/egarch_model.pkl', 'rb') as file:  
+    egarch_model = pickle.load(file)
+    with open('utils/egarch_fit.pkl', 'rb') as file:  
+    egarch_fit = pickle.load(file)
+
+    S0_test = df['PX_LAST'].loc[last_date]
+    result_df, sim_prices = simulate_cb_egarch_outsample(
+    copula_model= copula_model,
+    model_cb= model_cb,
+    egarch_model= egarch_model,
+    egarch_fit= egarch_fit,
+    last_date= last_date,
+    end_date='2028-12-31',
+    S0=S0_test,
+    n_sims=10
+    )
+    get_forecast_plot(df, result_df)
+    st.subheader("📊 Risultati Simulazione")
+    st.dataframe(result_df.head())
+
+    
 
 
