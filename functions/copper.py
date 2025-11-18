@@ -1,0 +1,63 @@
+import numpy as np
+import pandas as pd
+from arch import arch_model
+from catboost import CatBoostRegressor
+from copulas.multivariate import GaussianMultivariate
+
+
+def simulate_cb_egarch_outsample(
+        copula_model, model_cb, egarch_model, egarch_fit,
+        last_date, end_date, S0, n_sims=500,
+        clip_low=-1, clip_high=1,
+        monthly_cap=0.0025, monthly_floor=-0.002):
+
+    last_date = pd.to_datetime(last_date)
+    end_date  = pd.to_datetime(end_date)
+    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1),
+                                 end=end_date, freq='B')
+    T = len(future_dates)
+
+    # ---- Copula per future X ----
+    X_fut_flat = copula_model.sample(T * n_sims)
+    pred_flat = model_cb.predict(X_fut_flat)
+    pred_cb = pred_flat.reshape(n_sims, T)
+    pred_cb = pred_cb - np.median(pred_cb, axis=0)
+    # ---- EGARCH params ----
+    params = egarch_fit.params
+
+
+    cap_daily = np.log(1 + 0.17) / 21
+    floor_daily = np.log(1 - 0.13) / 21
+
+    # sigma storica per clipping
+    sigma_hist = np.median(egarch_fit.conditional_volatility) / 100  # prudente
+
+    sim_prices = np.zeros((n_sims, T))
+
+    for i in range(n_sims):
+
+        # ---- GARCH simulate ----
+        sim = egarch_model.simulate(params, nobs=T)
+        sim_resid = sim["data"] / 100
+
+        # clipping controllato sui residui
+        sim_resid = np.clip(sim_resid,
+                            clip_low * sigma_hist,
+                            clip_high * sigma_hist)
+         
+        
+        # log returns simulati
+        sim_logret = pred_cb[i] + sim_resid
+        sim_logret = np.clip(sim_logret, floor_daily, cap_daily)
+        sim_prices[i] = S0 * np.exp(np.cumsum(sim_logret))
+
+        
+    # ---- Raggruppamento ----
+    result = pd.DataFrame({
+        "median":  np.median(sim_prices, axis=0),
+        "average": np.mean(sim_prices, axis=0),
+        "lower":   np.percentile(sim_prices, 5, axis=0),
+        "upper":   np.percentile(sim_prices, 95, axis=0),
+    }, index=future_dates)
+
+    return result, sim_prices
