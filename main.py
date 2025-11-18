@@ -704,7 +704,7 @@ elif selected_kri == "🌪️ Copper Risk":
     with open('utils/egarch_fit.pkl', 'rb') as file:  
     egarch_fit = pickle.load(file)
 
-    S0_test = df['PX_LAST'].loc[last_date]
+    S0_test = df['PX_LAST'][-1:]
     result_df, sim_prices = simulate_cb_egarch_outsample(
     copula_model= copula_model,
     model_cb= model_cb,
