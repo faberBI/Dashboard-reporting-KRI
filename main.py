@@ -27,6 +27,7 @@ from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk)
 from functions.copper import simulate_cb_egarch_outsample, get_forecast_plot
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
+
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
