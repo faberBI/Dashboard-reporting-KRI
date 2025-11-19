@@ -635,8 +635,24 @@ elif selected_kri == "🌪️ Natural Event Risk":
     # Esecuzione simulazione
     if st.button("🚀 Avvia Simulazione Natural Event Risk"):
         with st.spinner("Esecuzione simulazione in corso..."):
-            from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
+            
             try:
+                from functions.natural_events import (
+                    simulazione_portafoglio_con_rischi_correlati,
+                    calcola_vulnerabilita_intrinseca_frane,
+                    calcola_perdita_attesa_frane,
+                    vulnerabilita_profondita_pol,
+                    simulazione_perdita_attesa_idro,
+                    calculate_IEMS,
+                    calculate_mu_D,
+                    generate_damage_probability,
+                    calculate_value_loss,
+                    simulazione_perdita_attesa_sismica,
+                    simula_danno_tempesta
+                        )
+
+                from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
+                
                 results = simulazione_portafoglio_con_rischi_correlati(
                 df=df,
                 n_simulazioni=int(n_simulazioni),
