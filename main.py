@@ -833,6 +833,7 @@ elif selected_kri == "Credit risk":
         df.columns = df.columns.str.strip()
 
         required_cols = [
+            "Periodo",  # nuova colonna periodo
             "TRADE RECEIVABLES (NET)",
             "Not Overdue", "1-90", "91-180",
             "181-365", "Over 365", "PROVISION"
@@ -844,32 +845,80 @@ elif selected_kri == "Credit risk":
             st.success("File caricato correttamente!")
 
             # --------------------------
+            # Raggruppamento per Periodo
+            # --------------------------
+            grouped = df.groupby("Periodo").sum().reset_index()
+
+            # --------------------------
             # KPI CALCULATION
             # --------------------------
-            df["Over90"] = df["91-180"] + df["181-365"] + df["Over 365"]
-            df["Pct_Over_90"] = df["Over90"] / df["TRADE RECEIVABLES (NET)"]
+            grouped["Over90"] = grouped["91-180"] + grouped["181-365"] + grouped["Over 365"]
+            grouped["Pct_Over_90"] = grouped["Over90"] / grouped["TRADE RECEIVABLES (NET)"]
 
-            df["Delta_Provision"] = df["PROVISION"] - provision_t1
+            grouped["Delta_Provision"] = grouped["PROVISION"] - provision_t1
 
-            df["Aging"] = (
-                0   * df["Not Overdue"] +
-                45  * df["1-90"] +
-                135 * df["91-180"] +
-                270 * df["181-365"] +
-                365 * df["Over 365"]
-            ) / df["TRADE RECEIVABLES (NET)"]
+            grouped["Aging"] = (
+                0   * grouped["Not Overdue"] +
+                45  * grouped["1-90"] +
+                135 * grouped["91-180"] +
+                270 * grouped["181-365"] +
+                365 * grouped["Over 365"]
+            ) / grouped["TRADE RECEIVABLES (NET)"]
 
             # Dataframe indicatori principali
-            kpi_df = df[[
+            kpi_df = grouped[[
+                "Periodo",
                 "TRADE RECEIVABLES (NET)",
                 "Pct_Over_90",
                 "Delta_Provision",
                 "Aging"
             ]].copy()
 
-            st.subheader("📊 Indicatori Calcolati")
+            st.subheader("📊 Indicatori Calcolati per Periodo")
             st.dataframe(kpi_df)
-
+            st.subheader("📈 Grafici KPI per Periodo")
+            
+            # 1️⃣ Percentuale Over 90 giorni
+            fig_pct = px.bar(
+                kpi_df,
+                x="Periodo",
+                y="Pct_Over_90",
+                text="Pct_Over_90",
+                labels={"Pct_Over_90": "Pct Over 90"},
+                title="📊 Percentuale Crediti > 90 giorni per Periodo",
+                color="Pct_Over_90",
+                color_continuous_scale="Blues"
+            )
+            fig_pct.update_traces(texttemplate='%{text:.2%}', textposition='outside')
+            st.plotly_chart(fig_pct, use_container_width=True)
+            
+            # 2️⃣ Delta Provision
+            fig_delta = px.bar(
+                kpi_df,
+                x="Periodo",
+                y="Delta_Provision",
+                text="Delta_Provision",
+                labels={"Delta_Provision": "Delta Provision"},
+                title="💰 Delta Provision vs T-1 per Periodo",
+                color="Delta_Provision",
+                color_continuous_scale="Oranges"
+            )
+            fig_delta.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+            st.plotly_chart(fig_delta, use_container_width=True)
+            
+            # 3️⃣ Aging medio
+            fig_aging = px.bar(
+                kpi_df,
+                x="Periodo",
+                y="Aging",
+                text="Aging",
+                labels={"Aging": "Aging medio (giorni)"},
+                title="⏳ Aging medio dei crediti per Periodo",
+                color="Aging",
+                color_continuous_scale="Greens"
+            )
+            fig_aging.update_traces(texttemplate='%{text:.1f}', textposition='outside')
+            st.plotly_chart(fig_aging, use_container_width=True)
             # -----------------------------------------------
             # 💾 Download Excel
             # -----------------------------------------------
@@ -881,7 +930,7 @@ elif selected_kri == "Credit risk":
                 kpi_df.to_excel(writer, index=False, sheet_name='Indicatori KPI')
 
                 # foglio riassunto KPI (solo valori medi)
-                summary = kpi_df.mean().to_frame("Value")
+                summary = kpi_df.mean(numeric_only=True).to_frame("Value")
                 summary.to_excel(writer, sheet_name='Sintesi KPI')
 
                 buffer.seek(0)
@@ -892,6 +941,8 @@ elif selected_kri == "Credit risk":
                 file_name="Credit_Risk_Aging_Indicators.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+
+
   
 elif selected_kri == "Cyber":
     print('Cyber')
