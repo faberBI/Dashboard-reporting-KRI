@@ -904,7 +904,7 @@ elif selected_kri == "Credit risk":
                 y="Delta_Provision",
                 text="Delta_Provision",
                 labels={"Delta_Provision": "Delta Provision"},
-                title="💰 Delta Provision vs T-1 per Periodo",
+                title="💰 Delta Provision vs T-1 per Periodo in €",
                 color="Delta_Provision",
                 color_continuous_scale="Oranges"
             )
