@@ -53,7 +53,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "📌 Copper Risk", "Altri rischi"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "Copper Price", "Access to Funding", "Cyber", "Interest Rate"]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -680,7 +680,7 @@ elif selected_kri == "🌪️ Natural Event Risk":
 # -----------------------
 # 🌪️ Copper Risk
 # -----------------------
-elif selected_kri == "🌪️ Copper Risk":
+elif selected_kri == "Copper Price":
     st.subheader("🌪️ Simulazione Future a 3 mesi su Copper")
     st.info("Esegui la simulazione multivariata sul future del copper a 3 mesi")
 
@@ -713,13 +713,45 @@ elif selected_kri == "🌪️ Copper Risk":
 
     S0_test = float(df['PX_LAST'].iloc[-1])
     
-    # 📅 Selezione della data finale per la simulazione
+    # -----------------------------------------------
+    # 📅 Selezione data finale simulazione
+    # -----------------------------------------------
     end_date = st.date_input(
         "📅 Seleziona la data di fine simulazione",
         value=datetime(2028, 12, 31),
         min_value=datetime.now()
     )
 
+    # -----------------------------------------------
+    # 📦 INPUT: quantità per anno + prezzo budget
+    # -----------------------------------------------
+    start_year = datetime.now().year
+    end_year = end_date.year
+    years = list(range(start_year, end_year + 1))
+
+    st.subheader("📦 Quantità di Copper da vendere per anno")
+
+    quantities = {}
+    for y in years:
+        quantities[y] = st.number_input(
+            f"Quantità da vendere nel {y} (in tonnellate)",
+            min_value=0.0,
+            step=1.0,
+            value=0.0,
+            format="%.2f"
+        )
+
+    budget_price = st.number_input(
+        "💰 Prezzo di budget (USD per tonnellata)",
+        min_value=0.0,
+        step=10.0,
+        value=9000.0,
+        format="%.2f"
+    )
+
+    # -----------------------------------------------
+    # 🚀 RUN SIMULAZIONE
+    # -----------------------------------------------
     if st.button("💹 Esegui simulazione Copper Risk"):
         st.info("Simulazione in corso...")
 
@@ -737,14 +769,38 @@ elif selected_kri == "🌪️ Copper Risk":
         get_forecast_plot(df, result_df)
 
         st.subheader("📊 Risultati Simulazione")
+        result_df.index = pd.to_datetime(result_df.index)
+
+        # -----------------------------------------------
+        # 📅 Groupby per anno
+        # -----------------------------------------------
+        result_df["year"] = result_df.index.year
+        result_df_yearly = result_df.groupby("year")[["median", "average", "lower", "upper"]].mean()
+
+        # -----------------------------------------------
+        # 💰 Aggiunta quantità e calcolo P&L vs budget
+        # -----------------------------------------------
+        result_df_yearly["qty"] = result_df_yearly.index.map(quantities)
+
+        result_df_yearly["PnL_vs_budget"] = (
+            (result_df_yearly["lower"] - budget_price) * result_df_yearly["qty"]
+        )
+        
+        st.subheader("📘 Risultati per anno (medie + quantità + PnL)")
+        st.dataframe(result_df_yearly)
+
+        st.subheader("📘 Estratto risultati giornalieri")
         st.dataframe(result_df.head())
 
-        # Download Excel
+        # -----------------------------------------------
+        # 💾 Download Excel
+        # -----------------------------------------------
         import io
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            result_df.to_excel(writer, index=False, sheet_name='Risultati Simulazione')
-            df.to_excel(writer, index=False, sheet_name='Copper Price')
+            result_df.to_excel(writer, index=True, sheet_name='Giornaliero Simulazione')
+            result_df_yearly.to_excel(writer, index=True, sheet_name='Annuale Aggregato')
+            df.to_excel(writer, index=True, sheet_name='Copper Price')
             buffer.seek(0)
 
         st.download_button(
@@ -753,9 +809,92 @@ elif selected_kri == "🌪️ Copper Risk":
             file_name="Simulazione_Copper_price.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+# -----------------------
+# 🌪️ Access to Funding
+# -----------------------
+elif selected_kri == "Access to Funding":
+
+elif selected_kri == "Credit risk":
+    st.subheader("🏦 Credit Risk – Aging & Indicatori")
+
+    uploaded_credit = st.file_uploader("📂 Carica il file Aging", type="xlsx")
+
+    provision_t1 = st.number_input(
+        "Provision (T-1)",
+        min_value=0.0,
+        step=1000.0,
+        format="%.2f"
+    )
+
+    if uploaded_credit:
+        df = pd.read_excel(uploaded_credit)
+        df.columns = df.columns.str.strip()
+
+        required_cols = [
+            "TRADE RECEIVABLES (NET)",
+            "Not Overdue", "1-90", "91-180",
+            "181-365", "Over 365", "PROVISION"
+        ]
+
+        if not all(col in df.columns for col in required_cols):
+            st.error("⚠️ Il file deve contenere le colonne corrette.")
+        else:
+            st.success("File caricato correttamente!")
+
+            # --------------------------
+            # KPI CALCULATION
+            # --------------------------
+            df["Over90"] = df["91-180"] + df["181-365"] + df["Over 365"]
+            df["Pct_Over_90"] = df["Over90"] / df["TRADE RECEIVABLES (NET)"]
+
+            df["Delta_Provision"] = df["PROVISION"] - provision_t1
+
+            df["Aging"] = (
+                0   * df["Not Overdue"] +
+                45  * df["1-90"] +
+                135 * df["91-180"] +
+                270 * df["181-365"] +
+                365 * df["Over 365"]
+            ) / df["TRADE RECEIVABLES (NET)"]
+
+            # Dataframe indicatori principali
+            kpi_df = df[[
+                "TRADE RECEIVABLES (NET)",
+                "Pct_Over_90",
+                "Delta_Provision",
+                "Aging"
+            ]].copy()
+
+            st.subheader("📊 Indicatori Calcolati")
+            st.dataframe(kpi_df)
+
+            # -----------------------------------------------
+            # 💾 Download Excel
+            # -----------------------------------------------
+            import io
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                
+                df.to_excel(writer, index=False, sheet_name='Aging Raw')
+                kpi_df.to_excel(writer, index=False, sheet_name='Indicatori KPI')
+
+                # foglio riassunto KPI (solo valori medi)
+                summary = kpi_df.mean().to_frame("Value")
+                summary.to_excel(writer, sheet_name='Sintesi KPI')
+
+                buffer.seek(0)
+
+            st.download_button(
+                label="💾 Scarica file Credit Risk (Excel)",
+                data=buffer,
+                file_name="Credit_Risk_Aging_Indicators.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+  
+elif selected_kri == "Cyber":
 
 
-
+elif selected_kri == "Interest Rate":
     
 
 
