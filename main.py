@@ -876,8 +876,6 @@ elif selected_kri == "Credit risk":
             ]].copy()
             
             kpi_df["Delta_Provision"] = kpi_df["Delta_Provision"].round(0)
-            kpi_df["Delta_Provision"] = kpi_df["Delta_Provision"].apply(lambda x: f"€ {x:,}")
-            kpi_df["Pct_Over_90"] = (kpi_df["Pct_Over_90"]).round(1)       # % con 1 decimale
             kpi_df["Aging"] = kpi_df["Aging"].round(0)
             
             st.subheader("📊 Indicatori Calcolati per Periodo")
