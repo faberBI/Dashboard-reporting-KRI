@@ -879,6 +879,7 @@ elif selected_kri == "Credit risk":
             st.dataframe(kpi_df)
             st.subheader("📈 Grafici KPI per Periodo")
             
+            import plotly.express as px
             # 1️⃣ Percentuale Over 90 giorni
             fig_pct = px.bar(
                 kpi_df,
