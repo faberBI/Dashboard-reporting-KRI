@@ -4,10 +4,6 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 
-
-
-# funzioni geospaziali
-
 def get_risk_area_idro(lat, long, database):
     punto = gpd.GeoDataFrame({'geometry': [Point(long, lat)]}, crs=database.crs)
     punto_m = punto.to_crs(epsg=32632).buffer(600).to_crs(epsg=4326)
