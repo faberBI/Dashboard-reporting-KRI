@@ -843,7 +843,8 @@ elif selected_kri == "Credit risk":
             st.error("⚠️ Il file deve contenere le colonne corrette.")
         else:
             st.success("File caricato correttamente!")
-
+            
+            df["Periodo"] = pd.to_datetime(df["Periodo"], format="%m-%Y")
             # --------------------------
             # Raggruppamento per Periodo
             # --------------------------
@@ -855,7 +856,7 @@ elif selected_kri == "Credit risk":
             grouped["Over90"] = grouped["91-180"] + grouped["181-365"] + grouped["Over 365"]
             grouped["Pct_Over_90"] = grouped["Over90"] / grouped["TRADE RECEIVABLES (NET)"]
 
-            grouped["Delta_Provision"] = grouped["PROVISION"] - provision_t1
+            grouped["Delta_Provision"] = grouped["PROVISION"].diff().fillna(0)
 
             grouped["Aging"] = (
                 0   * grouped["Not Overdue"] +
