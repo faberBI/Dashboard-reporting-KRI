@@ -813,7 +813,7 @@ elif selected_kri == "Copper Price":
 # 🌪️ Access to Funding
 # -----------------------
 elif selected_kri == "Access to Funding":
-
+    print('Access to Funding')
 elif selected_kri == "Credit risk":
     st.subheader("🏦 Credit Risk – Aging & Indicatori")
 
@@ -892,8 +892,9 @@ elif selected_kri == "Credit risk":
             )
   
 elif selected_kri == "Cyber":
-
+    print('Cyber')
 elif selected_kri == "Interest Rate":
+    print('Interest Rate')
     
 
 
