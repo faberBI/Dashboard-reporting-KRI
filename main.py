@@ -53,7 +53,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "Copper Price", "Access to Funding", "Cyber", "Interest Rate"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "Copper Price", "Access to Funding", "Cyber","Credit risk" ,"Interest Rate"]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -814,6 +814,7 @@ elif selected_kri == "Copper Price":
 # -----------------------
 elif selected_kri == "Access to Funding":
     print('Access to Funding')
+    
 elif selected_kri == "Credit risk":
     st.subheader("🏦 Credit Risk – Aging & Indicatori")
 
