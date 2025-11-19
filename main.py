@@ -766,7 +766,8 @@ elif selected_kri == "Copper Price":
             n_sims=10
         )
 
-        get_forecast_plot(df, result_df)
+        fig = get_forecast_plot(df, result_df)
+        st.pyplot(fig)
 
         st.subheader("📊 Risultati Simulazione")
         result_df.index = pd.to_datetime(result_df.index)
