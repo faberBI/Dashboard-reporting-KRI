@@ -66,53 +66,37 @@ def simulate_cb_egarch_outsample(
 import matplotlib.pyplot as plt
 
 def get_forecast_plot(df, result_df):
-
-  # -------------------
-  # 1. Serie reale fino alla last_date
-  # -------------------
     history = df['PX_LAST']
-
-  # -------------------
-  # 2. Date future = quelle del risultato simulato
-  # -------------------
     future_dates = result_df.index
 
-    plt.figure(figsize=(16,6))
+    fig, ax = plt.subplots(figsize=(16,6))
 
-  # -------------------
-  # 3. Storico reale
-  # -------------------
-    plt.plot(history.index, history.values,
-           color="black", linewidth=2, label="Storico reale")
+    # Storico reale
+    ax.plot(history.index, history.values,
+            color="black", linewidth=2, label="Storico reale")
 
-  # -------------------
-  # 4. Mediana e media simulata
-  # -------------------
+    # Mediana e media simulata
+    ax.plot(future_dates, result_df['average'],
+            color="purple", linestyle="--", linewidth=1.8,
+            label="Media simulata")
 
-    plt.plot(future_dates, result_df['average'],
-           color="purple", linestyle="--", linewidth=1.8,
-           label="Media simulata")
+    ax.plot(future_dates, result_df['median'],
+            color="blue", linestyle="--", linewidth=1.8,
+            label="Median simulata")
 
-    plt.plot(future_dates, result_df['median'],
-           color="blue", linestyle="--", linewidth=1.8,
-           label="Median simulata")
+    # Bande 5–95%
+    ax.fill_between(future_dates,
+                    result_df['lower'],
+                    result_df['upper'],
+                    color="blue", alpha=0.20,
+                    label="Intervallo 5–95%")
 
-  # -------------------
-  # 5. Bande 5–95%
-  # -------------------
-    plt.fill_between(future_dates,
-                   result_df['lower'],
-                   result_df['upper'],
-                   color="blue", alpha=0.20,
-                   label="Intervallo 5–95%")
-
-  # -------------------
-  # 6. Setup grafico
-  # -------------------
-    plt.title("Storico + Simulazioni Out-of-Sample CatBoost + EGARCH")
-    plt.xlabel("Data")
-    plt.ylabel("Prezzo")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+    # Setup grafico
+    ax.set_title("Storico + Simulazioni Out-of-Sample CatBoost + EGARCH")
+    ax.set_xlabel("Data")
+    ax.set_ylabel("Prezzo")
+    ax.grid(True, alpha=0.3)
+    ax.legend()
     plt.tight_layout()
-    plt.show()
+
+    return fig
