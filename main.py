@@ -634,6 +634,7 @@ elif selected_kri == "🌪️ Natural Event Risk":
     # Esecuzione simulazione
     if st.button("🚀 Avvia Simulazione Natural Event Risk"):
         with st.spinner("Esecuzione simulazione in corso..."):
+            from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
             try:
                 results = simulazione_portafoglio_con_rischi_correlati(
                 df=df,
