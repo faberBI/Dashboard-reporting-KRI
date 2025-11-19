@@ -893,7 +893,6 @@ elif selected_kri == "Credit risk":
   
 elif selected_kri == "Cyber":
 
-
 elif selected_kri == "Interest Rate":
     
 
