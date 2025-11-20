@@ -27,7 +27,7 @@ def simulate_cb_egarch_outsample(
 
 
     cap_daily = np.log(1 + 0.18) / 21
-    floor_daily = np.log(1 - 0.17) / 21
+    floor_daily = np.log(1 - 0.165) / 21
 
     # sigma storica per clipping
     sigma_hist = np.median(egarch_fit.conditional_volatility) / 100  # prudente
