@@ -26,7 +26,7 @@ def simulate_cb_egarch_outsample(
     params = egarch_fit.params
 
 
-    cap_daily = np.log(1 + 0.17) / 21
+    cap_daily = np.log(1 + 0.18) / 21
     floor_daily = np.log(1 - 0.15) / 21
 
     # sigma storica per clipping
