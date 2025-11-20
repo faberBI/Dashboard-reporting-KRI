@@ -55,7 +55,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "Copper Price", "Access to Funding", "Cyber","Credit risk" ,"Interest Rate"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "💰🔑 Access to Funding", "🛡️💻 Cyber","💳 Credit risk" ,"📈 Interest Rate"]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -694,8 +694,8 @@ elif selected_kri == "🌪️ Natural Event Risk":
 # -----------------------
 # 🌪️ Copper Risk
 # -----------------------
-elif selected_kri == "Copper Price":
-    st.subheader("🌪️ Simulazione Future a 3 mesi su Copper")
+elif selected_kri == "🟠 Copper Price":
+    st.subheader("🟠 Simulazione Future a 3 mesi su Copper")
     st.info("Esegui la simulazione multivariata sul future del copper a 3 mesi")
 
     df = pd.read_excel('Data/df.xlsx')
@@ -827,10 +827,10 @@ elif selected_kri == "Copper Price":
 # -----------------------
 # 🌪️ Access to Funding
 # -----------------------
-elif selected_kri == "Access to Funding":
+elif selected_kri == "💰🔑 Access to Funding":
     print('Access to Funding')
     
-elif selected_kri == "Credit risk":
+elif selected_kri == "💳 Credit risk":
     st.subheader("🏦 Credit Risk – Aging & Indicatori")
 
     uploaded_credit = st.file_uploader("📂 Carica il file Aging", type="xlsx")
@@ -963,9 +963,9 @@ elif selected_kri == "Credit risk":
 
 
   
-elif selected_kri == "Cyber":
+elif selected_kri == "🛡️💻 Cyber":
     print('Cyber')
-elif selected_kri == "Interest Rate":
+elif selected_kri == "📈 Interest Rate":
     print('Interest Rate')
     
 
