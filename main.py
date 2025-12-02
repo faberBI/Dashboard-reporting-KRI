@@ -966,7 +966,300 @@ elif selected_kri == "💳 Credit risk":
 elif selected_kri == "🛡️💻 Cyber":
     print('Cyber')
 elif selected_kri == "📈 Interest Rate":
-    print('Interest Rate')
+    
+    from ecbdata import ecbdata
+    import numpy as np
+    import pandas as pd
+    from statsmodels.tsa.seasonal import STL
+    from statsmodels.tsa.statespace.sarimax import SARIMAX
+    from catboost import CatBoostRegressor
+    from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+    import matplotlib.pyplot as plt
+    import optuna
+    from functions.interest_rates import download_ecb_series, download_yahoo_series
+    series = {
+    
+    # --- Euribor / Money Market ---
+    "euribor_3m": "FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA",
+
+    # --- Politica monetaria BCE ---
+    "deposit_rate": "FM.D.U2.EUR.4F.KR.DFR.LEV",
+    "mro_rate": "FM.B.U2.EUR.4F.KR.MRR_FR.LEV",
+    "marginal_lending": "FM.D.U2.EUR.4F.KR.MLFR.LEV",
+
+    # --- Macro ---
+    "inflation": "ICP.M.IT.N.000000.4.ANR",
+    "core_inflation": "ICP.M.U2.N.XEF000.4.ANR",
+    "unemployment": "SPF.Q.U2.UNEM.POINT.LT.Q.AVG",
+
+    # --- Banking & liquidity ---
+    "excess_liquidity": "SUP.Q.B01.W0._Z.I3017._T.SII._Z._Z._Z.PCT.C", 
+    "deposit_facility_usage": "ILM.W.U2.C.L020200.U2.EUR",
+    "refinancing_ops": "FM.D.U2.EUR.4F.KR.MRR_RT.LEV",
+    "gdp_growth": "MNA.Q.Y.I9.W2.S1.S1.B.B1GQ._Z._Z._Z.EUR.LR.N",
+    }
+    
+    yahoo_symbols = {
+        "sp500": "^GSPC",
+        "eurusd": "EURUSD=X",
+        "vix": "^VIX",
+        "us10y": "^TNX",
+        "oil": "CL=F",
+        "gold": "GC=F",
+    }
     
 
+    # ----------------------------------------
+    # 3. SCARICA TUTTI I DATI
+    # ----------------------------------------
+    df_ecb = download_ecb_series(series)
+    df_yahoo = download_yahoo_series(yahoo_symbols)
+    df_all = df_ecb.join(df_yahoo, how="outer")
+    df_all = df_all.sort_index().ffill()
+    df_dropped = df_all.dropna()
 
+    stl = STL(df_dropped['euribor_3m'], period=30, robust=True)
+    res = stl.fit()
+    trend = res.trend
+    seasonal = res.seasonal
+    residual = res.resid
+    
+    # --- Split train / val / test ---
+    n = len(df_dropped)
+    train_end = int(0.8 * n)
+    val_end = int(0.9 * n)
+    
+    X = df_dropped.drop(columns='euribor_3m')
+    X_train = X.iloc[:train_end]
+    X_val = X.iloc[train_end:val_end]
+    X_test = X.iloc[val_end:]
+    
+    trend_train = trend.iloc[:train_end]
+    trend_val = trend.iloc[train_end:val_end]
+    trend_test = trend.iloc[val_end:]
+    
+    residual_train = residual.iloc[:train_end]
+    residual_val = residual.iloc[train_end:val_end]
+    residual_test = residual.iloc[val_end:]
+    
+    seasonal_train = seasonal.iloc[:train_end]
+    seasonal_val = seasonal.iloc[train_end:val_end]
+    seasonal_test = seasonal.iloc[val_end:]
+    
+    # --- Optuna CatBoost su trend ---
+    def objective_trend(trial):
+        params = {
+            'iterations': trial.suggest_int('iterations', 100, 1000),
+            'depth': trial.suggest_int('depth', 3, 10),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
+            'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 10),
+            'random_strength': trial.suggest_float('random_strength', 1, 20),
+            'bagging_temperature': trial.suggest_float('bagging_temperature', 0, 1),
+            'border_count': trial.suggest_int('border_count', 32, 255),
+            'verbose': 0,
+            'random_state': 42
+        }
+        model = CatBoostRegressor(**params)
+        model.fit(X_train, trend_train, eval_set=(X_val, trend_val), early_stopping_rounds=50, verbose=False)
+        y_pred_val = model.predict(X_val)
+        rmse = mean_squared_error(trend_val, y_pred_val)
+        return rmse
+    
+    study_trend = optuna.create_study(direction='minimize')
+    study_trend.optimize(objective_trend, n_trials=50)
+    best_params_trend = study_trend.best_params
+    trend_model = CatBoostRegressor(**best_params_trend)
+    trend_model.fit(pd.concat([X_train, X_val]), pd.concat([trend_train, trend_val]), verbose=0)
+    
+    # Predizioni trend
+    trend_pred_train = trend_model.predict(X_train)
+    trend_pred_val = trend_model.predict(X_val)
+    trend_pred_test = trend_model.predict(X_test)
+    
+    # --- SARIMA seasonal ---
+    sarima_order = (1,0,1)
+    seasonal_order = (1,0,1,12)
+    sarima_model = SARIMAX(seasonal_train, order=sarima_order, seasonal_order=seasonal_order,
+                           enforce_stationarity=False, enforce_invertibility=False)
+    sarima_fit = sarima_model.fit(disp=False)
+    
+    seasonal_pred_train = sarima_fit.predict(start=0, end=len(seasonal_train)-1)
+    seasonal_pred_val = sarima_fit.predict(start=len(seasonal_train), end=len(seasonal_train)+len(seasonal_val)-1)
+    seasonal_pred_test = sarima_fit.forecast(steps=len(seasonal_test))
+    
+    # --- Optuna CatBoost su residual ---
+    def objective_residual(trial):
+        params = {
+            'iterations': trial.suggest_int('iterations', 100, 1000),
+            'depth': trial.suggest_int('depth', 3, 10),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
+            'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 10),
+            'random_strength': trial.suggest_float('random_strength', 1, 20),
+            'bagging_temperature': trial.suggest_float('bagging_temperature', 0, 1),
+            'border_count': trial.suggest_int('border_count', 32, 255),
+            'verbose': 0,
+            'random_state': 42
+        }
+        model = CatBoostRegressor(**params)
+        model.fit(X_train, residual_train, eval_set=(X_val, residual_val), early_stopping_rounds=50, verbose=False)
+        y_pred_val = model.predict(X_val)
+        rmse = mean_squared_error(residual_val, y_pred_val)
+        return rmse
+    
+    study_residual = optuna.create_study(direction='minimize')
+    study_residual.optimize(objective_residual, n_trials=50)
+    best_params_residual = study_residual.best_params
+    residual_model = CatBoostRegressor(**best_params_residual)
+    residual_model.fit(pd.concat([X_train, X_val]), pd.concat([residual_train, residual_val]), verbose=0)
+    
+    # Predizioni residual
+    residual_pred_train = residual_model.predict(X_train)
+    residual_pred_val = residual_model.predict(X_val)
+    residual_pred_test = residual_model.predict(X_test)
+    
+    # --- Predizione finale ---
+    y_pred_train = trend_pred_train + seasonal_pred_train + residual_pred_train
+    y_pred_val = trend_pred_val + seasonal_pred_val + residual_pred_val
+    y_pred_test = trend_pred_test + seasonal_pred_test + residual_pred_test
+
+    # --- Plot ---
+    fig = plt.figure(figsize=(15,6))
+    plt.plot(df_dropped['euribor_3m'], label="Originale", color='black')
+    plt.plot(df_dropped.index[:train_end], y_pred_train, label="Train Pred", color='blue')
+    plt.plot(df_dropped.index[train_end:val_end], y_pred_val, label="Val Pred", color='orange')
+    plt.plot(df_dropped.index[val_end:], y_pred_test, label="Test Pred", color='green')
+
+    plt.title("Serie originale vs Predizione completa")
+    plt.legend()
+
+    # Mostra su Streamlit
+    st.pyplot(fig)
+    
+    series = df_dropped['euribor_3m'].values
+    dates = df_dropped.index
+    last_date = dates[-1].date()   # data finale del dataset
+    
+    st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M📊 ")
+    
+    notional = st.number_input("Notional (€)", min_value=0.0, value=100000000.0, step=1000000.0)
+    copertura = st.number_input("Hedged Notional (€)", min_value=0.0, value=100000000.0, step=1000000.0)
+    spread_input = st.text_input("Spread (%)", value="2.25")
+    spread = float(spread_input) / 100  # converti in decimale
+    maturity = st.date_input("Maturity del prestito")
+    euribor_input = st.text_input("Last Applicable Euribor (%)", value="2.25")
+    euribor_base = float(euribor_input) / 100  # converti in decimale
+    
+    
+    # Differenza in giorni → intero
+    n_period = (maturity - last_date).days
+    n_sims = 500  
+    alpha = 0.05
+    
+    # ----------------------------------------------------
+    # Funzione di simulazione Ornstein-Uhlenbeck (OU)
+    # dX_t = θ(μ - X_t)dt + σdW_t
+    # ----------------------------------------------------
+    def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
+        X = np.zeros(n_steps)
+        X[0] = X0
+        for t in range(1, n_steps):
+            dW = np.random.randn() * np.sqrt(dt)
+            X[t] = X[t-1] + theta * (mu - X[t-1]) * dt + sigma * dW
+        return X
+    
+    # ----------------------------------------------------
+    # Funzione obiettivo per Optuna: massimizza la log-likelihood
+    # ----------------------------------------------------
+    def objective(trial):
+        theta = trial.suggest_loguniform('theta', 1e-3, 1.0)
+        mu = trial.suggest_uniform('mu', series.min(), series.max())
+        sigma = trial.suggest_loguniform('sigma', 1e-4, 1.0)
+    
+        # Likelihood discreta OU
+        X_prev = series[:-1]
+        X_next = series[1:]
+        dt = 1.0
+        var = sigma**2 * dt
+        mean = X_prev + theta * (mu - X_prev) * dt
+    
+        log_lik = -0.5 * np.sum(((X_next - mean)**2) / var + np.log(2 * np.pi * var))
+        return log_lik
+    
+    study = optuna.create_study(direction='maximize')
+    study.optimize(objective, n_trials=100)
+    
+    best_params = study.best_params
+    theta_opt = best_params['theta']
+    mu_opt = best_params['mu']
+    sigma_opt = best_params['sigma']
+    
+    # ----------------------------------------------------
+    # Simulazioni Monte Carlo
+    # ----------------------------------------------------
+    simulations = np.zeros((n_sims, n_period))
+    X0 = series[-1]
+    
+    for i in range(n_sims):
+        simulations[i, :] = simulate_ou(X0, theta_opt, mu_opt, sigma_opt, n_period)
+    
+    # Intervalli empirici e mediana
+    lower_emp = np.percentile(simulations, 100 * alpha / 2, axis=0)
+    upper_emp = np.percentile(simulations, 100 * (1 - alpha / 2), axis=0)
+    median = np.median(simulations, axis=0)
+    
+    # Campioni di calibrazione (ipotizziamo di usare le ultime osservazioni storiche)
+    calibration_y = series[-252:]  # ad esempio ultime 100 osservazioni
+    samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period))
+    
+    lower_cal = np.percentile(samples_cal, 100 * alpha / 2, axis=1)
+    upper_cal = np.percentile(samples_cal, 100 * (1 - alpha / 2), axis=1)
+    
+    # Nonconformity scores
+    nonconformity_scores = np.maximum(lower_cal - calibration_y, calibration_y - upper_cal)
+    q_hat = np.quantile(np.concatenate([nonconformity_scores, [np.inf]]), 1 - alpha)
+    
+    # Intervalli aggiustati
+    lower_adj = lower_emp - q_hat
+    upper_adj = upper_emp + q_hat
+    
+    # ----------------------------------------------------
+    # Creazione DataFrame previsioni
+    # ----------------------------------------------------
+    idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1),
+                        periods=n_period, freq='D')
+    
+    forecast_df = pd.DataFrame({
+        "lower_emp": lower_emp,
+        "upper_emp": upper_emp,
+        "median": median,
+        "lower_adj": lower_adj,
+        "upper_adj": upper_adj
+    }, index=idx)
+    
+    st.subheader("Forecast Trimestrale (media per trimestre)")
+    forecast_quarterly = forecast_df.resample("Q").mean()
+    st.dataframe(forecast_quarterly)
+    rates_quarterly = forecast_quarterly["median"].values
+    n_steps = len(rates_quarterly)
+    var_95_with_spread = forecast_quarterly["upper_adj"] + spread
+    var_95_amount = var_95_with_spread * copertura
+    plan_amount = (euribor_base + spread) * copertura
+    days_in_quarter = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
+    var_95_cashflow = var_95_amount * (days_in_quarter / 360)
+    plan_cashflow = plan_amount*(days_in_quarter / 360)
+    
+    st.subheader("VaR 95% Trimestrale (€)")
+    st.dataframe(pd.DataFrame({
+    "Var Rate": var_95_with_spread,
+    "Plan Rate" : euribor_base + spread,
+    "Var Amount (€)": var_95_amount,
+    "Var Cashflow (€)": var_95_cashflow,
+    "Plan Amount (€)": plan_amount, 
+    "Plan Cashflow (€)": plan_cashflow,
+    "KRI Amount": var_95_amount - plan_amount,
+    "KRI Cashflow": var_95_cashflow - plan_cashflow
+    }, index=forecast_quarterly.index))
+    
+    
+    
+    
