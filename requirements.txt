@@ -22,3 +22,4 @@ Pillow
 arch
 catboost
 ecbdata
+yfinance
