@@ -1248,14 +1248,27 @@ if uploaded_file and run_sim:
     # Concatenazione risultati
     final_var_df = pd.concat(results_var).reset_index()
     
-    # Grafici per ogni tranche
-    for idx, row in tranche_df.iterrows():
-        tranche_name = row.get("Tranche", f"T{idx+1}")
-        maturity_date = pd.to_datetime(row["Maturity"])
-        forecast_tranche = forecast_quarterly[forecast_quarterly.index <= maturity_date]
-        
-        st.subheader(f"📊 Stime Euribor - per {tranche_name}")
-        plot_full_forecast(df_dropped['euribor_3m'], forecast_tranche)
+    st.subheader("📊 Forecast Euribor 3M - Tutte le Tranche")
+    plt.figure(figsize=(15,6))
+    # Serie storica
+    plt.plot(df_dropped.index, df_dropped['euribor_3m'], label="Originale", color='black')
+    # Forecast unico Monte Carlo (median e intervallo conformalizzato)
+    plt.plot(forecast_quarterly.index, forecast_quarterly['median'], label='Mean Forecast', color='green', linestyle='--')
+    plt.fill_between(
+        forecast_quarterly.index,
+        forecast_quarterly['lower_adj'],
+        forecast_quarterly['upper_adj'],
+        color='red', alpha=0.2, label='Adjusted Interval (Conformal)'
+    )
+    
+    plt.title("Serie storica + Forecast Monte Carlo EURIBOR 3M")
+    plt.xlabel("Date")
+    plt.ylabel("EURIBOR 3M")
+    plt.legend()
+    plt.grid(True)
+    
+    st.pyplot(plt.gcf())
+    plt.close()
 
     st.subheader("📊 Risultati VaR – per Tranche")
     st.dataframe(final_var_df)
