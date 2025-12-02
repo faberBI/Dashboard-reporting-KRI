@@ -1279,8 +1279,7 @@ if uploaded_file and run_sim:
     final_rates_df = pd.concat(results_rates)
     
     y = df_dropped['euribor_3m']  # serie storica
-    plot_full_forecast(y, final_rates_df)  
-    
+        
     st.subheader("📊 Stime Euribor - per Tranche")
     st.dataframe(final_rates_df)
 
