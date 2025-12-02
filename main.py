@@ -24,7 +24,7 @@ from ecbdata import ecbdata
 from statsmodels.tsa.seasonal import STL
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-
+import yfinance as yf
 
 
 # Library custom
@@ -1026,12 +1026,45 @@ elif selected_kri == "📈 Interest Rate":
     # ----------------------------------------
     # 3. SCARICA TUTTI I DATI
     # ----------------------------------------
+    st.write("🚧Creazione database su Euribor 3mesi...🚧")
+    st.write("""
+    **Variabili incluse nel modello:**  
+    
+    📊 **Euribor / Money Market**
+    - euribor_3m
+    
+    🏦 **Politica monetaria BCE**
+    - deposit_rate
+    - mro_rate
+    - marginal_lending
+    
+    📈 **Macro**
+    - inflation
+    - core_inflation
+    - unemployment
+    
+    💰 **Banking & liquidity**
+    - excess_liquidity
+    - deposit_facility_usage
+    - refinancing_ops
+    - gdp_growth
+    
+    💹 **Mercati finanziari (Yahoo)**
+    - sp500
+    - eurusd
+    - vix
+    - us10y
+    - oil
+    - gold
+    """)
+    
     df_ecb = download_ecb_series(series)
     df_yahoo = download_yahoo_series(yahoo_symbols)
     df_all = df_ecb.join(df_yahoo, how="outer")
     df_all = df_all.sort_index().ffill()
     df_dropped = df_all.dropna()
-
+    st.write("Database pronto ☑️")
+    
     stl = STL(df_dropped['euribor_3m'], period=30, robust=True)
     res = stl.fit()
     trend = res.trend
@@ -1084,7 +1117,7 @@ elif selected_kri == "📈 Interest Rate":
     best_params_trend = study_trend.best_params
     trend_model = CatBoostRegressor(**best_params_trend)
     trend_model.fit(pd.concat([X_train, X_val]), pd.concat([trend_train, trend_val]), verbose=0)
-    
+    st.write("Modello sul trend done! ☑️")
     # Predizioni trend
     trend_pred_train = trend_model.predict(X_train)
     trend_pred_val = trend_model.predict(X_val)
@@ -1096,7 +1129,7 @@ elif selected_kri == "📈 Interest Rate":
     sarima_model = SARIMAX(seasonal_train, order=sarima_order, seasonal_order=seasonal_order,
                            enforce_stationarity=False, enforce_invertibility=False)
     sarima_fit = sarima_model.fit(disp=False)
-    
+    st.write("Modello sulla stagionalità done! ☑️")
     seasonal_pred_train = sarima_fit.predict(start=0, end=len(seasonal_train)-1)
     seasonal_pred_val = sarima_fit.predict(start=len(seasonal_train), end=len(seasonal_train)+len(seasonal_val)-1)
     seasonal_pred_test = sarima_fit.forecast(steps=len(seasonal_test))
@@ -1125,7 +1158,7 @@ elif selected_kri == "📈 Interest Rate":
     best_params_residual = study_residual.best_params
     residual_model = CatBoostRegressor(**best_params_residual)
     residual_model.fit(pd.concat([X_train, X_val]), pd.concat([residual_train, residual_val]), verbose=0)
-    
+    st.write("Modello sui residui done! ☑️")
     # Predizioni residual
     residual_pred_train = residual_model.predict(X_train)
     residual_pred_val = residual_model.predict(X_val)
@@ -1135,7 +1168,7 @@ elif selected_kri == "📈 Interest Rate":
     y_pred_train = trend_pred_train + seasonal_pred_train + residual_pred_train
     y_pred_val = trend_pred_val + seasonal_pred_val + residual_pred_val
     y_pred_test = trend_pred_test + seasonal_pred_test + residual_pred_test
-
+    
     # --- Plot ---
     fig = plt.figure(figsize=(15,6))
     plt.plot(df_dropped['euribor_3m'], label="Originale", color='black')
