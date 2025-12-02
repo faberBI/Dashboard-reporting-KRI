@@ -1113,15 +1113,15 @@ elif selected_kri == "📈 Interest Rate":
     import pickle
     
     # === LOAD TREND MODEL ===
-    with open("Dashboard-reporting-KRI/utils/trend_model.pkl", "rb") as f:
+    with open("utils/trend_model.pkl", "rb") as f:
         trend_model = pickle.load(f)
     
     # === LOAD RESIDUAL MODEL ===
-    with open("Dashboard-reporting-KRI/utils/residual_model.pkl", "rb") as f:
+    with open("utils/residual_model.pkl", "rb") as f:
         residual_model = pickle.load(f)
     
     # === LOAD SARIMA SEASONAL MODEL ===
-    with open("Dashboard-reporting-KRI/utils/sarima_seasonal.pkl", "rb") as f:
+    with open("utils/sarima_seasonal.pkl", "rb") as f:
         sarima_fit = pickle.load(f)
     
     # Predizioni trend
