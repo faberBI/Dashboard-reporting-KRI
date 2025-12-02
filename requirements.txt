@@ -21,3 +21,4 @@ folium
 Pillow
 arch
 catboost
+ecbdata
