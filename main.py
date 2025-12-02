@@ -1296,11 +1296,11 @@ if uploaded_file and run_sim:
     y = df_dropped['euribor_3m']  # serie storica
     plot_full_forecast(y, forecast_quarterly)  
     
-    st.subheader("📊 Tassi trimestrali stimati – Tutte le Tranche")
+    st.subheader("📊 Stime Euribor - per Tranche")
     st.dataframe(final_rates_df)
 
     # Mostriamo le tabelle
-    st.subheader("📊 Risultati VaR – Tutte le Tranche")
+    st.subheader("📊 Risultati VaR – per Tranche")
     st.dataframe(final_var_df)
 
     # --- VaR di portafoglio ---
