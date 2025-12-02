@@ -1206,7 +1206,7 @@ if uploaded_file and run_sim:
     max_horizon_days = (pd.to_datetime(tranche_df['Maturity']).max() - last_date).days
 
     # 1️⃣ Simulazione unica EURIBOR
-    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, n_sims= 500, horizon_days= max_horizon_days)
+    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, n_sims= 50, horizon_days= max_horizon_days)
 
     results_var = []
     
