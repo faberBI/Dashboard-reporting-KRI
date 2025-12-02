@@ -1233,6 +1233,7 @@ if uploaded_file and run_sim:
     series = df_dropped['euribor_3m'].values
     dates = df_dropped.index
     last_date = dates[-1].date()   # data finale del dataset
+    last_date = pd.to_datetime(last_date)
 
     for idx, row in tranche_df.iterrows():
 
