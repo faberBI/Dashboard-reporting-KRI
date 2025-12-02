@@ -1106,7 +1106,7 @@ def compute_var_for_tranche(
 
     # Differenza in giorni → intero
     n_period = (maturity - last_date).days
-    n_sims = 1000
+    n_sims = 100
     alpha = 0.05
     
     # -------- Simulatore OU --------
