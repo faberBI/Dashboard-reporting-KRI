@@ -1187,26 +1187,25 @@ elif selected_kri == "📈 Interest Rate":
     dates = df_dropped.index
     last_date = dates[-1].date()   # data finale del dataset
     
-    st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M📊 ")
-    
-    notional = st.number_input("Notional (€)", min_value=0.0, value=100000000.0, step=1000000.0)
-    copertura = st.number_input("Hedged Notional (€)", min_value=0.0, value=100000000.0, step=1000000.0)
-    spread_input = st.text_input("Spread (%)", value="2.25")
-    spread = float(spread_input) / 100  # converti in decimale
-    maturity = st.date_input("Maturity del prestito")
-    euribor_input = st.text_input("Last Applicable Euribor (%)", value="2.25")
-    euribor_base = float(euribor_input) / 100  # converti in decimale
-    
-    
+st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M📊 ")
+
+notional = st.number_input("Notional (€)", min_value=0.0, value=100000000.0, step=1000000.0)
+copertura = st.number_input("Hedged Notional (€)", min_value=0.0, value=100000000.0, step=1000000.0)
+spread_input = st.text_input("Spread (%)", value="2.25")
+spread = float(spread_input) / 100  # converti in decimale
+maturity = st.date_input("Maturity del prestito")
+euribor_input = st.text_input("Last Applicable Euribor (%)", value="2.25")
+euribor_base = float(euribor_input) / 100  # converti in decimale
+
+# Pulsante per avviare la simulazione
+if st.button("Inizia Simulazione"):
+    # Qui va tutto il codice che hai scritto per la simulazione
     # Differenza in giorni → intero
     n_period = (maturity - last_date).days
     n_sims = 500  
     alpha = 0.05
     
-    # ----------------------------------------------------
     # Funzione di simulazione Ornstein-Uhlenbeck (OU)
-    # dX_t = θ(μ - X_t)dt + σdW_t
-    # ----------------------------------------------------
     def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
         X = np.zeros(n_steps)
         X[0] = X0
@@ -1215,21 +1214,16 @@ elif selected_kri == "📈 Interest Rate":
             X[t] = X[t-1] + theta * (mu - X[t-1]) * dt + sigma * dW
         return X
     
-    # ----------------------------------------------------
-    # Funzione obiettivo per Optuna: massimizza la log-likelihood
-    # ----------------------------------------------------
+    # Funzione obiettivo per Optuna
     def objective(trial):
         theta = trial.suggest_loguniform('theta', 1e-3, 1.0)
         mu = trial.suggest_uniform('mu', series.min(), series.max())
         sigma = trial.suggest_loguniform('sigma', 1e-4, 1.0)
-    
-        # Likelihood discreta OU
         X_prev = series[:-1]
         X_next = series[1:]
         dt = 1.0
         var = sigma**2 * dt
         mean = X_prev + theta * (mu - X_prev) * dt
-    
         log_lik = -0.5 * np.sum(((X_next - mean)**2) / var + np.log(2 * np.pi * var))
         return log_lik
     
@@ -1241,38 +1235,26 @@ elif selected_kri == "📈 Interest Rate":
     mu_opt = best_params['mu']
     sigma_opt = best_params['sigma']
     
-    # ----------------------------------------------------
-    # Simulazioni Monte Carlo
-    # ----------------------------------------------------
     simulations = np.zeros((n_sims, n_period))
     X0 = series[-1]
-    
     for i in range(n_sims):
         simulations[i, :] = simulate_ou(X0, theta_opt, mu_opt, sigma_opt, n_period)
     
-    # Intervalli empirici e mediana
     lower_emp = np.percentile(simulations, 100 * alpha / 2, axis=0)
     upper_emp = np.percentile(simulations, 100 * (1 - alpha / 2), axis=0)
     median = np.median(simulations, axis=0)
     
-    # Campioni di calibrazione (ipotizziamo di usare le ultime osservazioni storiche)
-    calibration_y = series[-252:]  # ad esempio ultime 100 osservazioni
+    calibration_y = series[-252:]
     samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period))
-    
     lower_cal = np.percentile(samples_cal, 100 * alpha / 2, axis=1)
     upper_cal = np.percentile(samples_cal, 100 * (1 - alpha / 2), axis=1)
     
-    # Nonconformity scores
     nonconformity_scores = np.maximum(lower_cal - calibration_y, calibration_y - upper_cal)
     q_hat = np.quantile(np.concatenate([nonconformity_scores, [np.inf]]), 1 - alpha)
     
-    # Intervalli aggiustati
     lower_adj = lower_emp - q_hat
     upper_adj = upper_emp + q_hat
     
-    # ----------------------------------------------------
-    # Creazione DataFrame previsioni
-    # ----------------------------------------------------
     idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1),
                         periods=n_period, freq='D')
     
@@ -1287,25 +1269,27 @@ elif selected_kri == "📈 Interest Rate":
     st.subheader("Forecast Trimestrale (media per trimestre)")
     forecast_quarterly = forecast_df.resample("Q").mean()
     st.dataframe(forecast_quarterly)
-    rates_quarterly = forecast_quarterly["median"].values
-    n_steps = len(rates_quarterly)
+    
     var_95_with_spread = forecast_quarterly["upper_adj"] + spread
-    var_95_amount = var_95_with_spread * copertura
-    plan_amount = (euribor_base + spread) * copertura
+    var_95_amount = var_95_with_spread * (notional-copertura)
+    plan_amount = (euribor_base + spread) * (notional-copertura)
     days_in_quarter = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
     var_95_cashflow = var_95_amount * (days_in_quarter / 360)
-    plan_cashflow = plan_amount*(days_in_quarter / 360)
+    plan_cashflow = plan_amount * (days_in_quarter / 360)
     
     st.subheader("VaR 95% Trimestrale (€)")
     st.dataframe(pd.DataFrame({
-    "Var Rate": var_95_with_spread,
-    "Plan Rate" : euribor_base + spread,
-    "Var Amount (€)": var_95_amount,
-    "Var Cashflow (€)": var_95_cashflow,
-    "Plan Amount (€)": plan_amount, 
-    "Plan Cashflow (€)": plan_cashflow,
-    "KRI Amount": var_95_amount - plan_amount,
-    "KRI Cashflow": var_95_cashflow - plan_cashflow
+        "Notional": notional,
+        "Hedged": copertura,
+        "Un-Hedged": notional-copertura,
+        "Var Rate": var_95_with_spread,
+        "Plan Rate": euribor_base + spread,
+        "Var Amount (€)": var_95_amount,
+        "Var Cashflow (€)": var_95_cashflow,
+        "Plan Amount (€)": plan_amount, 
+        "Plan Cashflow (€)": plan_cashflow,
+        "KRI Amount": var_95_amount - plan_amount,
+        "KRI Cashflow": var_95_cashflow - plan_cashflow
     }, index=forecast_quarterly.index))
     
     
