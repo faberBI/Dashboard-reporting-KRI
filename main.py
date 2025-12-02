@@ -1263,7 +1263,7 @@ if uploaded_file and run_sim:
     # --- VaR di portafoglio ---
     portfolio_var = final_df.groupby(final_df.index)[[
         "Var Amount (€)", "Var Cashflow (€)",
-        "KRI Amount", "KRI Cashflow"
+        "KRI Amount", "KRI Cashflow", 'Plan Cashflow (€)'
     ]].sum()
 
     st.subheader("📈 VaR Cumulato di Portafoglio (€)")
@@ -1271,6 +1271,8 @@ if uploaded_file and run_sim:
 
     st.subheader("📉 Grafico VaR di Portafoglio")
     st.line_chart(portfolio_var["Var Cashflow (€)"])
+    st.line_chart(portfolio_var["Plan Cashflow (€)"])
+    st.line_chart(portfolio_var["KRI Cashflow"])
 
     # --- Export Excel ---
     import io
