@@ -1099,34 +1099,6 @@ st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
 # ============================================================
 # FUNZIONE PER IL CALCOLO DEL VAR DI UNA SINGOLA TRANCHE
 # ============================================================
-def plot_full_forecast(y, df_forecast):
-    plt.figure(figsize=(15,6))
-
-    # --- Serie storica ---
-    plt.plot(y, label="Originale", color='black')
-
-    # --- Forecast futuro Monte Carlo ---
-    idx_forecast = df_forecast.index
-    plt.plot(idx_forecast, df_forecast['median'], label='Mean Forecast', color='green', linestyle='--')
-
-    # Intervalli conformalizzati
-    plt.fill_between(
-        idx_forecast, 
-        df_forecast['lower_emp'], 
-        df_forecast['upper_emp'],
-        color='red', alpha=0.2, label='Adjusted Interval (Conformal)'
-    )
-
-    plt.title("Serie storica + Predizioni + Forecast Monte Carlo")
-    plt.xlabel("Date")
-    plt.ylabel("EURIBOR 3M")
-    plt.legend()
-    plt.grid(True)
-
-    # Renderizza il grafico in Streamlit
-    st.pyplot(plt.gcf())
-    plt.close()
-
 def compute_var_for_tranche(
     notional, copertura, spread, maturity,
     euribor_base, series, last_date, df_dropped
@@ -1228,15 +1200,49 @@ def compute_var_for_tranche(
 
     return result, forecast_quarterly
 
-# ============================================================
-# STREAMLIT – LETTURA TRANCHE DAL FILE KRI
-# ============================================================
+st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
 
+# ============================================================
+# FUNZIONE PER IL GRAFICO STREAMLIT
+# ============================================================
+import matplotlib.pyplot as plt
+
+def plot_full_forecast(y, df_forecast):
+    plt.figure(figsize=(15,6))
+
+    # Serie storica
+    plt.plot(y, label="Originale", color='black')
+
+    # Forecast futuro Monte Carlo
+    idx_forecast = df_forecast.index
+    plt.plot(idx_forecast, df_forecast['median'], label='Mean Forecast', color='green', linestyle='--')
+
+    # Intervalli conformalizzati
+    plt.fill_between(
+        idx_forecast,
+        df_forecast['lower_emp'],
+        df_forecast['upper_emp'],
+        color='red', alpha=0.2, label='Adjusted Interval (Conformal)'
+    )
+
+    plt.title("Serie storica + Predizioni + Forecast Monte Carlo")
+    plt.xlabel("Date")
+    plt.ylabel("EURIBOR 3M")
+    plt.legend()
+    plt.grid(True)
+
+    # Renderizza grafico in Streamlit
+    st.pyplot(plt.gcf())
+    plt.close()
+
+# ============================================================
+# SIMULAZIONE TRANCHE
+# ============================================================
 run_sim = st.button("🚀 Inizia Simulazione VaR su tutte le Tranche")
 
 if uploaded_file and run_sim:
-    
-    # Carica il foglio "Tranches" dall'Excel
+
+    # Carica foglio Excel
     tranche_df = pd.read_excel(uploaded_file, sheet_name="Tranches")
     st.subheader("📋 Tranche caricate dall’Excel")
     st.dataframe(tranche_df)
@@ -1246,67 +1252,68 @@ if uploaded_file and run_sim:
     results_var = []
     results_rates = []
 
-    # Serie storica Euribor e ultima data
     series = df_dropped['euribor_3m'].values
     last_date = pd.to_datetime(df_dropped.index[-1])
 
     for idx, row in tranche_df.iterrows():
-
         tranche_name = row.get("Tranche", f"T{idx+1}")
         st.write(f"📌 Simulazione Tranche: **{tranche_name}**")
 
-        # Chiamiamo la funzione che restituisce sia VaR che tassi trimestrali
         df_var, df_rates = compute_var_for_tranche(
             notional=row["Notional"],
             copertura=row["Hedged"],
-            spread= row["Spread"] / 100,
+            spread=row["Spread"] / 100,
             maturity=pd.to_datetime(row["Maturity"]),
-            euribor_base= row["Euribor"] / 100,
+            euribor_base=row["Euribor"] / 100,
             series=series,
             last_date=last_date,
             df_dropped=df_dropped
         )
 
-        # Aggiungiamo il nome della tranche
         df_var["Tranche"] = tranche_name
         df_rates["Tranche"] = tranche_name
 
         results_var.append(df_var)
         results_rates.append(df_rates)
 
-    # --- Concatenazione risultati ---
-    final_var_df = pd.concat(results_var).reset_index()    
+    # Concatenazione risultati
+    final_var_df = pd.concat(results_var).reset_index()
     final_rates_df = pd.concat(results_rates).reset_index()
-    
-    y = df_dropped['euribor_3m']  # serie storica
-    plot_full_forecast(df_dropped['euribor_3m'], df_rates)
-        
+
+    # ============================================================
+    # GRAFICO FORECAST - scegli la prima tranche come esempio
+    # ============================================================
+    first_tranche = final_rates_df['Tranche'].iloc[0]
+    df_forecast_plot = final_rates_df[final_rates_df['Tranche'] == first_tranche].set_index('index')
+    plot_full_forecast(df_dropped['euribor_3m'], df_forecast_plot)
+
     st.subheader("📊 Stime Euribor - per Tranche")
     st.dataframe(final_rates_df)
 
-    # Mostriamo le tabelle
     st.subheader("📊 Risultati VaR – per Tranche")
     st.dataframe(final_var_df)
 
-    # --- VaR di portafoglio ---
-    portfolio_var = final_df.groupby(final_df.index)[[
+    # ============================================================
+    # VaR cumulato di portafoglio
+    # ============================================================
+    portfolio_var = final_var_df.groupby('index')[[
         "Var Amount (€)", "Var Cashflow (€)",
-        "KRI Amount", "KRI Cashflow", 'Plan Cashflow (€)'
-    ]].sum()
+        "KRI Amount", "KRI Cashflow", "Plan Cashflow (€)"
+    ]].sum().reset_index()
 
     st.subheader("📈 VaR Cumulato di Portafoglio (€)")
     st.dataframe(portfolio_var)
 
     st.subheader("📉 Grafico VaR di Portafoglio")
-    st.line_chart(portfolio_var["Var Cashflow (€)"])
-    st.line_chart(portfolio_var["Plan Cashflow (€)"])
-    st.line_chart(portfolio_var["KRI Cashflow"])
+    st.line_chart(portfolio_var.set_index('index')[["Var Cashflow (€)", "Plan Cashflow (€)", "KRI Cashflow"]])
 
-    # --- Export Excel ---
+    # ============================================================
+    # Export Excel
+    # ============================================================
     import io
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        final_df.to_excel(writer, index=True, sheet_name="Tranches")
+        final_var_df.to_excel(writer, index=True, sheet_name="Tranches")
         portfolio_var.to_excel(writer, index=True, sheet_name="Portfolio")
 
     st.download_button(
