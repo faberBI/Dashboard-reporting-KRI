@@ -1001,7 +1001,7 @@ elif selected_kri == "📈 Interest Rate":
         "gold": "GC=F",
     }
     
-    def download_ecb_series(series_dict, start="2023-01"):
+    def download_ecb_series(series_dict, start="2010-01-01"):
         df_final = pd.DataFrame()
         for name, key in series_dict.items():
             try:
@@ -1015,12 +1015,30 @@ elif selected_kri == "📈 Interest Rate":
                 print(f"Errore scaricando {name}: {e}")
         return df_final
     
-    def download_yahoo_series(symbols_dict, start="2023-01-01"):
+    def download_yahoo_series(symbols_dict, start="2010-01-01"):
         data = yf.download(list(symbols_dict.values()), start=start)
         close = data["Close"]
         close = close.rename(columns={v: k for k, v in symbols_dict.items()})
         print("Dati Yahoo Finance scaricati")
         return close
+    
+    def plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end):  
+        plt.figure(figsize=(15,6))
+        # Serie originale
+        plt.plot(df_dropped['euribor_3m'], label="Originale", color='black')
+        # Train
+        plt.plot(df_dropped.index[:train_end], y_pred_train, label="Train Pred", color='blue')
+        # Validation
+        plt.plot(df_dropped.index[train_end:val_end], y_pred_val, label="Val Pred", color='orange')
+        # Test
+        plt.plot(df_dropped.index[val_end:], y_pred_test, label="Test Pred", color='green')
+        plt.title("Serie originale vs Predizione completa")
+        plt.legend()
+        plt.grid(True)
+        # Render in Streamlit
+        st.pyplot(plt.gcf())
+        # Chiudi figura per evitare problemi
+        plt.close()
     
     # ----------------------------------------
     # 3. SCARICA TUTTI I DATI
@@ -1091,8 +1109,45 @@ elif selected_kri == "📈 Interest Rate":
     seasonal_train = seasonal.iloc[:train_end]
     seasonal_val = seasonal.iloc[train_end:val_end]
     seasonal_test = seasonal.iloc[val_end:]
-
-    st.line_chart(df_dropped['euribor_3m'])
+    
+    import pickle
+    
+    # === LOAD TREND MODEL ===
+    with open("Dashboard-reporting-KRI/utils/trend_model.pkl", "rb") as f:
+        trend_model = pickle.load(f)
+    
+    # === LOAD RESIDUAL MODEL ===
+    with open("Dashboard-reporting-KRI/utils/residual_model.pkl", "rb") as f:
+        residual_model = pickle.load(f)
+    
+    # === LOAD SARIMA SEASONAL MODEL ===
+    with open("Dashboard-reporting-KRI/utils/sarima_seasonal.pkl", "rb") as f:
+        sarima_fit = pickle.load(f)
+    
+    # Predizioni trend
+    trend_pred_train = trend_model.predict(X_train)
+    trend_pred_val = trend_model.predict(X_val)
+    trend_pred_test = trend_model.predict(X_test)
+    
+    
+    # Predizioni seasonal
+    seasonal_pred_train = sarima_fit.predict(start=0, end=len(seasonal_train)-1)
+    seasonal_pred_val = sarima_fit.predict(start=len(seasonal_train), end=len(seasonal_train)+len(seasonal_val)-1)
+    seasonal_pred_test = sarima_fit.forecast(steps=len(seasonal_test))
+    
+    
+    # Predizioni residual
+    residual_pred_train = residual_model.predict(X_train)
+    residual_pred_val = residual_model.predict(X_val)
+    residual_pred_test = residual_model.predict(X_test)
+    
+    # --- Predizione finale ---
+    y_pred_train = trend_pred_train + seasonal_pred_train + residual_pred_train
+    y_pred_val = trend_pred_val + seasonal_pred_val + residual_pred_val
+    y_pred_test = trend_pred_test + seasonal_pred_test + residual_pred_test
+    
+    st.subheader("📊 Trend analisi with Hybrid ML model 📊")
+    plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end)
         
 # ============================================================
 # FUNZIONE PER IL CALCOLO DEL VAR DI UNA SINGOLA TRANCHE
@@ -1200,8 +1255,9 @@ if uploaded_file and run_sim:
     st.subheader("📋 Tranche caricate dall’Excel")
     st.dataframe(tranche_df)
 
-    series = df_dropped['euribor_3m'].values
-    last_date = pd.to_datetime(df_dropped.index[-1])
+    series_df = df_dropped.loc["2023-01-01":]
+    series = series_df["euribor_3m"].values
+    last_date = pd.to_datetime(series_df.index[-1])
 
     max_horizon_days = (pd.to_datetime(tranche_df['Maturity']).max() - last_date).days
 
