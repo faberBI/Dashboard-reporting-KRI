@@ -1221,7 +1221,7 @@ def compute_var_for_tranche(notional, copertura, spread, maturity,
     
 if uploaded_file and run_sim:
 
-    tranche_df = pd.read_csv(uploaded_file)
+    tranche_df = pd.read_excel(uploaded_file)
     st.write("📋 Tranche caricate:")
     st.dataframe(tranche_df)
 
