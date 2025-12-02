@@ -971,6 +971,7 @@ elif selected_kri == "💳 Credit risk":
 elif selected_kri == "🛡️💻 Cyber":
     print('Cyber')
 elif selected_kri == "📈 Interest Rate":
+    import matplotlib.pyplot as plt
     series = {
     
     # --- Euribor / Money Market ---
@@ -1031,23 +1032,23 @@ elif selected_kri == "📈 Interest Rate":
     **Variabili incluse nel modello:**  
     
     📊 **Euribor / Money Market**
-    - euribor_3m
+    - euribor 3m
     
     🏦 **Politica monetaria BCE**
     - deposit_rate
-    - mro_rate
-    - marginal_lending
+    - mro rate
+    - marginal lending
     
     📈 **Macro**
     - inflation
-    - core_inflation
+    - core inflation
     - unemployment
     
     💰 **Banking & liquidity**
-    - excess_liquidity
-    - deposit_facility_usage
-    - refinancing_ops
-    - gdp_growth
+    - excess liquidity
+    - deposit facility usage
+    - refinancing ops
+    - gdp growth
     
     💹 **Mercati finanziari (Yahoo)**
     - sp500
