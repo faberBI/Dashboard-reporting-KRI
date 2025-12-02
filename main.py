@@ -965,8 +965,6 @@ elif selected_kri == "💳 Credit risk":
                 file_name="Credit_Risk_Aging_Indicators.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-
-
   
 elif selected_kri == "🛡️💻 Cyber":
     print('Cyber')
@@ -1212,7 +1210,7 @@ def compute_var_for_tranche(
         "KRI Cashflow": var_cf - plan_cf
     }, index=forecast_quarterly.index)
 
-    return result
+    return result, forecast_quarterly
 
 
 # ============================================================
@@ -1222,27 +1220,28 @@ def compute_var_for_tranche(
 run_sim = st.button("🚀 Inizia Simulazione VaR su tutte le Tranche")
 
 if uploaded_file and run_sim:
-
-    # Carica foglio con le tranche (assumo si chiami "Tranches")
+    
+    # Carica il foglio "Tranches" dall'Excel
     tranche_df = pd.read_excel(uploaded_file, sheet_name="Tranches")
-
     st.subheader("📋 Tranche caricate dall’Excel")
     st.dataframe(tranche_df)
 
     st.write("🔄 Avvio simulazione per tutte le tranche...")
 
-    results = []
+    results_var = []
+    results_rates = []
+
+    # Serie storica Euribor e ultima data
     series = df_dropped['euribor_3m'].values
-    dates = df_dropped.index
-    last_date = dates[-1].date()   # data finale del dataset
-    last_date = pd.to_datetime(last_date)
+    last_date = pd.to_datetime(df_dropped.index[-1])
 
     for idx, row in tranche_df.iterrows():
 
         tranche_name = row.get("Tranche", f"T{idx+1}")
         st.write(f"📌 Simulazione Tranche: **{tranche_name}**")
 
-        df_res = compute_var_for_tranche(
+        # Chiamiamo la funzione che restituisce sia VaR che tassi trimestrali
+        df_var, df_rates = compute_var_for_tranche(
             notional=row["Notional"],
             copertura=row["Hedged"],
             spread=row["Spread"] / 100,
@@ -1253,14 +1252,23 @@ if uploaded_file and run_sim:
             df_dropped=df_dropped
         )
 
-        df_res["Tranche"] = tranche_name
-        results.append(df_res)
-    
-    # --- Concatenazione risultati ---
-    final_df = pd.concat(results)
+        # Aggiungiamo il nome della tranche
+        df_var["Tranche"] = tranche_name
+        df_rates["Tranche"] = tranche_name
 
+        results_var.append(df_var)
+        results_rates.append(df_rates)
+
+    # --- Concatenazione risultati ---
+    final_var_df = pd.concat(results_var)
+    final_rates_df = pd.concat(results_rates)
+
+    st.subheader("📊 Tassi trimestrali stimati – Tutte le Tranche")
+    st.dataframe(final_rates_df)
+
+    # Mostriamo le tabelle
     st.subheader("📊 Risultati VaR – Tutte le Tranche")
-    st.dataframe(final_df)
+    st.dataframe(final_var_df)
 
     # --- VaR di portafoglio ---
     portfolio_var = final_df.groupby(final_df.index)[[
