@@ -1281,11 +1281,13 @@ if uploaded_file and run_sim:
     final_rates_df = pd.concat(results_rates).reset_index()
 
     # ============================================================
-    # GRAFICO FORECAST - scegli la prima tranche come esempio
+    # GRAFICO FORECAST 
     # ============================================================
-    first_tranche = final_rates_df['Tranche'].iloc[0]
-    df_forecast_plot = final_rates_df[final_rates_df['Tranche'] == first_tranche].set_index('index')
-    plot_full_forecast(df_dropped['euribor_3m'], df_forecast_plot)
+    nomi_tranche = final_rates_df['Tranche'].unique()
+    for nomi in nomi_tranche:    
+        df_forecast_plot = final_rates_df[final_rates_df['Tranche'] == n].set_index('index')
+        st.subheader(f"📊 Stime Euribor - per {n}")
+        plot_full_forecast(df_dropped['euribor_3m'], df_forecast_plot)
 
     st.subheader("📊 Stime Euribor - per Tranche")
     st.dataframe(final_rates_df)
