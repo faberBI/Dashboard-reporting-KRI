@@ -1104,12 +1104,10 @@ def compute_var_for_tranche(
     euribor_base, series, last_date, df_dropped
 ):
 
-    # Differenza in giorni → intero
     n_period = (maturity - last_date).days
     n_sims = 500
     alpha = 0.05
-    
-    # -------- Simulatore OU --------
+
     def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
         X = np.zeros(n_steps)
         X[0] = X0
@@ -1117,8 +1115,7 @@ def compute_var_for_tranche(
             dW = np.random.randn() * np.sqrt(dt)
             X[t] = X[t-1] + theta * (mu - X[t-1]) * dt + sigma * dW
         return X
-    
-    # -------- Optuna calibration --------
+
     def objective(trial):
         theta = trial.suggest_loguniform("theta", 1e-3, 1.0)
         mu = trial.suggest_uniform("mu", series.min(), series.max())
@@ -1127,7 +1124,6 @@ def compute_var_for_tranche(
         X_prev = series[:-1]
         X_next = series[1:]
         dt = 1.0
-
         var = sigma**2 * dt
         mean = X_prev + theta * (mu - X_prev) * dt
 
@@ -1141,7 +1137,6 @@ def compute_var_for_tranche(
     mu_opt = study.best_params["mu"]
     sigma_opt = study.best_params["sigma"]
 
-    # -------- Simulazioni --------
     simulations = np.zeros((n_sims, n_period))
     X0 = series[-1]
 
@@ -1152,25 +1147,17 @@ def compute_var_for_tranche(
     upper_emp = np.percentile(simulations, 100 * (1 - alpha / 2), axis=0)
     median = np.median(simulations, axis=0)
 
-    # -------- Conformal Prediction --------
     calibration_y = series[-252:]
     samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period))
-
     lower_cal = np.percentile(samples_cal, 2.5, axis=1)
     upper_cal = np.percentile(samples_cal, 97.5, axis=1)
-
     nonconformity = np.maximum(lower_cal - calibration_y, calibration_y - upper_cal)
     q_hat = np.quantile(np.append(nonconformity, np.inf), 0.95)
 
     lower_adj = lower_emp - q_hat
     upper_adj = upper_emp + q_hat
 
-    idx = pd.date_range(
-        start=df_dropped.index[-1] + pd.Timedelta(days=1),
-        periods=n_period,
-        freq="D"
-    )
-
+    idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
     forecast_df = pd.DataFrame({
         "lower_emp": lower_emp,
         "upper_emp": upper_emp,
@@ -1179,20 +1166,17 @@ def compute_var_for_tranche(
         "upper_adj": upper_adj
     }, index=idx)
 
-    # -------- Resample trimestrale --------
     forecast_quarterly = forecast_df.resample("Q").mean()
-
-    # -------- Calcolo VaR --------
     unhedged = notional - copertura
 
+    # Plan Rate costante come serie
+    plan_rate = pd.Series(euribor_base + spread, index=forecast_quarterly.index)
     var_rate = forecast_quarterly["upper_adj"] + spread
-    plan_rate = euribor_base + spread
 
     var_amount = var_rate * unhedged
     plan_amount = plan_rate * unhedged
 
     days = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
-
     var_cf = var_amount * (days / 360)
     plan_cf = plan_amount * (days / 360)
 
@@ -1206,11 +1190,12 @@ def compute_var_for_tranche(
         "Var Cashflow (€)": var_cf,
         "Plan Amount (€)": plan_amount,
         "Plan Cashflow (€)": plan_cf,
-        "KRI Amount": (var_amount - plan_amount),
-        "KRI Cashflow": (var_cf - plan_cf)
+        "KRI Amount": var_amount - plan_amount,
+        "KRI Cashflow": var_cf - plan_cf
     }, index=forecast_quarterly.index)
 
     return result, forecast_quarterly
+
 
 def plot_full_forecast(y, df_forecast):
     plt.figure(figsize=(15,6))
@@ -1274,9 +1259,9 @@ if uploaded_file and run_sim:
         df_var, df_rates = compute_var_for_tranche(
             notional=row["Notional"],
             copertura=row["Hedged"],
-            spread=row["Spread"] / 100,
+            spread= row["Spread"] / 100,
             maturity=pd.to_datetime(row["Maturity"]),
-            euribor_base=row["Euribor"] / 100,
+            euribor_base= row["Euribor"] / 100,
             series=series,
             last_date=last_date,
             df_dropped=df_dropped
