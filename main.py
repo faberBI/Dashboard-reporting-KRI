@@ -1213,11 +1213,11 @@ if uploaded_file and run_sim:
         tranche_name = row.get("Tranche", f"T{idx+1}")
         unhedged = row["Notional"] - row["Hedged"]
         spread = row["Spread"] / 100
-        plan_rate = row["Euribor"] / 100 + spread
-        var_rate = forecast_quarterly["upper_adj"] + spread
+        plan_rate = (row["Euribor"] + spread)
+        var_rate = (forecast_quarterly["upper_adj"] + spread)
 
-        var_amount = var_rate * unhedged
-        plan_amount = plan_rate * unhedged
+        var_amount = (var_rate/100) * unhedged
+        plan_amount = (plan_rate/100) * unhedged
         days = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
         var_cf = var_amount * (days / 360)
         plan_cf = plan_amount * (days / 360)
