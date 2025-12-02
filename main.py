@@ -1110,43 +1110,9 @@ elif selected_kri == "📈 Interest Rate":
     seasonal_val = seasonal.iloc[train_end:val_end]
     seasonal_test = seasonal.iloc[val_end:]
     
-    import pickle
-    
-    # === LOAD TREND MODEL ===
-    with open("utils/trend_model.pkl", "rb") as f:
-        trend_model = pickle.load(f)
-    
-    # === LOAD RESIDUAL MODEL ===
-    with open("utils/residual_model.pkl", "rb") as f:
-        residual_model = pickle.load(f)
-    
-    uploaded = st.file_uploader("Carica Seasonality Model", type="pkl")
-
-    if uploaded is not None:
-        sarima_fit = pickle.load(uploaded)
-        st.success("Modello caricato!")
-    
-    # Predizioni trend
-    trend_pred_train = trend_model.predict(X_train)
-    trend_pred_val = trend_model.predict(X_val)
-    trend_pred_test = trend_model.predict(X_test)
-    
-    
-    # Predizioni seasonal
-    seasonal_pred_train = sarima_fit.predict(X_train)
-    seasonal_pred_val = sarima_fit.predict(X_val)
-    seasonal_pred_test = sarima_fit.predict(X_test)
-        
-    
-    # Predizioni residual
-    residual_pred_train = residual_model.predict(X_train)
-    residual_pred_val = residual_model.predict(X_val)
-    residual_pred_test = residual_model.predict(X_test)
-    
-    # --- Predizione finale ---
-    y_pred_train = trend_pred_train + seasonal_pred_train + residual_pred_train
-    y_pred_val = trend_pred_val + seasonal_pred_val + residual_pred_val
-    y_pred_test = trend_pred_test + seasonal_pred_test + residual_pred_test
+    y_pred_test = pd.read_excel("utils/test_pred.xlsx")
+    y_pred_val =  pd.read_excel("utils/val_pred.xlsx")
+    y_pred_train =  pd.read_excel("utils/train_pred.xlsx")
     
     st.subheader("📊 Trend analisi with Hybrid ML model 📊")
     plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end)
