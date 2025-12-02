@@ -1099,6 +1099,34 @@ st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
 # ============================================================
 # FUNZIONE PER IL CALCOLO DEL VAR DI UNA SINGOLA TRANCHE
 # ============================================================
+def plot_full_forecast(y, df_forecast):
+    plt.figure(figsize=(15,6))
+
+    # --- Serie storica ---
+    plt.plot(y, label="Originale", color='black')
+
+    # --- Forecast futuro Monte Carlo ---
+    idx_forecast = df_forecast.index
+    plt.plot(idx_forecast, df_forecast['median'], label='Mean Forecast', color='green', linestyle='--')
+
+    # Intervalli conformalizzati
+    plt.fill_between(
+        idx_forecast, 
+        df_forecast['lower_emp'], 
+        df_forecast['upper_emp'],
+        color='red', alpha=0.2, label='Adjusted Interval (Conformal)'
+    )
+
+    plt.title("Serie storica + Predizioni + Forecast Monte Carlo")
+    plt.xlabel("Date")
+    plt.ylabel("EURIBOR 3M")
+    plt.legend()
+    plt.grid(True)
+
+    # Renderizza il grafico in Streamlit
+    st.pyplot(plt.gcf())
+    plt.close()
+
 def compute_var_for_tranche(
     notional, copertura, spread, maturity,
     euribor_base, series, last_date, df_dropped
@@ -1251,6 +1279,7 @@ if uploaded_file and run_sim:
     final_rates_df = pd.concat(results_rates).reset_index()
     
     y = df_dropped['euribor_3m']  # serie storica
+    plot_full_forecast(df_dropped['euribor_3m'], df_rates)
         
     st.subheader("📊 Stime Euribor - per Tranche")
     st.dataframe(final_rates_df)
