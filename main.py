@@ -1119,7 +1119,12 @@ elif selected_kri == "📈 Interest Rate":
     
     st.subheader("📊 Trend analisi with Hybrid ML model 📊")
     plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end)
-        
+    
+    df_ecb = download_ecb_series(series, start = '2023-01-01')
+    df_yahoo = download_yahoo_series(yahoo_symbols, nstart = '2023-01-01')
+    df_all = df_ecb.join(df_yahoo, how="outer")
+    df_all = df_all.sort_index().ffill()
+    df_dropped = df_all.dropna()
 # ============================================================
 # FUNZIONE PER IL CALCOLO DEL VAR DI UNA SINGOLA TRANCHE
 # ============================================================
@@ -1225,9 +1230,8 @@ if uploaded_file and run_sim:
     tranche_df = pd.read_excel(uploaded_file, sheet_name="Tranches")
     st.subheader("📋 Tranche caricate dall’Excel")
     st.dataframe(tranche_df)
-
-    series_df = df_dropped.loc["2023-01-01":]
-    series = series_df["euribor_3m"].values
+    
+    series = df_dropped["euribor_3m"].values
     last_date = pd.to_datetime(series_df.index[-1])
 
     max_horizon_days = (pd.to_datetime(tranche_df['Maturity']).max() - last_date).days
