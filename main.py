@@ -1106,7 +1106,7 @@ def compute_var_for_tranche(
 
     # Differenza in giorni → intero
     n_period = (maturity - last_date).days
-    n_sims = 500
+    n_sims = 1000
     alpha = 0.05
     
     # -------- Simulatore OU --------
@@ -1148,8 +1148,8 @@ def compute_var_for_tranche(
     for i in range(n_sims):
         simulations[i, :] = simulate_ou(X0, theta_opt, mu_opt, sigma_opt, n_period)
 
-    lower_emp = np.percentile(simulations, 2.5, axis=0)
-    upper_emp = np.percentile(simulations, 97.5, axis=0)
+    lower_emp = np.percentile(simulations, 100 * alpha / 2, axis=0)
+    upper_emp = np.percentile(simulations, 100 * (1 - alpha / 2), axis=0)
     median = np.median(simulations, axis=0)
 
     # -------- Conformal Prediction --------
