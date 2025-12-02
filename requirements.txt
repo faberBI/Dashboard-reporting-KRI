@@ -23,3 +23,4 @@ arch
 catboost
 ecbdata
 yfinance
+XlsxWriter
