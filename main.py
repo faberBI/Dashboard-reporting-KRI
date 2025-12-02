@@ -1232,7 +1232,7 @@ if uploaded_file and run_sim:
     st.dataframe(tranche_df)
     
     series = df_dropped["euribor_3m"].values
-    last_date = pd.to_datetime(series_df.index[-1])
+    last_date = pd.to_datetime(series.index[-1])
 
     max_horizon_days = (pd.to_datetime(tranche_df['Maturity']).max() - last_date).days
 
