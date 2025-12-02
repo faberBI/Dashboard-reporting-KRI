@@ -1246,7 +1246,7 @@ if uploaded_file and run_sim:
     for nomi in final_rates_df['Tranche'].unique():
         df_forecast_plot = final_rates_df[final_rates_df['Tranche'] == nomi].set_index('index')
         st.subheader(f"📊 Stime Euribor - per {nomi}")
-        plot_full_forecast(df_dropped['euribor_3m'], df_forecast_plot)
+        plot_full_forecast(df_dropped['euribor_3m'], forecast_df)
 
     st.subheader("📊 Risultati VaR – per Tranche")
     st.dataframe(final_var_df)
