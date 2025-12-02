@@ -1120,9 +1120,11 @@ elif selected_kri == "📈 Interest Rate":
     with open("utils/residual_model.pkl", "rb") as f:
         residual_model = pickle.load(f)
     
-    # === LOAD SARIMA SEASONAL MODEL ===
-    with open("utils/sarima_seasonal.pkl", "rb") as f:
-        sarima_fit = pickle.load(f)
+    uploaded = st.file_uploader("Carica Seasonality Model", type="pkl")
+
+    if uploaded is not None:
+        sarima_fit = pickle.load(uploaded)
+        st.success("Modello caricato!")
     
     # Predizioni trend
     trend_pred_train = trend_model.predict(X_train)
@@ -1131,10 +1133,10 @@ elif selected_kri == "📈 Interest Rate":
     
     
     # Predizioni seasonal
-    seasonal_pred_train = sarima_fit.predict(start=0, end=len(seasonal_train)-1)
-    seasonal_pred_val = sarima_fit.predict(start=len(seasonal_train), end=len(seasonal_train)+len(seasonal_val)-1)
-    seasonal_pred_test = sarima_fit.forecast(steps=len(seasonal_test))
-    
+    seasonal_pred_train = sarima_fit.predict(X_train)
+    seasonal_pred_val = sarima_fit.predict(X_val)
+    seasonal_pred_test = sarima_fit.predict(X_test)
+        
     
     # Predizioni residual
     residual_pred_train = residual_model.predict(X_train)
