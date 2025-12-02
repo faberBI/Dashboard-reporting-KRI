@@ -1196,38 +1196,6 @@ def compute_var_for_tranche(
 
     return result, forecast_quarterly
 
-
-def plot_full_forecast(y, df_forecast):
-    plt.figure(figsize=(15,6))
-
-    # --- Serie storica ---
-    plt.plot(y.index, y.values, label="Originale", color='black')
-
-    # --- Forecast futuro Monte Carlo ---
-    idx_forecast = df_forecast.index
-    plt.plot(idx_forecast, df_forecast['median'], label='Mean Forecast', color='green', linestyle='--')
-
-    # Intervalli conformalizzati
-    plt.fill_between(
-        idx_forecast,
-        df_forecast['lower_emp'],
-        df_forecast['upper_emp'],
-        color='red',
-        alpha=0.2,
-        label='Adjusted Interval (Conformal)'
-    )
-
-    plt.title("Serie storica + Predizioni + Forecast Monte Carlo")
-    plt.xlabel("Date")
-    plt.ylabel("EURIBOR 3M")
-    plt.legend()
-    plt.grid(True)
-    
-    # --- Streamlit render ---
-    st.pyplot(plt.gcf())
-    plt.close()
-
-
 # ============================================================
 # STREAMLIT – LETTURA TRANCHE DAL FILE KRI
 # ============================================================
