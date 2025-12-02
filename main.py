@@ -1188,18 +1188,9 @@ elif selected_kri == "📈 Interest Rate":
     last_date = dates[-1].date()   # data finale del dataset
     
 st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M📊 ")
+def compute_var_for_tranche(notional, copertura, spread, maturity,
+                            euribor_base, series, last_date, df_dropped):
 
-notional = st.number_input("Notional (€)", min_value=0.0, value=100000000.0, step=1000000.0)
-copertura = st.number_input("Hedged Notional (€)", min_value=0.0, value=100000000.0, step=1000000.0)
-spread_input = st.text_input("Spread (%)", value="2.25")
-spread = float(spread_input) / 100  # converti in decimale
-maturity = st.date_input("Maturity del prestito")
-euribor_input = st.text_input("Last Applicable Euribor (%)", value="2.25")
-euribor_base = float(euribor_input) / 100  # converti in decimale
-
-# Pulsante per avviare la simulazione
-if st.button("Inizia Simulazione"):
-    # Qui va tutto il codice che hai scritto per la simulazione
     # Differenza in giorni → intero
     n_period = (maturity - last_date).days
     n_sims = 500  
@@ -1266,31 +1257,90 @@ if st.button("Inizia Simulazione"):
         "upper_adj": upper_adj
     }, index=idx)
     
-    st.subheader("Forecast Trimestrale (media per trimestre)")
     forecast_quarterly = forecast_df.resample("Q").mean()
-    st.dataframe(forecast_quarterly)
-    
+
+    # --- Calcolo VaR ---
     var_95_with_spread = forecast_quarterly["upper_adj"] + spread
-    var_95_amount = var_95_with_spread * (notional-copertura)
-    plan_amount = (euribor_base + spread) * (notional-copertura)
+    var_95_amount = var_95_with_spread * (notional - copertura)
+    plan_amount = (euribor_base + spread) * (notional - copertura)
     days_in_quarter = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
     var_95_cashflow = var_95_amount * (days_in_quarter / 360)
     plan_cashflow = plan_amount * (days_in_quarter / 360)
-    
-    st.subheader("VaR 95% Trimestrale (€)")
-    st.dataframe(pd.DataFrame({
+
+    result = pd.DataFrame({
         "Notional": notional,
         "Hedged": copertura,
-        "Un-Hedged": notional-copertura,
+        "Un-Hedged": notional - copertura,
         "Var Rate": var_95_with_spread,
         "Plan Rate": euribor_base + spread,
         "Var Amount (€)": var_95_amount,
         "Var Cashflow (€)": var_95_cashflow,
-        "Plan Amount (€)": plan_amount, 
+        "Plan Amount (€)": plan_amount,
         "Plan Cashflow (€)": plan_cashflow,
         "KRI Amount": var_95_amount - plan_amount,
         "KRI Cashflow": var_95_cashflow - plan_cashflow
-    }, index=forecast_quarterly.index))
+    }, index=forecast_quarterly.index)
+
+    return result
+    st.subheader("Carica più tranche (CSV)")
+    uploaded = st.file_uploader("Carica un file CSV con le tranche", type=["csv"])
+
+    if uploaded:
+        tranche_df = pd.read_csv(uploaded)
+        st.dataframe(tranche_df)
+
+    if uploaded and st.button("Inizia Simulazione"):
+
+    results = []
+    st.write("🔄 Avvio simulazione per tutte le tranche...")
+
+    for idx, row in tranche_df.iterrows():
+        tranche_name = row.get("Tranche", f"T{idx+1}")
+        st.write(f"📌 Tranche {tranche_name}")
+
+        df_res = compute_var_for_tranche(
+            notional=row["Notional"],
+            copertura=row["Hedged"],
+            spread=row["Spread"]/100,
+            maturity=pd.to_datetime(row["Maturity"]),
+            euribor_base=row["Euribor"]/100,
+            series=series,
+            last_date=last_date,
+            df_dropped=df_dropped
+        )
+
+        df_res["Tranche"] = tranche_name
+        results.append(df_res)
+
+    final_df = pd.concat(results)
+    st.subheader("📊 Risultati VaR – Tutte le Tranche")
+    st.dataframe(final_df)
+
+    st.subheader("📈 VaR Cumulato di Portafoglio (€)")
+
+    portfolio_var = (
+        final_df.groupby(final_df.index)[
+            ["Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow"]
+        ].sum()
+    )
+    st.dataframe(portfolio_var)
+    import io
+
+    st.subheader("📉 Grafico VaR di Portafoglio")
+    st.line_chart(portfolio_var["Var Cashflow (€)"])
+
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        final_df.to_excel(writer, index=True, sheet_name="Tranches")
+        portfolio_var.to_excel(writer, index=True, sheet_name="Portfolio")
+
+    st.download_button(
+        label="📥 Scarica risultati in Excel",
+        data=output.getvalue(),
+        file_name="VaR_multi_tranche.xlsx",
+        mime="application/vnd.ms-excel"
+    )
     
     
     
