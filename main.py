@@ -1093,6 +1093,8 @@ elif selected_kri == "📈 Interest Rate":
     seasonal_train = seasonal.iloc[:train_end]
     seasonal_val = seasonal.iloc[train_end:val_end]
     seasonal_test = seasonal.iloc[val_end:]
+
+    st.line_chart(df_dropped['euribor_3m'])
         
 st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
 
@@ -1253,7 +1255,7 @@ if uploaded_file and run_sim:
 
         df_res["Tranche"] = tranche_name
         results.append(df_res)
-
+    
     # --- Concatenazione risultati ---
     final_df = pd.concat(results)
 
