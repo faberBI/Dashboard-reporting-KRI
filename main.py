@@ -1211,11 +1211,9 @@ if uploaded_file and run_sim:
     # 2️⃣ Ciclo su tranche usando la simulazione unica
     for idx, row in tranche_df.iterrows():
         tranche_name = row.get("Tranche", f"T{idx+1}")
-        unhedged = row["Notional"] - row["Hedged"]
-        spread = row["Spread"] / 100
-        plan_rate = (row["Euribor"] + spread)
-        var_rate = (forecast_quarterly["upper_adj"] + spread)
-
+        unhedged = (row["Notional"] - row["Hedged"])
+        plan_rate = (row["Euribor"] + row["Spread"] )
+        var_rate = (forecast_quarterly["upper_adj"] + row["Spread"] )
         var_amount = (var_rate/100) * unhedged
         plan_amount = (plan_rate/100) * unhedged
         days = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
