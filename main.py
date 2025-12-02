@@ -1206,8 +1206,8 @@ def compute_var_for_tranche(
         "Var Cashflow (€)": var_cf,
         "Plan Amount (€)": plan_amount,
         "Plan Cashflow (€)": plan_cf,
-        "KRI Amount": var_amount - plan_amount,
-        "KRI Cashflow": var_cf - plan_cf
+        "KRI Amount": (var_amount - plan_amount),
+        "KRI Cashflow": (var_cf - plan_cf)
     }, index=forecast_quarterly.index)
 
     return result, forecast_quarterly
