@@ -20,6 +20,11 @@ from catboost import CatBoostRegressor
 from copulas.multivariate import GaussianMultivariate
 import pickle
 from datetime import datetime
+from ecbdata import ecbdata
+from statsmodels.tsa.seasonal import STL
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
 
 
 # Library custom
@@ -27,6 +32,7 @@ from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk)
 from functions.copper import simulate_cb_egarch_outsample, get_forecast_plot
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
+from functions.interest_rates import (download_ecb_series, download_yahoo_series)
 
 # -----------------------
 # Configurazione Streamlit
@@ -966,17 +972,6 @@ elif selected_kri == "💳 Credit risk":
 elif selected_kri == "🛡️💻 Cyber":
     print('Cyber')
 elif selected_kri == "📈 Interest Rate":
-    
-    from ecbdata import ecbdata
-    import numpy as np
-    import pandas as pd
-    from statsmodels.tsa.seasonal import STL
-    from statsmodels.tsa.statespace.sarimax import SARIMAX
-    from catboost import CatBoostRegressor
-    from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-    import matplotlib.pyplot as plt
-    import optuna
-    from functions.interest_rates import download_ecb_series, download_yahoo_series
     series = {
     
     # --- Euribor / Money Market ---
