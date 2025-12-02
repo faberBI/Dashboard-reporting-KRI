@@ -1188,6 +1188,7 @@ elif selected_kri == "📈 Interest Rate":
     last_date = dates[-1].date()   # data finale del dataset
     
 st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M📊 ")
+
 def compute_var_for_tranche(notional, copertura, spread, maturity,
                             euribor_base, series, last_date, df_dropped):
 
@@ -1282,65 +1283,66 @@ def compute_var_for_tranche(notional, copertura, spread, maturity,
     }, index=forecast_quarterly.index)
 
     return result
-    st.subheader("Carica più tranche (CSV)")
-    uploaded = st.file_uploader("Carica un file CSV con le tranche", type=["csv"])
 
-    if uploaded:
-        tranche_df = pd.read_csv(uploaded)
-        st.dataframe(tranche_df)
 
-    if uploaded and st.button("Inizia Simulazione"):
+# --- Parte Streamlit: caricamento CSV tranche ---
+st.subheader("Carica più tranche (CSV)")
+uploaded = st.file_uploader("Carica un file CSV con le tranche", type=["csv"])
 
-    results = []
-    st.write("🔄 Avvio simulazione per tutte le tranche...")
+if uploaded:
+    tranche_df = pd.read_csv(uploaded)
+    st.dataframe(tranche_df)
 
-    for idx, row in tranche_df.iterrows():
-        tranche_name = row.get("Tranche", f"T{idx+1}")
-        st.write(f"📌 Tranche {tranche_name}")
+    if st.button("Inizia Simulazione"):
+        results = []
+        st.write("🔄 Avvio simulazione per tutte le tranche...")
 
-        df_res = compute_var_for_tranche(
-            notional=row["Notional"],
-            copertura=row["Hedged"],
-            spread=row["Spread"]/100,
-            maturity=pd.to_datetime(row["Maturity"]),
-            euribor_base=row["Euribor"]/100,
-            series=series,
-            last_date=last_date,
-            df_dropped=df_dropped
+        for idx, row in tranche_df.iterrows():
+            tranche_name = row.get("Tranche", f"T{idx+1}")
+            st.write(f"📌 Tranche {tranche_name}")
+
+            df_res = compute_var_for_tranche(
+                notional=row["Notional"],
+                copertura=row["Hedged"],
+                spread=row["Spread"]/100,
+                maturity=pd.to_datetime(row["Maturity"]),
+                euribor_base=row["Euribor"]/100,
+                series=series,
+                last_date=last_date,
+                df_dropped=df_dropped
+            )
+
+            df_res["Tranche"] = tranche_name
+            results.append(df_res)
+
+        final_df = pd.concat(results)
+        st.subheader("📊 Risultati VaR – Tutte le Tranche")
+        st.dataframe(final_df)
+
+        st.subheader("📈 VaR Cumulato di Portafoglio (€)")
+        portfolio_var = (
+            final_df.groupby(final_df.index)[
+                ["Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow"]
+            ].sum()
         )
+        st.dataframe(portfolio_var)
 
-        df_res["Tranche"] = tranche_name
-        results.append(df_res)
+        st.subheader("📉 Grafico VaR di Portafoglio")
+        st.line_chart(portfolio_var["Var Cashflow (€)"])
 
-    final_df = pd.concat(results)
-    st.subheader("📊 Risultati VaR – Tutte le Tranche")
-    st.dataframe(final_df)
+        # Export Excel
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            final_df.to_excel(writer, index=True, sheet_name="Tranches")
+            portfolio_var.to_excel(writer, index=True, sheet_name="Portfolio")
 
-    st.subheader("📈 VaR Cumulato di Portafoglio (€)")
-
-    portfolio_var = (
-        final_df.groupby(final_df.index)[
-            ["Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow"]
-        ].sum()
-    )
-    st.dataframe(portfolio_var)
-    import io
-
-    st.subheader("📉 Grafico VaR di Portafoglio")
-    st.line_chart(portfolio_var["Var Cashflow (€)"])
-
-
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        final_df.to_excel(writer, index=True, sheet_name="Tranches")
-        portfolio_var.to_excel(writer, index=True, sheet_name="Portfolio")
-
-    st.download_button(
-        label="📥 Scarica risultati in Excel",
-        data=output.getvalue(),
-        file_name="VaR_multi_tranche.xlsx",
-        mime="application/vnd.ms-excel"
-    )
+        st.download_button(
+            label="📥 Scarica risultati in Excel",
+            data=output.getvalue(),
+            file_name="VaR_multi_tranche.xlsx",
+            mime="application/vnd.ms-excel"
+        )
     
     
     
