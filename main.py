@@ -1106,7 +1106,7 @@ import optuna
 # ============================================================
 # SIMULAZIONE UNICA EURIBOR MONTE CARLO + CONFORMAL
 # ============================================================
-def simulate_euribor(series, df_dropped, n_sims=500, alpha=0.05, horizon_days=3*360):
+def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3*360):
     # Ottimizzazione parametri OU
     def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
         X = np.zeros(n_steps)
@@ -1203,23 +1203,31 @@ if uploaded_file and run_sim:
     series = df_dropped['euribor_3m'].values
     last_date = pd.to_datetime(df_dropped.index[-1])
 
+    max_horizon_days = (pd.to_datetime(tranche_df['Maturity']).max() - last_date).days
+
     # 1️⃣ Simulazione unica EURIBOR
-    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped)
+    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, horizon_days= max_horizon_days)
 
     results_var = []
-
+    
     # 2️⃣ Ciclo su tranche usando la simulazione unica
     for idx, row in tranche_df.iterrows():
         tranche_name = row.get("Tranche", f"T{idx+1}")
         unhedged = (row["Notional"] - row["Hedged"])
-        plan_rate = (row["Euribor"] + row["Spread"] )
-        var_rate = (forecast_quarterly["upper_adj"] + row["Spread"] )
+        plan_rate = (row["Euribor"] + row["Spread"])
+    
+        # Taglio forecast fino alla maturità della tranche
+        maturity_date = pd.to_datetime(row["Maturity"])
+        forecast_tranche = forecast_quarterly[forecast_quarterly.index <= maturity_date]
+        var_rate = forecast_tranche["upper_adj"] + row["Spread"]
+    
         var_amount = (var_rate/100) * unhedged
         plan_amount = (plan_rate/100) * unhedged
-        days = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
+        days = forecast_tranche.index.to_series().diff().dt.days.fillna(90)
         var_cf = var_amount * (days / 360)
         plan_cf = plan_amount * (days / 360)
-
+    
+        # DataFrame con indice corretto per la tranche
         df_var = pd.DataFrame({
             "Notional": row["Notional"],
             "Hedged": row["Hedged"],
@@ -1233,18 +1241,21 @@ if uploaded_file and run_sim:
             "KRI Amount": var_amount - plan_amount,
             "KRI Cashflow": var_cf - plan_cf,
             "Tranche": tranche_name
-        }, index=forecast_quarterly.index)
-
+        }, index=forecast_tranche.index)
+    
         results_var.append(df_var)
-
+    
+    # Concatenazione risultati
     final_var_df = pd.concat(results_var).reset_index()
-    final_rates_df = pd.concat(results_var).reset_index()  # stessa simulazione
-
-    # Grafici
-    for nomi in final_rates_df['Tranche'].unique():
-        df_forecast_plot = final_rates_df[final_rates_df['Tranche'] == nomi].set_index('index')
-        st.subheader(f"📊 Stime Euribor - per {nomi}")
-        plot_full_forecast(df_dropped['euribor_3m'], forecast_df)
+    
+    # Grafici per ogni tranche
+    for idx, row in tranche_df.iterrows():
+        tranche_name = row.get("Tranche", f"T{idx+1}")
+        maturity_date = pd.to_datetime(row["Maturity"])
+        forecast_tranche = forecast_quarterly[forecast_quarterly.index <= maturity_date]
+        
+        st.subheader(f"📊 Stime Euribor - per {tranche_name}")
+        plot_full_forecast(df_dropped['euribor_3m'], forecast_tranche)
 
     st.subheader("📊 Risultati VaR – per Tranche")
     st.dataframe(final_var_df)
@@ -1260,7 +1271,7 @@ if uploaded_file and run_sim:
     st.line_chart(portfolio_var.set_index('index')[["Var Cashflow (€)", "Plan Cashflow (€)"]])
 
     st.subheader("💸⚠️ KRI Portafoglio💸⚠️")
-    st.line_chart(portfolio_var.set_index('index')["KRI Cashflow"]
+    st.line_chart(portfolio_var.set_index('index')["KRI Cashflow"])
 
     # Export Excel
     import io
