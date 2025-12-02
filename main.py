@@ -1094,8 +1094,6 @@ elif selected_kri == "📈 Interest Rate":
 
     st.line_chart(df_dropped['euribor_3m'])
         
-st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
-
 # ============================================================
 # FUNZIONE PER IL CALCOLO DEL VAR DI UNA SINGOLA TRANCHE
 # ============================================================
@@ -1156,7 +1154,7 @@ def compute_var_for_tranche(
 
     lower_adj = lower_emp - q_hat
     upper_adj = upper_emp + q_hat
-
+    
     while np.any(upper_adj <= lower_adj):
         mask = upper_adj <= lower_adj
         upper_adj[mask] = lower_adj[mask] + 0.2
@@ -1199,6 +1197,7 @@ def compute_var_for_tranche(
     }, index=forecast_quarterly.index)
 
     return result, forecast_quarterly
+
 
 st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
 
