@@ -6,7 +6,6 @@ from catboost import CatBoostRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import matplotlib.pyplot as plt
 import optuna
-import pickle
 
 def download_ecb_series(series_dict, start="2010-01"):
         df_final = pd.DataFrame()
@@ -37,3 +36,5 @@ def download_ecb_series(series_dict, start="2010-01"):
         close = close.rename(columns={v: k for k, v in symbols_dict.items()})
         print("Dati Yahoo Finance scaricati")
         return close
+
+
