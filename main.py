@@ -1206,7 +1206,7 @@ if uploaded_file and run_sim:
     max_horizon_days = (pd.to_datetime(tranche_df['Maturity']).max() - last_date).days
 
     # 1️⃣ Simulazione unica EURIBOR
-    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, horizon_days= max_horizon_days)
+    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, n_sims= 500, horizon_days= max_horizon_days)
 
     results_var = []
     
@@ -1238,8 +1238,8 @@ if uploaded_file and run_sim:
             "Var Cashflow (€)": var_cf,
             "Plan Amount (€)": plan_amount,
             "Plan Cashflow (€)": plan_cf,
-            "KRI Amount": var_amount - plan_amount,
-            "KRI Cashflow": var_cf - plan_cf,
+            "KRI Amount": (var_amount - plan_amount),
+            "KRI Cashflow": np.max(var_cf - plan_cf,0),
             "Tranche": tranche_name
         }, index=forecast_tranche.index)
     
