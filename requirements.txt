@@ -24,4 +24,3 @@ catboost
 ecbdata
 yfinance
 XlsxWriter
-pickle
