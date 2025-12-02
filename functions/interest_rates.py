@@ -6,6 +6,7 @@ from catboost import CatBoostRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import matplotlib.pyplot as plt
 import optuna
+import yfinance as yf
 
 def download_ecb_series(series_dict, start="2010-01"):
         df_final = pd.DataFrame()
