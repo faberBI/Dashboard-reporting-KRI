@@ -1257,7 +1257,10 @@ if uploaded_file and run_sim:
     st.dataframe(portfolio_var)
 
     st.subheader("📉 Grafico VaR di Portafoglio")
-    st.line_chart(portfolio_var.set_index('index')[["Var Cashflow (€)", "Plan Cashflow (€)", "KRI Cashflow"]])
+    st.line_chart(portfolio_var.set_index('index')[["Var Cashflow (€)", "Plan Cashflow (€)"]])
+
+    st.subheader("💸⚠️ KRI Portafoglio💸⚠️")
+    st.line_chart(portfolio_var.set_index('index')["KRI Cashflow"]
 
     # Export Excel
     import io
