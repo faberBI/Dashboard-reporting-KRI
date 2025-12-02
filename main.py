@@ -1117,7 +1117,7 @@ def compute_var_for_tranche(
             dW = np.random.randn() * np.sqrt(dt)
             X[t] = X[t-1] + theta * (mu - X[t-1]) * dt + sigma * dW
         return X
-
+    
     # -------- Optuna calibration --------
     def objective(trial):
         theta = trial.suggest_loguniform("theta", 1e-3, 1.0)
@@ -1230,6 +1230,9 @@ if uploaded_file and run_sim:
     st.write("🔄 Avvio simulazione per tutte le tranche...")
 
     results = []
+    series = df_dropped['euribor_3m'].values
+    dates = df_dropped.index
+    last_date = dates[-1].date()   # data finale del dataset
 
     for idx, row in tranche_df.iterrows():
 
