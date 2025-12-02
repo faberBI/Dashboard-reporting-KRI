@@ -1157,6 +1157,10 @@ def compute_var_for_tranche(
     lower_adj = lower_emp - q_hat
     upper_adj = upper_emp + q_hat
 
+    while np.any(upper_adj <= lower_adj):
+        mask = upper_adj <= lower_adj
+        upper_adj[mask] = lower_adj[mask] + 0.2
+    
     idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
     forecast_df = pd.DataFrame({
         "lower_emp": lower_emp,
@@ -1170,7 +1174,7 @@ def compute_var_for_tranche(
     unhedged = notional - copertura
 
     # Plan Rate costante come serie
-    plan_rate = pd.Series(euribor_base + spread, index=forecast_quarterly.index)
+    plan_rate = euribor_base + spread 
     var_rate = forecast_quarterly["upper_adj"] + spread
 
     var_amount = var_rate * unhedged
@@ -1243,8 +1247,8 @@ if uploaded_file and run_sim:
         results_rates.append(df_rates)
 
     # --- Concatenazione risultati ---
-    final_var_df = pd.concat(results_var)
-    final_rates_df = pd.concat(results_rates)
+    final_var_df = pd.concat(results_var).reset_index()    
+    final_rates_df = pd.concat(results_rates).reset_index()
     
     y = df_dropped['euribor_3m']  # serie storica
         
@@ -1282,7 +1286,3 @@ if uploaded_file and run_sim:
         file_name="VaR_multi_tranche.xlsx",
         mime="application/vnd.ms-excel"
     )
-
-    
-    
-    
