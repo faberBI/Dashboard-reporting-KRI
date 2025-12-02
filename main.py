@@ -1097,15 +1097,17 @@ elif selected_kri == "📈 Interest Rate":
 # ============================================================
 # FUNZIONE PER IL CALCOLO DEL VAR DI UNA SINGOLA TRANCHE
 # ============================================================
-def compute_var_for_tranche(
-    notional, copertura, spread, maturity,
-    euribor_base, series, last_date, df_dropped
-):
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import optuna
 
-    n_period = (maturity - last_date).days
-    n_sims = 500
-    alpha = 0.05
-
+# ============================================================
+# SIMULAZIONE UNICA EURIBOR MONTE CARLO + CONFORMAL
+# ============================================================
+def simulate_euribor(series, df_dropped, n_sims=500, alpha=0.05, horizon_days=3*360):
+    # Ottimizzazione parametri OU
     def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
         X = np.zeros(n_steps)
         X[0] = X0
@@ -1118,14 +1120,11 @@ def compute_var_for_tranche(
         theta = trial.suggest_loguniform("theta", 1e-3, 1.0)
         mu = trial.suggest_uniform("mu", series.min(), series.max())
         sigma = trial.suggest_loguniform("sigma", 1e-4, 1.0)
-
-        X_prev = series[:-1]
-        X_next = series[1:]
+        X_prev, X_next = series[:-1], series[1:]
         dt = 1.0
         var = sigma**2 * dt
-        mean = X_prev + theta * (mu - X_prev) * dt
-
-        log_lik = -0.5 * np.sum(((X_next - mean) ** 2) / var + np.log(2 * np.pi * var))
+        mean = X_prev + theta*(mu - X_prev)*dt
+        log_lik = -0.5 * np.sum(((X_next - mean)**2)/var + np.log(2*np.pi*var))
         return log_lik
 
     study = optuna.create_study(direction="maximize")
@@ -1135,16 +1134,17 @@ def compute_var_for_tranche(
     mu_opt = study.best_params["mu"]
     sigma_opt = study.best_params["sigma"]
 
-    simulations = np.zeros((n_sims, n_period))
+    n_period = horizon_days
     X0 = series[-1]
-
+    simulations = np.zeros((n_sims, n_period))
     for i in range(n_sims):
         simulations[i, :] = simulate_ou(X0, theta_opt, mu_opt, sigma_opt, n_period)
 
-    lower_emp = np.percentile(simulations, 100 * alpha / 2, axis=0)
-    upper_emp = np.percentile(simulations, 100 * (1 - alpha / 2), axis=0)
+    lower_emp = np.percentile(simulations, 100*alpha/2, axis=0)
+    upper_emp = np.percentile(simulations, 100*(1-alpha/2), axis=0)
     median = np.median(simulations, axis=0)
 
+    # Conformal adjustment
     calibration_y = series[-252:]
     samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period))
     lower_cal = np.percentile(samples_cal, 2.5, axis=1)
@@ -1154,13 +1154,12 @@ def compute_var_for_tranche(
 
     lower_adj = lower_emp - q_hat
     upper_adj = upper_emp + q_hat
-    
+
     while np.any(upper_adj <= lower_adj):
         mask = upper_adj <= lower_adj
         upper_adj[mask] = lower_adj[mask] + 0.2
-    
+
     idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
-    
     forecast_df = pd.DataFrame({
         "lower_emp": lower_emp,
         "upper_emp": upper_emp,
@@ -1168,139 +1167,92 @@ def compute_var_for_tranche(
         "lower_adj": lower_adj,
         "upper_adj": upper_adj
     }, index=idx)
-
     forecast_quarterly = forecast_df.resample("Q").mean()
-    unhedged = (notional - copertura)
 
-    # Plan Rate costante come serie
-    plan_rate = (euribor_base + spread)
-    var_rate = forecast_quarterly["upper_adj"] + spread
-
-    var_amount = var_rate * unhedged
-    plan_amount = plan_rate * unhedged
-
-    days = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
-    var_cf = var_amount * (days / 360)
-    plan_cf = plan_amount * (days / 360)
-
-    result = pd.DataFrame({
-        "Notional": notional,
-        "Hedged": copertura,
-        "Un-Hedged": unhedged,
-        "Var Rate": var_rate,
-        "Plan Rate": plan_rate,
-        "Var Amount (€)": var_amount,
-        "Var Cashflow (€)": var_cf,
-        "Plan Amount (€)": plan_amount,
-        "Plan Cashflow (€)": plan_cf,
-        "KRI Amount": (var_amount - plan_amount),
-        "KRI Cashflow": (var_cf - plan_cf)
-    }, index=forecast_quarterly.index)
-
-    return result, forecast_quarterly
-
-
-st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
+    return forecast_df, forecast_quarterly
 
 # ============================================================
-# FUNZIONE PER IL GRAFICO STREAMLIT
+# GRAFICO STREAMLIT
 # ============================================================
-import matplotlib.pyplot as plt
-
 def plot_full_forecast(y, df_forecast):
     plt.figure(figsize=(15,6))
-
-    # Serie storica
     plt.plot(y, label="Originale", color='black')
-
-    # Forecast futuro Monte Carlo
     idx_forecast = df_forecast.index
     plt.plot(idx_forecast, df_forecast['median'], label='Mean Forecast', color='green', linestyle='--')
-
-    # Intervalli conformalizzati
-    plt.fill_between(
-        idx_forecast,
-        df_forecast['lower_emp'],
-        df_forecast['upper_emp'],
-        color='red', alpha=0.2, label='Adjusted Interval (Conformal)'
-    )
-
+    plt.fill_between(idx_forecast, df_forecast['lower_emp'], df_forecast['upper_emp'],
+                     color='red', alpha=0.2, label='Adjusted Interval (Conformal)')
     plt.title("Serie storica + Predizioni + Forecast Monte Carlo")
     plt.xlabel("Date")
     plt.ylabel("EURIBOR 3M")
     plt.legend()
     plt.grid(True)
-
-    # Renderizza grafico in Streamlit
     st.pyplot(plt.gcf())
     plt.close()
 
 # ============================================================
-# SIMULAZIONE TRANCHE
+# STREAMLIT INTERFACCIA
 # ============================================================
+st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
 run_sim = st.button("🚀 Inizia Simulazione VaR su tutte le Tranche")
 
 if uploaded_file and run_sim:
-
-    # Carica foglio Excel
     tranche_df = pd.read_excel(uploaded_file, sheet_name="Tranches")
     st.subheader("📋 Tranche caricate dall’Excel")
     st.dataframe(tranche_df)
 
-    st.write("🔄 Avvio simulazione per tutte le tranche...")
-
-    results_var = []
-    results_rates = []
-
     series = df_dropped['euribor_3m'].values
     last_date = pd.to_datetime(df_dropped.index[-1])
 
+    # 1️⃣ Simulazione unica EURIBOR
+    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped)
+
+    results_var = []
+
+    # 2️⃣ Ciclo su tranche usando la simulazione unica
     for idx, row in tranche_df.iterrows():
         tranche_name = row.get("Tranche", f"T{idx+1}")
-        st.write(f"📌 Simulazione Tranche: **{tranche_name}**")
+        unhedged = row["Notional"] - row["Hedged"]
+        spread = row["Spread"] / 100
+        plan_rate = row["Euribor"] / 100 + spread
+        var_rate = forecast_quarterly["upper_adj"] + spread
 
-        df_var, df_rates = compute_var_for_tranche(
-            notional=row["Notional"],
-            copertura=row["Hedged"],
-            spread=row["Spread"] / 100,
-            maturity=pd.to_datetime(row["Maturity"]),
-            euribor_base=row["Euribor"] / 100,
-            series=series,
-            last_date=last_date,
-            df_dropped=df_dropped
-        )
+        var_amount = var_rate * unhedged
+        plan_amount = plan_rate * unhedged
+        days = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
+        var_cf = var_amount * (days / 360)
+        plan_cf = plan_amount * (days / 360)
 
-        df_var["Tranche"] = tranche_name
-        df_rates["Tranche"] = tranche_name
+        df_var = pd.DataFrame({
+            "Notional": row["Notional"],
+            "Hedged": row["Hedged"],
+            "Un-Hedged": unhedged,
+            "Var Rate": var_rate,
+            "Plan Rate": plan_rate,
+            "Var Amount (€)": var_amount,
+            "Var Cashflow (€)": var_cf,
+            "Plan Amount (€)": plan_amount,
+            "Plan Cashflow (€)": plan_cf,
+            "KRI Amount": var_amount - plan_amount,
+            "KRI Cashflow": var_cf - plan_cf,
+            "Tranche": tranche_name
+        }, index=forecast_quarterly.index)
 
         results_var.append(df_var)
-        results_rates.append(df_rates)
 
-    # Concatenazione risultati
-    final_var_df = pd.concat(results_var).reset_index()    
-    final_rates_df = pd.concat(results_rates).reset_index()
+    final_var_df = pd.concat(results_var).reset_index()
+    final_rates_df = pd.concat(results_var).reset_index()  # stessa simulazione
 
-    # ============================================================
-    # GRAFICO FORECAST 
-    # ============================================================
-    nomi_tranche = final_rates_df['Tranche'].unique()
-    for nomi in nomi_tranche:    
+    # Grafici
+    for nomi in final_rates_df['Tranche'].unique():
         df_forecast_plot = final_rates_df[final_rates_df['Tranche'] == nomi].set_index('index')
         st.subheader(f"📊 Stime Euribor - per {nomi}")
         plot_full_forecast(df_dropped['euribor_3m'], df_forecast_plot)
 
-    st.subheader("📊 Stime Euribor - per Tranche")
-    st.dataframe(final_rates_df)
-
     st.subheader("📊 Risultati VaR – per Tranche")
     st.dataframe(final_var_df)
 
-    # ============================================================
-    # VaR cumulato di portafoglio
-    # ============================================================
     portfolio_var = final_var_df.groupby('index')[[
-        "Var Amount (€)", "Var Cashflow (€)",
-        "KRI Amount", "KRI Cashflow", "Plan Cashflow (€)"
+        "Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow", "Plan Cashflow (€)"
     ]].sum().reset_index()
 
     st.subheader("📈 VaR Cumulato di Portafoglio (€)")
@@ -1309,15 +1261,12 @@ if uploaded_file and run_sim:
     st.subheader("📉 Grafico VaR di Portafoglio")
     st.line_chart(portfolio_var.set_index('index')[["Var Cashflow (€)", "Plan Cashflow (€)", "KRI Cashflow"]])
 
-    # ============================================================
     # Export Excel
-    # ============================================================
     import io
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         final_var_df.to_excel(writer, index=True, sheet_name="Tranches")
         portfolio_var.to_excel(writer, index=True, sheet_name="Portfolio")
-
     st.download_button(
         label="📥 Scarica risultati in Excel",
         data=output.getvalue(),
