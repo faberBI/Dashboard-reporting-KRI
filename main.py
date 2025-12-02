@@ -1160,6 +1160,7 @@ def compute_var_for_tranche(
         upper_adj[mask] = lower_adj[mask] + 0.2
     
     idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
+    
     forecast_df = pd.DataFrame({
         "lower_emp": lower_emp,
         "upper_emp": upper_emp,
@@ -1169,10 +1170,10 @@ def compute_var_for_tranche(
     }, index=idx)
 
     forecast_quarterly = forecast_df.resample("Q").mean()
-    unhedged = notional - copertura
+    unhedged = (notional - copertura)
 
     # Plan Rate costante come serie
-    plan_rate = euribor_base + spread 
+    plan_rate = (euribor_base + spread)
     var_rate = forecast_quarterly["upper_adj"] + spread
 
     var_amount = var_rate * unhedged
@@ -1192,8 +1193,8 @@ def compute_var_for_tranche(
         "Var Cashflow (€)": var_cf,
         "Plan Amount (€)": plan_amount,
         "Plan Cashflow (€)": plan_cf,
-        "KRI Amount": var_amount - plan_amount,
-        "KRI Cashflow": var_cf - plan_cf
+        "KRI Amount": (var_amount - plan_amount),
+        "KRI Cashflow": (var_cf - plan_cf)
     }, index=forecast_quarterly.index)
 
     return result, forecast_quarterly
@@ -1276,7 +1277,7 @@ if uploaded_file and run_sim:
         results_rates.append(df_rates)
 
     # Concatenazione risultati
-    final_var_df = pd.concat(results_var).reset_index()
+    final_var_df = pd.concat(results_var).reset_index()    
     final_rates_df = pd.concat(results_rates).reset_index()
 
     # ============================================================
