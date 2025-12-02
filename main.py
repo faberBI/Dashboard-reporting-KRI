@@ -32,8 +32,6 @@ from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk)
 from functions.copper import simulate_cb_egarch_outsample, get_forecast_plot
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
-from functions.interest_rates import download_ecb_series
-from functions.interest_rates import download_yahoo_series
 
 # -----------------------
 # Configurazione Streamlit
@@ -1004,7 +1002,27 @@ elif selected_kri == "📈 Interest Rate":
         "gold": "GC=F",
     }
     
-
+    def download_ecb_series(series_dict, start="2010-01"):
+        df_final = pd.DataFrame()
+        for name, key in series_dict.items():
+            try:
+                df = ecbdata.get_series(key, start=start)
+                df['TIME_PERIOD'] = pd.to_datetime(df['TIME_PERIOD'])
+                df = df.set_index('TIME_PERIOD')
+                df = df.rename(columns={'OBS_VALUE': name})
+                df_final = df_final.join(df[[name]], how='outer')
+            
+            except Exception as e:
+                print(f"Errore scaricando {name}: {e}")
+        return df_final
+    
+    def download_yahoo_series(symbols_dict, start="2010-01-01"):
+        data = yf.download(list(symbols_dict.values()), start=start)
+        close = data["Close"]
+        close = close.rename(columns={v: k for k, v in symbols_dict.items()})
+        print("Dati Yahoo Finance scaricati")
+        return close
+    
     # ----------------------------------------
     # 3. SCARICA TUTTI I DATI
     # ----------------------------------------
