@@ -1113,6 +1113,9 @@ elif selected_kri == "📈 Interest Rate":
     y_pred_test = pd.read_excel("utils/test_pred.xlsx")
     y_pred_val =  pd.read_excel("utils/val_pred.xlsx")
     y_pred_train =  pd.read_excel("utils/train_pred.xlsx")
+    y_pred_test.set_index('Unnamed: 0', inplace = True)
+    y_pred_val.set_index('Unnamed: 0', inplace = True)
+    y_pred_train.set_index('Unnamed: 0', inplace = True)
     
     st.subheader("📊 Trend analisi with Hybrid ML model 📊")
     plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end)
