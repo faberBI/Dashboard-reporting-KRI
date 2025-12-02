@@ -1094,17 +1094,22 @@ elif selected_kri == "📈 Interest Rate":
     seasonal_val = seasonal.iloc[train_end:val_end]
     seasonal_test = seasonal.iloc[val_end:]
         
-st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M📊 ")
+st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
 
-def compute_var_for_tranche(notional, copertura, spread, maturity,
-                            euribor_base, series, last_date, df_dropped):
+# ============================================================
+# FUNZIONE PER IL CALCOLO DEL VAR DI UNA SINGOLA TRANCHE
+# ============================================================
+def compute_var_for_tranche(
+    notional, copertura, spread, maturity,
+    euribor_base, series, last_date, df_dropped
+):
 
     # Differenza in giorni → intero
     n_period = (maturity - last_date).days
-    n_sims = 500  
+    n_sims = 500
     alpha = 0.05
     
-    # Funzione di simulazione Ornstein-Uhlenbeck (OU)
+    # -------- Simulatore OU --------
     def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
         X = np.zeros(n_steps)
         X[0] = X0
@@ -1112,24 +1117,114 @@ def compute_var_for_tranche(notional, copertura, spread, maturity,
             dW = np.random.randn() * np.sqrt(dt)
             X[t] = X[t-1] + theta * (mu - X[t-1]) * dt + sigma * dW
         return X
-    
-    # Funzione obiettivo per Optuna
+
+    # -------- Optuna calibration --------
     def objective(trial):
-        theta = trial.suggest_loguniform('theta', 1e-3, 1.0)
-        mu = trial.suggest_uniform('mu', series.min(), series.max())
-        sigma = trial.suggest_loguniform('sigma', 1e-4, 1.0)
+        theta = trial.suggest_loguniform("theta", 1e-3, 1.0)
+        mu = trial.suggest_uniform("mu", series.min(), series.max())
+        sigma = trial.suggest_loguniform("sigma", 1e-4, 1.0)
+
         X_prev = series[:-1]
         X_next = series[1:]
         dt = 1.0
+
         var = sigma**2 * dt
         mean = X_prev + theta * (mu - X_prev) * dt
-        log_lik = -0.5 * np.sum(((X_next - mean)**2) / var + np.log(2 * np.pi * var))
+
+        log_lik = -0.5 * np.sum(((X_next - mean) ** 2) / var + np.log(2 * np.pi * var))
         return log_lik
-    
+
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=100)
+
+    theta_opt = study.best_params["theta"]
+    mu_opt = study.best_params["mu"]
+    sigma_opt = study.best_params["sigma"]
+
+    # -------- Simulazioni --------
+    simulations = np.zeros((n_sims, n_period))
+    X0 = series[-1]
+
+    for i in range(n_sims):
+        simulations[i, :] = simulate_ou(X0, theta_opt, mu_opt, sigma_opt, n_period)
+
+    lower_emp = np.percentile(simulations, 2.5, axis=0)
+    upper_emp = np.percentile(simulations, 97.5, axis=0)
+    median = np.median(simulations, axis=0)
+
+    # -------- Conformal Prediction --------
+    calibration_y = series[-252:]
+    samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period))
+
+    lower_cal = np.percentile(samples_cal, 2.5, axis=1)
+    upper_cal = np.percentile(samples_cal, 97.5, axis=1)
+
+    nonconformity = np.maximum(lower_cal - calibration_y, calibration_y - upper_cal)
+    q_hat = np.quantile(np.append(nonconformity, np.inf), 0.95)
+
+    lower_adj = lower_emp - q_hat
+    upper_adj = upper_emp + q_hat
+
+    idx = pd.date_range(
+        start=df_dropped.index[-1] + pd.Timedelta(days=1),
+        periods=n_period,
+        freq="D"
+    )
+
+    forecast_df = pd.DataFrame({
+        "lower_emp": lower_emp,
+        "upper_emp": upper_emp,
+        "median": median,
+        "lower_adj": lower_adj,
+        "upper_adj": upper_adj
+    }, index=idx)
+
+    # -------- Resample trimestrale --------
+    forecast_quarterly = forecast_df.resample("Q").mean()
+
+    # -------- Calcolo VaR --------
+    unhedged = notional - copertura
+
+    var_rate = forecast_quarterly["upper_adj"] + spread
+    plan_rate = euribor_base + spread
+
+    var_amount = var_rate * unhedged
+    plan_amount = plan_rate * unhedged
+
+    days = forecast_quarterly.index.to_series().diff().dt.days.fillna(90)
+
+    var_cf = var_amount * (days / 360)
+    plan_cf = plan_amount * (days / 360)
+
+    result = pd.DataFrame({
+        "Notional": notional,
+        "Hedged": copertura,
+        "Un-Hedged": unhedged,
+        "Var Rate": var_rate,
+        "Plan Rate": plan_rate,
+        "Var Amount (€)": var_amount,
+        "Var Cashflow (€)": var_cf,
+        "Plan Amount (€)": plan_amount,
+        "Plan Cashflow (€)": plan_cf,
+        "KRI Amount": var_amount - plan_amount,
+        "KRI Cashflow": var_cf - plan_cf
+    }, index=forecast_quarterly.index)
+
+    return result
+
+
+# ============================================================
+# STREAMLIT – LETTURA TRANCHE DAL FILE KRI
+# ============================================================
+
+run_sim = st.button("🚀 Inizia Simulazione VaR su tutte le Tranche")
+
 if uploaded_file and run_sim:
 
-    tranche_df = pd.read_excel(uploaded_file)
-    st.write("📋 Tranche caricate:")
+    # Carica foglio con le tranche (assumo si chiami "Tranches")
+    tranche_df = pd.read_excel(uploaded_file, sheet_name="Tranches")
+
+    st.subheader("📋 Tranche caricate dall’Excel")
     st.dataframe(tranche_df)
 
     st.write("🔄 Avvio simulazione per tutte le tranche...")
@@ -1155,19 +1250,17 @@ if uploaded_file and run_sim:
         df_res["Tranche"] = tranche_name
         results.append(df_res)
 
-    # Concatenazione risultati
+    # --- Concatenazione risultati ---
     final_df = pd.concat(results)
 
     st.subheader("📊 Risultati VaR – Tutte le Tranche")
     st.dataframe(final_df)
 
-    # VaR di portafoglio
-    portfolio_var = (
-        final_df.groupby(final_df.index)[[
-            "Var Amount (€)", "Var Cashflow (€)",
-            "KRI Amount", "KRI Cashflow"
-        ]].sum()
-    )
+    # --- VaR di portafoglio ---
+    portfolio_var = final_df.groupby(final_df.index)[[
+        "Var Amount (€)", "Var Cashflow (€)",
+        "KRI Amount", "KRI Cashflow"
+    ]].sum()
 
     st.subheader("📈 VaR Cumulato di Portafoglio (€)")
     st.dataframe(portfolio_var)
@@ -1175,7 +1268,7 @@ if uploaded_file and run_sim:
     st.subheader("📉 Grafico VaR di Portafoglio")
     st.line_chart(portfolio_var["Var Cashflow (€)"])
 
-    # Export Excel
+    # --- Export Excel ---
     import io
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -1188,7 +1281,7 @@ if uploaded_file and run_sim:
         file_name="VaR_multi_tranche.xlsx",
         mime="application/vnd.ms-excel"
     )
-    
+
     
     
     
