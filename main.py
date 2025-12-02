@@ -1001,7 +1001,7 @@ elif selected_kri == "📈 Interest Rate":
         "gold": "GC=F",
     }
     
-    def download_ecb_series(series_dict, start="2010-01"):
+    def download_ecb_series(series_dict, start="2023-01"):
         df_final = pd.DataFrame()
         for name, key in series_dict.items():
             try:
@@ -1015,7 +1015,7 @@ elif selected_kri == "📈 Interest Rate":
                 print(f"Errore scaricando {name}: {e}")
         return df_final
     
-    def download_yahoo_series(symbols_dict, start="2010-01-01"):
+    def download_yahoo_series(symbols_dict, start="2023-01-01"):
         data = yf.download(list(symbols_dict.values()), start=start)
         close = data["Close"]
         close = close.rename(columns={v: k for k, v in symbols_dict.items()})
