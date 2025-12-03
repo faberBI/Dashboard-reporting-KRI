@@ -1348,7 +1348,7 @@ if uploaded_file and run_sim:
     hedged_total = tranche_df['Hedged'].sum()
     notional_total = tranche_df['Notional'].sum()
     unhedged_total = notional_total-hedged_total
-    perdita_totale_perc = np.round((perdita_totale_mln/unhedged_total),3)
+    perdita_totale_perc = perdita_totale_mln/unhedged_total
     st.metric(label="Perdita Totale % su Un-Hedged", value=f"{perdita_totale_perc*100} %")
 
     # Export Excel
