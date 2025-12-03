@@ -1300,11 +1300,21 @@ if uploaded_file and run_sim:
     
     st.pyplot(plt.gcf())
     plt.close()
+    
+    def to_millions(df, cols):
+        df2 = df.copy()
+        df2[cols] = df2[cols] / 1_000_000
+        return df2
 
-    st.subheader("📊 Risultati VaR – per Tranche")
-    st.dataframe(final_var_df)
+    cols_mln = ["Var Amount (€)", "Var Cashflow (€)", "Plan Amount (€)", 
+            "Plan Cashflow (€)", "KRI Amount", "KRI Cashflow"]
 
-    portfolio_var = final_var_df.groupby('index')[[
+    final_var_df_mln = to_millions(final_var_df, cols_mln)
+
+    st.subheader("📊 Risultati VaR – per Tranche (in milioni €)")
+    st.dataframe(final_var_df_mln.style.format("{:.3f}"))
+
+    portfolio_var = final_var_df_mln.groupby('index')[[
         "Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow", "Plan Cashflow (€)"
     ]].sum().reset_index()
 
