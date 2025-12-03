@@ -1262,6 +1262,7 @@ if uploaded_file and run_sim:
         days = forecast_tranche.index.to_series().diff().dt.days.fillna(90)
         var_cf = var_amount * (days / 360)
         plan_cf = plan_amount * (days / 360)
+        kri_cashflow = np.max(var_cf-plan_cf,0)
     
         # DataFrame con indice corretto per la tranche
         df_var = pd.DataFrame({
@@ -1275,7 +1276,7 @@ if uploaded_file and run_sim:
             "Plan Amount (€)": plan_amount,
             "Plan Cashflow (€)": plan_cf,
             "KRI Amount": (var_amount - plan_amount),
-            "KRI Cashflow": np.max(var_cf - plan_cf,0),
+            "KRI Cashflow": kri_cashflow,
             "Tranche": tranche_name
         }, index=forecast_tranche.index)
     
