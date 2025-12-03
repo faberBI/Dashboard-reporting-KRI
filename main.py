@@ -1242,7 +1242,7 @@ if uploaded_file and run_sim:
     max_horizon_days = (pd.to_datetime(tranche_df['Maturity']).max() - last_date).days
 
     # 1️⃣ Simulazione unica EURIBOR
-    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, n_sims= 1000, horizon_days= max_horizon_days)
+    forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, n_sims= 5000, horizon_days= max_horizon_days)
 
     results_var = []
     
@@ -1284,7 +1284,7 @@ if uploaded_file and run_sim:
     # Concatenazione risultati
     final_var_df = pd.concat(results_var).reset_index()
     
-    st.subheader("📊 Forecast Euribor 3M - Tutte le Tranche")
+    st.subheader("📊 Forecast Euribor 3M 📊 ")
     plt.figure(figsize=(15,6))
     # Serie storica
     plt.plot(df_dropped.index, df_dropped['euribor_3m'], label="Originale", color='black')
