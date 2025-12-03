@@ -1275,15 +1275,15 @@ if uploaded_file and run_sim:
             "Var Cashflow (€)": var_cf,
             "Plan Amount (€)": plan_amount,
             "Plan Cashflow (€)": plan_cf,
-            "KRI Amount": (var_amount - plan_amount),
-            "KRI Cashflow": kri_cashflow,
             "Tranche": tranche_name
         }, index=forecast_tranche.index)
     
         results_var.append(df_var)
-    
+            
     # Concatenazione risultati
     final_var_df = pd.concat(results_var).reset_index()
+    final_var_df["KRI Amount"] = final_var_df["Var Amount (€)"]- final_var_df["Plan Amount (€)"]
+    final_var_df["KRI Cashflow"] = final_var_df["Var Cashflow (€)"]- final_var_df["Plan Cashflow (€)"]
     
     st.subheader("📊 Forecast Euribor 3M 📊 ")
     plt.figure(figsize=(15,6))
