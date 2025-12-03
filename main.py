@@ -1125,8 +1125,8 @@ elif selected_kri == "📈 Interest Rate":
     st.subheader("📊 Trend analisi with Hybrid ML model 📊")
     plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end)
     
-    df_ecb = download_ecb_series(series, start = '2019-01-01')
-    df_yahoo = download_yahoo_series(yahoo_symbols, start = '2019-01-01')
+    df_ecb = download_ecb_series(series, start = '2007-01-01')
+    df_yahoo = download_yahoo_series(yahoo_symbols, start = '2007-01-01')
     df_all = df_ecb.join(df_yahoo, how="outer")
     df_all = df_all.sort_index().ffill()
     df_dropped = df_all.dropna()
