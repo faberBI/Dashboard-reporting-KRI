@@ -1311,7 +1311,7 @@ if uploaded_file and run_sim:
         df2[cols] = df2[cols] / 1_000_000
         return df2
 
-    cols_mln = ["Var Amount (€)", "Var Cashflow (€)", "Plan Amount (€)", 
+    cols_mln = ["Notional", "Hedged", "Un-Hedged", "Var Amount (€)", "Var Cashflow (€)", "Plan Amount (€)", 
             "Plan Cashflow (€)", "KRI Amount", "KRI Cashflow"]
 
     final_var_df_mln = to_millions(final_var_df, cols_mln)
@@ -1328,13 +1328,13 @@ if uploaded_file and run_sim:
         "Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow", "Plan Cashflow (€)"
     ]].sum().reset_index()
 
-    st.subheader("📈 VaR Cumulato di Portafoglio (€)")
+    st.subheader("📈 VaR Cumulato di Portafoglio (in milioni €)")
     st.dataframe(portfolio_var)
 
-    st.subheader("📉 Grafico VaR di Portafoglio")
+    st.subheader("📉 Grafico VaR di Portafoglio (in milioni €)")
     st.line_chart(portfolio_var.set_index('index')[["Var Cashflow (€)", "Plan Cashflow (€)"]])
 
-    st.subheader("💸⚠️ KRI Portafoglio💸⚠️")
+    st.subheader("💸⚠️ KRI Portafoglio💸⚠️ (in milioni €)")
     st.line_chart(portfolio_var.set_index('index')["KRI Cashflow"])
 
     # Export Excel
