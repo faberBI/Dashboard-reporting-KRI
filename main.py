@@ -1336,6 +1336,14 @@ if uploaded_file and run_sim:
 
     st.subheader("💸⚠️ KRI Portafoglio💸⚠️ (in milioni €)")
     st.line_chart(portfolio_var.set_index('index')["KRI Cashflow"])
+    
+    # ============================================================
+    # Perdita totale stimata su tutto l'orizzonte
+    # ============================================================
+    
+    perdita_totale_mln = portfolio_var["KRI Cashflow"].sum()
+    st.subheader("💸 Perdita Totale Stimata del Portafoglio (in milioni €)")
+    st.metric(label="Perdita Totale (MLN €)", value=f"{perdita_totale_mln:.3f}")
 
     # Export Excel
     import io
