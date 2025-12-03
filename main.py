@@ -1143,6 +1143,7 @@ import optuna
 # SIMULAZIONE UNICA EURIBOR MONTE CARLO + CONFORMAL
 # ============================================================
 def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3*360):
+    np.random.seed(234)
     # Ottimizzazione parametri OU
     def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
         X = np.zeros(n_steps)
