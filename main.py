@@ -1245,6 +1245,9 @@ if uploaded_file and run_sim:
     # 1️⃣ Simulazione unica EURIBOR
     forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, n_sims= 5000, horizon_days= max_horizon_days)
 
+    st.subheader("Risultati simulazione Tassi - Euribor ")
+    st.dataframe(forecast_quarterly)
+    
     results_var = []
     
     # 2️⃣ Ciclo su tranche usando la simulazione unica
