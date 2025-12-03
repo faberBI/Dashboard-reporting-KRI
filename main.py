@@ -1022,24 +1022,28 @@ elif selected_kri == "📈 Interest Rate":
         print("Dati Yahoo Finance scaricati")
         return close
     
-    def plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end):  
+    def plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end):
         plt.figure(figsize=(15,6))
         # Serie originale
         plt.plot(df_dropped['euribor_3m'], label="Originale", color='black')
         # Train
-        plt.plot(df_dropped.index[:train_end], y_pred_train, label="Train Pred", color='blue')
+        train_idx = df_dropped.index[:len(y_pred_train)]
+        plt.plot(train_idx, y_pred_train, label="Train Pred", color='blue')
         # Validation
-        plt.plot(df_dropped.index[train_end:val_end], y_pred_val, label="Val Pred", color='orange')
+        val_start = len(y_pred_train)
+        val_end_idx = val_start + len(y_pred_val)
+        val_idx = df_dropped.index[val_start:val_end_idx]
+        plt.plot(val_idx, y_pred_val, label="Val Pred", color='orange')
         # Test
-        plt.plot(df_dropped.index[val_end:], y_pred_test, label="Test Pred", color='green')
+        test_idx = df_dropped.index[-len(y_pred_test):]
+        plt.plot(test_idx, y_pred_test, label="Test Pred", color='green')
         plt.title("Serie originale vs Predizione completa")
         plt.legend()
         plt.grid(True)
         # Render in Streamlit
         st.pyplot(plt.gcf())
-        # Chiudi figura per evitare problemi
         plt.close()
-    
+
     # ----------------------------------------
     # 3. SCARICA TUTTI I DATI
     # ----------------------------------------
@@ -1113,6 +1117,7 @@ elif selected_kri == "📈 Interest Rate":
     y_pred_test = pd.read_excel("utils/test_pred.xlsx")
     y_pred_val =  pd.read_excel("utils/val_pred.xlsx")
     y_pred_train =  pd.read_excel("utils/train_pred.xlsx")
+    
     y_pred_test.set_index('Unnamed: 0', inplace = True)
     y_pred_val.set_index('Unnamed: 0', inplace = True)
     y_pred_train.set_index('Unnamed: 0', inplace = True)
