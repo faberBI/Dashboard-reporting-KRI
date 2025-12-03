@@ -1345,6 +1345,10 @@ if uploaded_file and run_sim:
     perdita_totale_mln = portfolio_var["KRI Cashflow"].sum()
     st.subheader("💸 Perdita Totale Stimata del Portafoglio (in milioni €)")
     st.metric(label="Perdita Totale (MLN €)", value=f"{perdita_totale_mln:.3f}")
+    hedged_total = tranche_df['Hedged'].sum()
+    notional_total = tranche_df['Notional'].sum()
+    unhedgeg_total = notional_total-hedget_total
+    st.metric(label="Perdita Totale % su Un-Hedged", value=f"{(perdita_totale_mln/unhedgeg_total)*100} %")
 
     # Export Excel
     import io
