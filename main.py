@@ -1317,7 +1317,12 @@ if uploaded_file and run_sim:
     final_var_df_mln = to_millions(final_var_df, cols_mln)
 
     st.subheader("📊 Risultati VaR – per Tranche (in milioni €)")
-    st.dataframe(final_var_df_mln.style.format("{:.3f}"))
+    df_show = final_var_df_mln.copy()
+    for c in cols_mln:
+        df_show[c] = df_show[c].map(lambda x: f"{x:.3f}")
+
+    st.dataframe(df_show)
+
 
     portfolio_var = final_var_df_mln.groupby('index')[[
         "Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow", "Plan Cashflow (€)"
