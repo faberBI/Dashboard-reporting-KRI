@@ -1350,6 +1350,8 @@ if uploaded_file and run_sim:
     for c in cols_mln:
         final_var_annual[c] = final_var_annual[c].map(lambda x: f"{x:.3f}")
 
+    final_var_annual = to_millions(final_var_annual, cols_mln)
+
     st.dataframe(final_var_annual)
 
 
