@@ -1347,14 +1347,11 @@ if uploaded_file and run_sim:
         "Plan Amount (€)": "mean",
         "KRI Amount": "mean"}
     final_var_annual = final_copy.groupby(["Year", "Tranche"]).agg(agg_rules)
-    for c in cols_mln:
-        final_var_annual[c] = final_var_annual[c].map(lambda x: f"{x:.3f}")
-
-    #final_var_annual = to_millions(final_var_annual, cols_mln)
+   final_var_annual = to_millions(final_var_annual, cols_mln)
+    
 
     st.dataframe(final_var_annual)
-
-
+    
     portfolio_var = final_var_df_mln.groupby('index')[[
         "Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow", "Plan Cashflow (€)"
     ]].sum().reset_index()
