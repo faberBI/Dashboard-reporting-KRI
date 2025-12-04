@@ -1329,7 +1329,11 @@ if uploaded_file and run_sim:
     st.dataframe(df_show)
 
     st.subheader("📊 Risultati VaR Annualizzati– per Tranche (in milioni €)")
-    final_var_df["Year"] = final_var_df.index.year
+    final_copy = final_var_df.copy()
+    final_copy.rename(columns={'index': 'Date'}, inplace=True)
+    final_copy['Date'] = pd.to_datetime(final_copy['Date'])
+    final_copy = final_copy.set_index('Date')
+    final_copy["Year"] = final_copy.index.year
     agg_rules = {
         "Var Cashflow (€)": "sum",
         "Plan Cashflow (€)": "sum",
@@ -1342,7 +1346,7 @@ if uploaded_file and run_sim:
         "Var Amount (€)": "mean",
         "Plan Amount (€)": "mean",
         "KRI Amount": "mean"}
-    final_var_annual = final_var_df.groupby(["Year", "Tranche"]).agg(agg_rules)
+    final_var_annual = final_copy.groupby(["Year", "Tranche"]).agg(agg_rules)
     for c in cols_mln:
         final_var_annual[c] = final_var_annual[c].map(lambda x: f"{x:.3f}")
 
