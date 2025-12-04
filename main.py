@@ -1347,7 +1347,7 @@ if uploaded_file and run_sim:
         "Plan Amount (€)": "mean",
         "KRI Amount": "mean"}
     final_var_annual = final_copy.groupby(["Year", "Tranche"]).agg(agg_rules)
-   final_var_annual = to_millions(final_var_annual, cols_mln)
+    final_var_annual = to_millions(final_var_annual, cols_mln)
     
 
     st.dataframe(final_var_annual)
