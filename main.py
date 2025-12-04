@@ -1328,6 +1328,26 @@ if uploaded_file and run_sim:
 
     st.dataframe(df_show)
 
+    st.subheader("📊 Risultati VaR Annualizzati– per Tranche (in milioni €)")
+    final_var_df["Year"] = final_var_df.index.year
+    agg_rules = {
+        "Var Cashflow (€)": "sum",
+        "Plan Cashflow (€)": "sum",
+        "KRI Cashflow": "sum",
+        "Notional": "first",
+        "Hedged": "first",
+        "Un-Hedged": "first",
+        "Var Rate": "mean",
+        "Plan Rate": "mean",
+        "Var Amount (€)": "mean",
+        "Plan Amount (€)": "mean",
+        "KRI Amount": "mean"}
+    final_var_annual = final_var_df.groupby(["Year", "Tranche"]).agg(agg_rules)
+    for c in cols_mln:
+        final_var_annual[c] = final_var_annual[c].map(lambda x: f"{x:.3f}")
+
+    st.dataframe(final_var_annual)
+
 
     portfolio_var = final_var_df_mln.groupby('index')[[
         "Var Amount (€)", "Var Cashflow (€)", "KRI Amount", "KRI Cashflow", "Plan Cashflow (€)"
