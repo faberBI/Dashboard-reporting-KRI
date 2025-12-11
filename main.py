@@ -286,7 +286,7 @@ if selected_kri == "⚡ Energy Risk":
         )
     
         # Pulisce valori anomali
-        #simulated_df = simulated_df.mask((simulated_df < 30) | (simulated_df > 400))
+        simulated_df = simulated_df.mask((simulated_df < 30) | (simulated_df > 500))
         
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
