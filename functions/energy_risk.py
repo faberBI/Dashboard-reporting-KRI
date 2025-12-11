@@ -258,7 +258,7 @@ def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
             mean_y = np.mean(vals_y)
 
             if forward_prices is not None and i < len(forward_prices):
-                mean_y = 0.1*mean_y + 0.9*forward_prices[i]
+                mean_y = 0.1*mean_y + 0.90*forward_prices[i]
         else:
             p5_y=p95_y=mean_y=np.nan
             vals_y=np.array([])
