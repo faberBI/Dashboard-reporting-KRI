@@ -273,7 +273,7 @@ if selected_kri == "⚡ Energy Risk":
         index=future_dates,
         columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-        simulated_df = simulated_df.mask((simulated_df < 33.4) | (simulated_df > 383))    
+        #simulated_df = simulated_df.mask((simulated_df < 33.4) | (simulated_df > 383))    
         
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
