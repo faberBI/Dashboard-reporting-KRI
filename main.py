@@ -196,6 +196,11 @@ if selected_kri == "⚡ Energy Risk":
     # -----------------------
     # Parametri simulazione
     # -----------------------
+    import random
+
+    np.random.seed(42)
+    random.seed(42)
+    
     n_simulations = st.number_input("Numero di simulazioni", min_value=100, max_value=100_000, value=10_000, step=100)
     n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
     end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
