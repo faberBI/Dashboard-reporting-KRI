@@ -257,26 +257,22 @@ if selected_kri == "⚡ Energy Risk":
         np.random.seed(42)
         
         # Estrai log returns storici
-        log_returns = df_excel["Log_Returns"].dropna().values
-        S0 = df_excel["GMEPIT24 Index"].iloc[-1]
-        
+        prezzi_storici = df_excel["GMEPIT24 Index"].dropna().values
+        n_giorni = days_to_simulate
+
         # Crea array per i prezzi simulati
-        simulated_prices = np.zeros((n_simulations, days_to_simulate))
-        
+        simulated_prices = np.zeros((n_simulations, n_giorni))
+
         for i in range(n_simulations):
-            # Estrai casualmente rendimenti giornalieri
-            random_returns = np.random.choice(log_returns, size=days_to_simulate, replace=True)
-            # Calcola prezzi cumulativi
-            simulated_prices[i, :] = S0 * np.exp(np.cumsum(random_returns))
-        
-        # Costruisci DataFrame con date future
+            # Pesca casualmente dai prezzi storici (con replacement)
+            simulated_prices[i, :] = np.random.choice(prezzi_storici, size=n_giorni, replace=True)
+
+        # Crea DataFrame con date future
         simulated_df = pd.DataFrame(
-            simulated_prices.T,
-            index=future_dates,
-            columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
+        simulated_prices.T,
+        index=future_dates,
+        columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-        
-        # Pulisce valori anomali (opzionale)
         simulated_df = simulated_df.mask((simulated_df < 33.4) | (simulated_df > 383))    
         
         # -----------------------------------------------------------
