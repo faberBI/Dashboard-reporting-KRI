@@ -266,7 +266,7 @@ def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
 
             # Sostituisci media annuale con media tra simulato e forward, se fornito
             if forward_prices is not None and i < len(forward_prices):
-                mean_y = (0.2*mean_y + 0.8*forward_prices[i])
+                mean_y = (0.1*mean_y + 0.9*forward_prices[i])
 
             yearly_percentiles[year] = (p5_y, mean_y, p95_y)
             yearly_means[year] = mean_y
