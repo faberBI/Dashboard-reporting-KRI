@@ -302,11 +302,7 @@ if selected_kri == "⚡ Energy Risk":
          )
     
         # Qui suppongo che "analyze_simulation" produca una figura
-        fig = analyze_simulation(
-            monthly_percentiles, monthly_means,
-            yearly_percentiles, yearly_means
-        )
-    
+        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years, forward_prices=forward_price)
         st.pyplot(fig)
 
         # -----------------------
