@@ -297,7 +297,7 @@ if selected_kri == "⚡ Energy Risk":
         
             # ======== 2) PESATURA PER ANNI CALDI (downweight) ===========
             year_means = sample_series.groupby(sample_series.index.year).transform("mean")
-            inv_year_mean = 1.0 / (year_means + 1e-9)
+            inv_year_mean = 1 / (year_means ** 2)
             inv_year_mean = inv_year_mean / inv_year_mean.max()
         
             # ======== 3) PESATURA COMBINATA ===========
@@ -322,7 +322,7 @@ if selected_kri == "⚡ Energy Risk":
             index=future_dates,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-        simulated_df = simulated_df.clip(lower=33.4, upper=383)
+        # simulated_df = simulated_df.clip(lower=33.4, upper=383)
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
         # -----------------------------------------------------------
