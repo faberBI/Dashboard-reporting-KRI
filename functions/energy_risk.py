@@ -201,7 +201,7 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
         seed=123
     )
 
-    prices = np.clip(prices, 30, 400)
+    # prices = np.clip(prices, 30, 400)
 
     plt.figure(figsize=(10,6))
     plt.plot(prices.T, color="blue", alpha=0.05)
