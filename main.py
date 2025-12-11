@@ -296,6 +296,7 @@ if selected_kri == "⚡ Energy Risk":
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
     
+        simulated_df = simulated_df.clip(lower=33.4, upper=383)
         
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
