@@ -255,6 +255,7 @@ if selected_kri == "⚡ Energy Risk":
         np.random.seed(42)
         
         prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
+        prezzi_storici = prezzi_storici.clip(lower=prezzi_storici.quantile(0.01), upper=prezzi_storici.quantile(0.99))
         simulated_prices = np.zeros((n_simulations, days_to_simulate))
         
         # Date future
