@@ -250,9 +250,7 @@ if selected_kri == "⚡ Energy Risk":
         if df_excel.empty:
             st.error("❌ Il dataset filtrato è vuoto.")
             st.stop()
-    
-    
-    
+       
         # -----------------------------------------------------------
         #  SIMULAZIONE HESTON CON NUOVA FUNZIONE STABILE
         # -----------------------------------------------------------
@@ -288,10 +286,8 @@ if selected_kri == "⚡ Energy Risk":
         )
     
         # Pulisce valori anomali
-        simulated_df = simulated_df.mask((simulated_df < 30) | (simulated_df > 400))
-    
-    
-    
+        #simulated_df = simulated_df.mask((simulated_df < 30) | (simulated_df > 400))
+        
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
         # -----------------------------------------------------------
@@ -317,6 +313,7 @@ if selected_kri == "⚡ Energy Risk":
         anni_prezzi = [2020, 2021, 2022, 2023, 2024] + unique_years
         anni_prezzi = [int(y) for y in anni_prezzi]
 
+        df_filtered = df_excel
         historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
         df_historical = pd.DataFrame({"Historical Price": historical_price, "Year": anni_prezzi[:len(historical_price)]})
         df_hist_styled = df_historical.style.format({"Historical Price": format_euro}).background_gradient(cmap='Greens', low=0.1, high=0.4)
