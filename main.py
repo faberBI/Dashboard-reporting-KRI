@@ -254,43 +254,67 @@ if selected_kri == "⚡ Energy Risk":
         # SIMULAZIONE MONTE CARLO SEMPLIFICATA "ROLLING YEARS +2"
         np.random.seed(42)
         
-        prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
+                prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
+        
+        # Clip globale 1%-99%
         lower_bound = prezzi_storici_df.quantile(0.01)
         upper_bound = prezzi_storici_df.quantile(0.99)
-        prezzi_storici = prezzi_storici_df.clip(lower=lower_bound, upper=upper_bound)
+        prezzi_storici_df = prezzi_storici_df.clip(lower=lower_bound, upper=upper_bound)
+        
         simulated_prices = np.zeros((n_simulations, days_to_simulate))
         
         # Date future
         future_dates = pd.date_range(start=df_excel["Date"].max() + pd.Timedelta(days=1),
                                      periods=days_to_simulate, freq="D")
         
-        # Lista anni futuri
         future_years = sorted(future_dates.year.unique())
-        
-        # Giorno di inizio simulazione
         start_day = future_dates[0]
         
         for i, year in enumerate(future_years):
-            # Calcolo l'intervallo temporale da considerare per il campione
-            n_years_history = 3 + i*2  # 3, 5, 7, 9, ... anni
+        
+            # 3,5,7,9... anni di storico
+            n_years_history = 3 + i*2
             end_history = df_excel["Date"].max()
             start_history = end_history - pd.DateOffset(years=n_years_history)
-            
-            # Estrai prezzi storici del campione
-            sample_prices = prezzi_storici_df[(prezzi_storici_df.index > start_history) & 
-                                              (prezzi_storici_df.index <= end_history)].values
-            
-            if len(sample_prices) == 0:
-                raise ValueError(f"Nessun dato storico disponibile per simulazione anno {year}.")
         
-            # Date da simulare per quest'anno
+            # ------------ NUOVO APPROCCIO ----------------
+            mask = (prezzi_storici_df.index > start_history) & \
+                   (prezzi_storici_df.index <= end_history)
+        
+            sample_series = prezzi_storici_df[mask]
+        
+            if sample_series.empty:
+                raise ValueError(f"Nessun dato storico disponibile per la finestra {n_years_history} anni.")
+        
+            # Numero di giorni da simulare per questo anno
             year_dates = future_dates[future_dates.year == year]
-            
+            n_days = len(year_dates)
+        
+            # ======== 1) PESATURA PER RECENCY ===========
+            recency_score = (sample_series.index.to_julian_date() -
+                             sample_series.index.to_julian_date().min())
+            recency_score = recency_score / recency_score.max()  # scala 0-1
+        
+            # ======== 2) PESATURA PER ANNI CALDI (downweight) ===========
+            year_means = sample_series.groupby(sample_series.index.year).transform("mean")
+            inv_year_mean = 1.0 / (year_means + 1e-9)
+            inv_year_mean = inv_year_mean / inv_year_mean.max()
+        
+            # ======== 3) PESATURA COMBINATA ===========
+            weights = recency_score * inv_year_mean
+            weights = np.nan_to_num(weights)
+            prob = weights / weights.sum()
+        
+            vals = sample_series.values
+        
+            # ======== 4) SAMPLING CON PROBABILITÀ ===========
+            sampled_block = np.random.choice(vals, size=(n_simulations, n_days),
+                                             replace=True, p=prob)
+        
+            # Inserisci nel master array
             for j, sim_date in enumerate(year_dates):
-                # Pesca casualmente dai prezzi del campione
-                simulated_prices[:, (sim_date - start_day).days] = np.random.choice(
-                    sample_prices, size=n_simulations, replace=True
-                )
+                idx = (sim_date - start_day).days
+                simulated_prices[:, idx] = sampled_block[:, j]
         
         # Creazione DataFrame finale
         simulated_df = pd.DataFrame(
@@ -298,8 +322,6 @@ if selected_kri == "⚡ Energy Risk":
             index=future_dates,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-    
-        simulated_df = simulated_df.clip(lower=33.4, upper=383)
         
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
