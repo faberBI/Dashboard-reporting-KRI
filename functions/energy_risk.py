@@ -126,7 +126,11 @@ def historical_VaR(rendimenti_giornalieri, n_simulazioni=100_000, csv_file="VaR_
 def optimize_heston_model(df, n_trials=2000, end_date="2027-12-31"):
     log_returns = df['Log_Returns'].dropna()
 
-    def simulate_heston_single_path(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate):
+    def simulate_heston_single_path(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate,  seed=None):
+
+        if seed is not None:
+            np.random.seed(seed)
+        
         dt = 1  # daily step
         simulated_log_returns = np.zeros(days_to_simulate)
         simulated_volatilities = np.zeros(days_to_simulate)
