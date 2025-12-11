@@ -206,7 +206,7 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
         days_to_simulate,
         n_simulations )
     
-    simulated_prices = np.clip(simulated_prices, 48, 400)
+    simulated_prices = np.clip(simulated_prices, 48, 300)
 
     # Step 3: Visualizzare il risultato delle simulazioni
     plt.figure(figsize=(10, 6))
@@ -266,7 +266,7 @@ def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
 
             # Sostituisci media annuale con media tra simulato e forward, se fornito
             if forward_prices is not None and i < len(forward_prices):
-                mean_y = (0.3*mean_y + 0.7*forward_prices[i])
+                mean_y = (0.2*mean_y + 0.8*forward_prices[i])
 
             yearly_percentiles[year] = (p5_y, mean_y, p95_y)
             yearly_means[year] = mean_y
