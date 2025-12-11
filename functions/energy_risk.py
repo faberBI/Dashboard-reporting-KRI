@@ -262,11 +262,11 @@ def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
 
         if len(values_year) > 0:
             p5_y, _, p95_y = np.percentile(values_year, [5, 50, 95])
-            mean_y = np.mean(values_year)
+            mean_y = np.median(values_year)
 
             # Sostituisci media annuale con media tra simulato e forward, se fornito
             if forward_prices is not None and i < len(forward_prices):
-                mean_y = (mean_y + forward_prices[i]) / 2
+                mean_y = (0.3*mean_y + 0.7*forward_prices[i])
 
             yearly_percentiles[year] = (p5_y, mean_y, p95_y)
             yearly_means[year] = mean_y
