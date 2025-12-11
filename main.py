@@ -254,7 +254,7 @@ if selected_kri == "⚡ Energy Risk":
         # SIMULAZIONE MONTE CARLO SEMPLIFICATA "ROLLING YEARS +2"
         np.random.seed(42)
         
-                prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
+        prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
         
         # Clip globale 1%-99%
         lower_bound = prezzi_storici_df.quantile(0.01)
