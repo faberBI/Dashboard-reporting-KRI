@@ -29,7 +29,7 @@ import yfinance as yf
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
-from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk, get_monthly_and_yearly_distribution, plot_monthly_yearly_results)
+from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk, get_monthly_and_yearly_distribution)
 from functions.copper import simulate_cb_egarch_outsample, get_forecast_plot
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
@@ -302,7 +302,7 @@ if selected_kri == "⚡ Energy Risk":
          )
     
         # Qui suppongo che "analyze_simulation" produca una figura
-        fig = plot_monthly_yearly_results(
+        fig = analyze_simulation(
             monthly_percentiles, monthly_means,
             yearly_percentiles, yearly_means
         )
