@@ -211,65 +211,102 @@ if selected_kri == "⚡ Energy Risk":
     future_dates = pd.date_range(start=start_date_sim, periods=days_to_simulate, freq='D')
     unique_years = sorted(future_dates.year.unique().tolist())
 
-    # -----------------------
-    # Pulsante Simulazione
-    # -----------------------
+    # -----------------------------------------------------------
+    # PULSANTE SIMULAZIONE
+    # -----------------------------------------------------------
+    
     if st.button("💹 Esegui simulazione Energy Risk"):
-        st.info("Simulazione in corso...")
-
-        # Carica file Excel PUN
+        
+        st.info("⏳ Simulazione in corso...")
+    
+        # ---------------------------------------
+        # LETTURA FILE EXCEL
+        # ---------------------------------------
         data_path = "Data/Pun 10_04_2025.xlsx"
         df_excel = None
+    
         if os.path.exists(data_path):
             df_excel = pd.read_excel(data_path)
-            st.success("🔄 Dati Caricati")
-
-        if df_excel is None or df_excel.empty:
-            uploaded_file = st.file_uploader("Seleziona il file Excel PUN", type=["xlsx"])
-            if uploaded_file:
-                df_excel = pd.read_excel(uploaded_file)
-            else:
-                st.warning("Carica il file Excel per procedere con la simulazione.")
+            st.success("📊 Dati PUN caricati dal percorso predefinito.")
+        else:
+            uploaded_file = st.file_uploader("Carica il file Excel PUN", type=["xlsx"])
+            if uploaded_file is None:
+                st.warning("⚠️ Carica un file per procedere.")
                 st.stop()
-
-        if 'Date' not in df_excel.columns or 'GMEPIT24 Index' not in df_excel.columns:
-            st.error("Il file Excel deve contenere 'Date' e 'GMEPIT24 Index'.")
+            df_excel = pd.read_excel(uploaded_file)
+    
+        # Controllo colonne richieste
+        if "Date" not in df_excel.columns or "GMEPIT24 Index" not in df_excel.columns:
+            st.error("❌ Il file deve contenere le colonne 'Date' e 'GMEPIT24 Index'.")
             st.stop()
-
-        df_excel['Date'] = pd.to_datetime(df_excel['Date'])
-        df_excel['Log_Returns'] = np.log(df_excel['GMEPIT24 Index'] / df_excel['GMEPIT24 Index'].shift(1))
-        df_excel = df_excel.dropna(subset=['Log_Returns'])
+    
+        # Preprocessing
+        df_excel["Date"] = pd.to_datetime(df_excel["Date"])
+        df_excel["Log_Returns"] = np.log(df_excel["GMEPIT24 Index"] / df_excel["GMEPIT24 Index"].shift(1))
+        df_excel = df_excel.dropna(subset=["Log_Returns"])
+    
         st.session_state.energy_df = df_excel
-
-        df_filtered = df_excel
-        if df_filtered.empty:
-            st.error("Il filtro ha prodotto un DataFrame vuoto")
+    
+        if df_excel.empty:
+            st.error("❌ Il dataset filtrato è vuoto.")
             st.stop()
-
-        # ---------------------------
-        # Simulazione Heston
-        # ---------------------------
-        _, simulated_prices = run_heston(
-            df_filtered,
+    
+    
+    
+        # -----------------------------------------------------------
+        #  SIMULAZIONE HESTON CON NUOVA FUNZIONE STABILE
+        # -----------------------------------------------------------
+        best_params, simulated_prices = run_heston(
+            df_excel,
             n_trials=n_trials_heston,
             n_simulations=n_simulations,
             end_date=end_date
         )
-
+    
+        st.success("🎯 Parametri Heston ottimizzati:")
+        st.json(best_params)
+    
+    
+    
+        # -----------------------------------------------------------
+        # CREAZIONE DATAFRAME SIMULAZIONE
+        # -----------------------------------------------------------
+    
+        final_day = df_excel["Date"].max()
+        horizon = (pd.to_datetime(end_date) - final_day).days
+    
         future_dates_sim = pd.date_range(
-            start=df_filtered['Date'].max(),
-            periods=(pd.to_datetime(end_date) - df_filtered['Date'].max()).days,
-            freq='D'
+            start=final_day,
+            periods=horizon,
+            freq="D"
         )
+    
         simulated_df = pd.DataFrame(
             simulated_prices.T,
             index=future_dates_sim,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-        simulated_df = simulated_df.mask((simulated_df < 40) | (simulated_df >= 350))
-
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(
-            simulated_df, unique_years, forward_prices=forward_price)
+    
+        # Pulisce valori anomali
+        simulated_df = simulated_df.mask((simulated_df < 30) | (simulated_df > 400))
+    
+    
+    
+        # -----------------------------------------------------------
+        # ANALISI MENSILE E ANNUALE
+        # -----------------------------------------------------------
+    
+        (monthly_distributions, monthly_percentiles, monthly_means,
+         yearly_distributions, yearly_percentiles, yearly_means) = get_monthly_and_yearly_distribution(
+             simulated_df, unique_years, forward_prices=forward_price
+         )
+    
+        # Qui suppongo che "analyze_simulation" produca una figura
+        fig = plot_monthly_yearly_results(
+            monthly_percentiles, monthly_means,
+            yearly_percentiles, yearly_means
+        )
+    
         st.pyplot(fig)
 
         # -----------------------
