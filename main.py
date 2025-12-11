@@ -251,29 +251,51 @@ if selected_kri == "⚡ Energy Risk":
             st.error("❌ Il dataset filtrato è vuoto.")
             st.stop()
        
-                # -----------------------------------------------------------
-        # SIMULAZIONE MONTE CARLO SEMPLIFICATA
-        # -----------------------------------------------------------
+        # SIMULAZIONE MONTE CARLO SEMPLIFICATA "ROLLING YEARS +2"
         np.random.seed(42)
         
-        # Estrai log returns storici
-        prezzi_storici = df_excel["GMEPIT24 Index"].dropna().values
-        n_giorni = days_to_simulate
-
-        # Crea array per i prezzi simulati
-        simulated_prices = np.zeros((n_simulations, n_giorni))
-
-        for i in range(n_simulations):
-            # Pesca casualmente dai prezzi storici (con replacement)
-            simulated_prices[i, :] = np.random.choice(prezzi_storici, size=n_giorni, replace=True)
-
-        # Crea DataFrame con date future
+        prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
+        simulated_prices = np.zeros((n_simulations, days_to_simulate))
+        
+        # Date future
+        future_dates = pd.date_range(start=df_excel["Date"].max() + pd.Timedelta(days=1),
+                                     periods=days_to_simulate, freq="D")
+        
+        # Lista anni futuri
+        future_years = sorted(future_dates.year.unique())
+        
+        # Giorno di inizio simulazione
+        start_day = future_dates[0]
+        
+        for i, year in enumerate(future_years):
+            # Calcolo l'intervallo temporale da considerare per il campione
+            n_years_history = 3 + i*2  # 3, 5, 7, 9, ... anni
+            end_history = df_excel["Date"].max()
+            start_history = end_history - pd.DateOffset(years=n_years_history)
+            
+            # Estrai prezzi storici del campione
+            sample_prices = prezzi_storici_df[(prezzi_storici_df.index > start_history) & 
+                                              (prezzi_storici_df.index <= end_history)].values
+            
+            if len(sample_prices) == 0:
+                raise ValueError(f"Nessun dato storico disponibile per simulazione anno {year}.")
+        
+            # Date da simulare per quest'anno
+            year_dates = future_dates[future_dates.year == year]
+            
+            for j, sim_date in enumerate(year_dates):
+                # Pesca casualmente dai prezzi del campione
+                simulated_prices[:, (sim_date - start_day).days] = np.random.choice(
+                    sample_prices, size=n_simulations, replace=True
+                )
+        
+        # Creazione DataFrame finale
         simulated_df = pd.DataFrame(
-        simulated_prices.T,
-        index=future_dates,
-        columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
+            simulated_prices.T,
+            index=future_dates,
+            columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-        #simulated_df = simulated_df.mask((simulated_df < 33.4) | (simulated_df > 383))    
+    
         
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
