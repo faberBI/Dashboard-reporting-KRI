@@ -174,7 +174,10 @@ def optimize_heston_model(df, n_trials=2000, end_date="2027-12-31"):
 
 
 # Funzione di simulazione Heston per n simulazioni
-def simulate_heston(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate, n_simulations):
+def simulate_heston(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate, n_simulations, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
+        
     dt = 1
     simulated_log_returns = np.zeros((n_simulations, days_to_simulate))
 
