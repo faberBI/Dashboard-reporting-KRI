@@ -286,15 +286,12 @@ if selected_kri == "⚡ Energy Risk":
         )
     
         # Pulisce valori anomali
-        #simulated_df = simulated_df.mask((simulated_df < 30) | (simulated_df > 470))
+        simulated_df = simulated_df.mask((simulated_df < 33.4) | (simulated_df > 383))
         
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
         # -----------------------------------------------------------
 
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years, forward_prices=forward_price)
-        
-        # Qui suppongo che "analyze_simulation" produca una figura
         monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years, forward_prices=forward_price)
         st.pyplot(fig)
 
