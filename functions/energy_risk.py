@@ -8,233 +8,220 @@ from scipy.stats import gaussian_kde
 import optuna
 import matplotlib.pyplot as plt
 
+# ============================================================
+# 1) STATISTICHE DI BASE E GRAFICI
+# ============================================================
+
 def get_data_statistics(input_path):
-    # Carica il file
     df = pd.read_excel(input_path)
 
-    # Estrai l'anno
-    df['Year'] = df['Date'].dt.year
+    df["Year"] = df["Date"].dt.year
+    df["Log_Returns"] = np.log(df["GMEPIT24 Index"] / df["GMEPIT24 Index"].shift(1))
 
-    # Calcola i rendimenti logaritmici
-    df['Log_Returns'] = np.log(df['GMEPIT24 Index'] / df['GMEPIT24 Index'].shift(1))
+    rendimenti_giornalieri = df[["Year", "Date", "Log_Returns", "GMEPIT24 Index"]].set_index("Date")
+    rendimenti_giornalieri["proxy_vol"] = rendimenti_giornalieri["Log_Returns"] ** 2
 
-    # Crea DataFrame con rendimenti e proxy volatilità
-    rendimenti_giornalieri = df[['Year', 'Date', 'Log_Returns', 'GMEPIT24 Index']].set_index('Date')
-    rendimenti_giornalieri['proxy_vol'] = rendimenti_giornalieri['Log_Returns']**2
-
-    # Salva il grafico dell'indice
-    plt.figure(figsize=(10, 4))
-    rendimenti_giornalieri['GMEPIT24 Index'].plot(title='Andamento PUN')
-    plt.tight_layout()
-    plt.savefig('PUN_Index.png')
-    plt.close()
-
-    # Salva il grafico dei log returns
-    plt.figure(figsize=(10, 4))
-    rendimenti_giornalieri['Log_Returns'].plot(title='Log Returns')
-    plt.tight_layout()
-    plt.savefig('Log_Returns.png')
-    plt.close()
-
-    # Salva il grafico della proxy volatilità
-    plt.figure(figsize=(10, 4))
-    rendimenti_giornalieri['proxy_vol'].plot(title='Proxy Volatility')
-    plt.tight_layout()
-    plt.savefig('Proxy_Volatility.png')
-    plt.close()
+    # Grafici
+    for col, title, fname in [
+        ("GMEPIT24 Index", "Andamento PUN", "PUN_Index.png"),
+        ("Log_Returns", "Log Returns", "Log_Returns.png"),
+        ("proxy_vol", "Proxy Volatility", "Proxy_Volatility.png")
+    ]:
+        plt.figure(figsize=(10,4))
+        rendimenti_giornalieri[col].plot(title=title)
+        plt.tight_layout()
+        plt.savefig(fname)
+        plt.close()
 
     return df, rendimenti_giornalieri
 
 
-def historical_VaR(rendimenti_giornalieri, n_simulazioni=100_000, csv_file="VaR_results.csv"):
-    data = rendimenti_giornalieri['Log_Returns'].dropna()
 
-    # --- STEP 2: Fit delle distribuzioni ---
-    distributions = ['norm', 't', 'genextreme', 'gamma', 'lognorm', 'beta', 'gumbel_r', 'gennorm']
-    best_fits = {}
+# ============================================================
+# 2) HISTORICAL VAR + BEST DISTRIBUTION FIT
+# ============================================================
+
+def historical_VaR(rendimenti_giornalieri, n_simulazioni=100_000, csv_file="VaR_results.csv", seed=42):
+
+    np.random.seed(seed)
+
+    data = rendimenti_giornalieri["Log_Returns"].dropna()
+
+    dist_names = ["norm", "t", "genextreme", "gamma", "lognorm", "beta", "gumbel_r", "gennorm"]
     rmse_scores = {}
+    params_dict = {}
 
-    x = np.linspace(min(data), max(data), 1000)
+    # Fit distribuzioni
     hist_vals, bin_edges = np.histogram(data, bins=50, density=True)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
-    # Istogramma e KDE
-    plt.figure(figsize=(10, 6))
-    plt.hist(data, bins=50, density=True, alpha=0.6, color='gray', label='Empirical Data')
-
-    kde = gaussian_kde(data)
-    kde_pdf = kde(x)
-    plt.plot(x, kde_pdf, label="KDE", color='blue', linestyle='--')
-
-    for dist_name in distributions:
-        dist = getattr(st, dist_name)
+    for dist_name in dist_names:
         try:
+            dist = getattr(st, dist_name)
             params = dist.fit(data)
             pdf = dist.pdf(bin_centers, *params)
-            rmse = np.sqrt(np.mean((hist_vals - pdf) ** 2))
-            best_fits[dist_name] = (params, pdf, rmse)
+            rmse = np.sqrt(np.mean((hist_vals - pdf)**2))
             rmse_scores[dist_name] = rmse
-            plt.plot(bin_centers, pdf, label=f'{dist_name} (RMSE: {rmse:.4f})')
+            params_dict[dist_name] = params
         except Exception:
             continue
 
-    plt.title("Empirical vs Fitted Distributions")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig('Distribution_Fits.png')
-    plt.close()
-
-    # --- STEP 3: Simulazione Monte Carlo ---
+    # Miglior distribuzione
     best_dist_name = min(rmse_scores, key=rmse_scores.get)
-    best_dist, best_params = getattr(st, best_dist_name), best_fits[best_dist_name][0]
+    best_params = params_dict[best_dist_name]
+    best_dist = getattr(st, best_dist_name)
 
+    # Monte Carlo stabile
     simulated_returns = best_dist.rvs(*best_params, size=n_simulazioni)
 
-    # --- STEP 4: Calcolo metriche ---
-    P0 = rendimenti_giornalieri['GMEPIT24 Index'].iloc[-1]
+    # Percentili
+    p0 = rendimenti_giornalieri["GMEPIT24 Index"].iloc[-1]
+    p_worst = p0 * np.exp(np.percentile(simulated_returns, 95))
+    p_med   = p0 * np.exp(np.percentile(simulated_returns, 50))
+    p_best  = p0 * np.exp(np.percentile(simulated_returns, 5))
 
-    R_worst = np.percentile(simulated_returns, 95)
-    R_medium = np.percentile(simulated_returns, 50)
-    R_best = np.percentile(simulated_returns, 5)
-
-    P_worst = P0 * np.exp(R_worst)
-    P_medium = P0 * np.exp(R_medium)
-    P_best = P0 * np.exp(R_best)
-
-    # Creazione di un DataFrame per i risultati
-    result_data = {
-        'Percentile': ['5%', '50%', '95%'],
-        'Simulated Price': [P_best, P_medium, P_worst]
-    }
-
-    results_df = pd.DataFrame(result_data)
-
-    # Salvataggio dei risultati in un file CSV
+    results_df = pd.DataFrame({
+        "Percentile": ["5%", "50%", "95%"],
+        "Simulated Price": [p_best, p_med, p_worst]
+    })
     results_df.to_csv(csv_file, index=False)
 
-    # Output dei risultati
-    print(f"📉 Worst Case (95° percentile): Prezzo = {np.round(P_worst, 0):.4f}")
-    print(f"⚖️ Medium Case (50° percentile): Prezzo = {np.round(P_medium, 0):.4f}")
-    print(f"📈 Best Case (5° percentile): Prezzo = {np.round(P_best, 0):.4f}")
+    print("📉 Worst Case (95° perc):", round(p_worst,0))
+    print("⚖️  Medium Case (50° perc):", round(p_med,0))
+    print("📈 Best Case (5° perc):", round(p_best,0))
 
-    return results_df  # Restituisce il DataFrame con i risultati
-
+    return results_df
 
 
-# Funzione di ottimizzazione dei parametri di Heston con Optuna
+
+# ============================================================
+# 3) HESTON PARAMETER OPTIMIZATION (STABILE)
+# ============================================================
+
 def optimize_heston_model(df, n_trials=2000, end_date="2027-12-31"):
-    log_returns = df['Log_Returns'].dropna()
 
-    def simulate_heston_single_path(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate,  seed=None):
+    log_returns = df["Log_Returns"].dropna()
+    last_date = df["Date"].iloc[-1]
+    days_to_simulate = min((pd.to_datetime(end_date) - last_date).days, len(log_returns))
+    S0 = df["GMEPIT24 Index"].iloc[-1]
 
-        if seed is not None:
-            np.random.seed(seed)
-        
-        dt = 1  # daily step
-        simulated_log_returns = np.zeros(days_to_simulate)
-        simulated_volatilities = np.zeros(days_to_simulate)
-        v_t = theta
+    def simulate_single(mu, kappa, theta, sigma_v, rho, seed):
+
+        np.random.seed(seed)
+
+        dt = 1
+        v = theta
+        returns = np.zeros(days_to_simulate)
 
         for t in range(days_to_simulate):
-            dW1 = np.random.randn() * np.sqrt(dt)
-            dW2 = rho * dW1 + np.sqrt(1 - rho**2) * np.random.randn() * np.sqrt(dt)
 
-            v_t = max(v_t + kappa * (theta - v_t) * dt + sigma_v * np.sqrt(max(v_t, 0)) * dW2, 0, 1)
-            simulated_volatilities[t] = v_t
-            dlogS = (mu - 0.5 * v_t) * dt + np.sqrt(v_t) * dW1
-            simulated_log_returns[t] = dlogS
+            # Browniani correlati corretti
+            z1 = np.random.randn()
+            z2 = rho*z1 + np.sqrt(1-rho**2)*np.random.randn()
 
-        return simulated_log_returns
+            # Variance process (senza clipping errato)
+            v = max(v + kappa*(theta - v)*dt + sigma_v*np.sqrt(max(v,0))*z2, 0)
+
+            # Price process
+            dlogS = (mu - 0.5*v)*dt + np.sqrt(v)*z1
+            returns[t] = dlogS
+
+        return returns
 
     def objective(trial):
-        sigma_long = log_returns.std()
-        mu_long = log_returns.mean()
 
-        mu = trial.suggest_float("mu", 0.000157, 0.0003)
-        kappa = trial.suggest_float("kappa", 0.1, 5.0)
-        theta = trial.suggest_float("theta", 0.0001, 0.01)
-        sigma_v = trial.suggest_float("sigma_v", sigma_long / 10, sigma_long * 1.5)
-        rho = trial.suggest_float("rho", -0.5, 0.5)
+        mu      = trial.suggest_float("mu", 0.0001, 0.0004)
+        kappa   = trial.suggest_float("kappa", 0.2, 5.0)
+        theta   = trial.suggest_float("theta", 1e-5, 0.02)
+        sigma_v = trial.suggest_float("sigma_v", 0.001, 0.2)
+        rho     = trial.suggest_float("rho", -0.7, 0.7)
 
-        S0 = df['GMEPIT24 Index'].iloc[-1]
-        days_to_simulate = min((pd.to_datetime(end_date) - df['Date'].iloc[-1]).days, len(log_returns))
-
-        simulated_log_returns = simulate_heston_single_path(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate)
-        real_log_returns = log_returns.values[-days_to_simulate:]
-        rmse = np.sqrt(np.mean((real_log_returns - simulated_log_returns) ** 2))
-        return rmse
+        simulated = simulate_single(mu, kappa, theta, sigma_v, rho, seed=trial.number)
+        real = log_returns.values[-days_to_simulate:]
+        return np.sqrt(np.mean((real - simulated)**2))
 
     study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=n_trials)
 
-    best_params = study.best_params
-
-    return best_params, study
+    return study.best_params, study
 
 
-# Funzione di simulazione Heston per n simulazioni
-def simulate_heston(S0, mu, kappa, theta, sigma_v, rho, days_to_simulate, n_simulations, seed=None):
-    if seed is not None:
-        np.random.seed(seed)
-        
+
+# ============================================================
+# 4) HESTON MULTI-PATH SIMULATION (COERENTE E STABILE)
+# ============================================================
+
+def simulate_heston(S0, mu, kappa, theta, sigma_v, rho,
+                    days_to_simulate, n_simulations, seed=42):
+
+    np.random.seed(seed)
+
     dt = 1
-    simulated_log_returns = np.zeros((n_simulations, days_to_simulate))
+    log_returns = np.zeros((n_simulations, days_to_simulate))
 
     for i in range(n_simulations):
-        v_t = theta
+
+        v = theta
+
         for t in range(days_to_simulate):
-            dW1 = np.random.randn() * np.sqrt(dt)
-            dW2 = rho * dW1 + np.sqrt(1 - rho**2) * np.random.randn() * np.sqrt(dt)
 
-            v_t = np.clip(v_t + kappa * (theta - v_t) * dt + sigma_v * np.sqrt(max(v_t, 0)) * dW2, 0, 0.3)
-            dlogS = (mu - 0.5 * v_t) * dt + np.sqrt(v_t) * dW1
-            simulated_log_returns[i, t] = dlogS
+            z1 = np.random.randn()
+            z2 = rho*z1 + np.sqrt(1-rho**2)*np.random.randn()
 
-    log_prices = np.cumsum(simulated_log_returns*1.73, axis=1)
-    simulated_prices = S0 * np.exp(log_prices)
-    return simulated_prices, simulated_log_returns
+            v = max(v + kappa*(theta - v)*dt + sigma_v*np.sqrt(max(v,0))*z2, 0)
+
+            log_returns[i,t] = (mu - 0.5*v)*dt + np.sqrt(v)*z1
+
+    prices = S0 * np.exp(np.cumsum(log_returns, axis=1))
+    return prices, log_returns
+
+
+
+# ============================================================
+# 5) RUN COMPLETO
+# ============================================================
 
 def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
-    # Step 1: Ottimizzazione dei parametri Heston tramite Optuna
+
     best_params, study = optimize_heston_model(df, n_trials, end_date)
 
-    # Step 2: Simulazione dei percorsi futuri usando i parametri ottimizzati
-    
-    S0 = df['GMEPIT24 Index'].iloc[-1]
-    days_to_simulate = (pd.to_datetime(end_date) - df['Date'].iloc[-1]).days
+    # Prende i parametri ottimizzati (il tuo codice NON LI USAVA!)
+    mu      = best_params["mu"]
+    kappa   = best_params["kappa"]
+    theta   = best_params["theta"]
+    sigma_v = best_params["sigma_v"]
+    rho     = best_params["rho"]
 
-    simulated_prices, simulated_log_returns = simulate_heston(
-        S0,0.000207,
-        1.597124,
-        0.000100,
-        0.027288,
-        -0.092343,
-        days_to_simulate,
-        n_simulations )
-    
-    simulated_prices = np.clip(simulated_prices, 30, 400)
+    S0 = df["GMEPIT24 Index"].iloc[-1]
+    days_to_simulate = (pd.to_datetime(end_date) - df["Date"].iloc[-1]).days
 
-    # Step 3: Visualizzare il risultato delle simulazioni
-    plt.figure(figsize=(10, 6))
-    plt.plot(simulated_prices.T, color='blue', alpha=0.05)
-    plt.title("Simulazione dei Percorsi Futuri (Heston Model)")
+    prices, logs = simulate_heston(
+        S0, mu, kappa, theta, sigma_v, rho,
+        days_to_simulate, n_simulations,
+        seed=123
+    )
+
+    prices = np.clip(prices, 30, 400)
+
+    plt.figure(figsize=(10,6))
+    plt.plot(prices.T, color="blue", alpha=0.05)
+    plt.title("Simulazione Percorsi Futuri (Heston Model)")
     plt.xlabel("Giorni")
     plt.ylabel("Prezzo")
-    plt.grid(True)
-
-    # Salvataggio dell'immagine
-    plt.savefig('Simulazione_dei_Percorsi_Futuri_Heston_Model.png')
+    plt.grid()
+    plt.savefig("Simulazione_Heston.png")
     plt.show()
 
-    return best_params, simulated_prices
+    return best_params, prices
 
+
+
+# ============================================================
+# 6) DISTRIBUZIONI MENSILI E ANNUALI
+# ============================================================
 
 def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
-    """
-    Calcola distribuzioni e percentili mensili e annuali.
-    La media annuale può essere sostituita dalla media tra simulato e forward price.
-    """
+
     monthly_percentiles = {}
     monthly_distributions = {}
     monthly_means = {}
@@ -244,50 +231,46 @@ def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
     yearly_means = {}
 
     for i, year in enumerate(years):
-        # ---- Mensile ----
-        for month in range(1, 13):
-            df_month = df[(df.index.year == year) & (df.index.month == month)]
-            values = df_month.values.flatten()
-            values = values[~np.isnan(values)]
-            
-            if len(values) > 0:
-                p5, p50, p95 = np.percentile(values, [5, 50, 95])
-                mean = np.mean(values)
 
-                monthly_percentiles[(year, month)] = (p5, p50, p95)
-                monthly_means[(year, month)] = mean
-                monthly_distributions[(year, month)] = values
+        # Mensile
+        for month in range(1,13):
+
+            vals = df[(df.index.year==year) & (df.index.month==month)].values.flatten()
+            vals = vals[~np.isnan(vals)]
+
+            if len(vals)>0:
+                p5,p50,p95 = np.percentile(vals,[5,50,95])
+                m = np.mean(vals)
             else:
-                monthly_percentiles[(year, month)] = (np.nan, np.nan, np.nan)
-                monthly_means[(year, month)] = np.nan
-                monthly_distributions[(year, month)] = np.array([])
+                p5=p50=p95=m=np.nan
+                vals=np.array([])
 
-        # ---- Annuale ----
-        df_year = df[df.index.year == year]
-        values_year = df_year.values.flatten()
-        values_year = values_year[~np.isnan(values_year)]
+            monthly_percentiles[(year,month)] = (p5,p50,p95)
+            monthly_means[(year,month)] = m
+            monthly_distributions[(year,month)] = vals
 
-        if len(values_year) > 0:
-            p5_y, _, p95_y = np.percentile(values_year, [5, 50, 95])
-            mean_y = np.mean(values_year)
+        # Annuale
+        vals_y = df[df.index.year==year].values.flatten()
+        vals_y = vals_y[~np.isnan(vals_y)]
 
-            # Sostituisci media annuale con media tra simulato e forward, se fornito
+        if len(vals_y)>0:
+            p5_y,_,p95_y = np.percentile(vals_y,[5,50,95])
+            mean_y = np.mean(vals_y)
+
             if forward_prices is not None and i < len(forward_prices):
-                mean_y = (0.1*mean_y + 0.9*forward_prices[i])
-
-            yearly_percentiles[year] = (p5_y, mean_y, p95_y)
-            yearly_means[year] = mean_y
-            yearly_distributions[year] = values_year
+                mean_y = 0.1*mean_y + 0.9*forward_prices[i]
         else:
-            yearly_percentiles[year] = (np.nan, np.nan, np.nan)
-            yearly_means[year] = np.nan
-            yearly_distributions[year] = np.array([])
+            p5_y=p95_y=mean_y=np.nan
+            vals_y=np.array([])
+
+        yearly_percentiles[year] = (p5_y,mean_y,p95_y)
+        yearly_means[year] = mean_y
+        yearly_distributions[year] = vals_y
 
     return (
         monthly_distributions, monthly_percentiles, monthly_means,
         yearly_distributions, yearly_percentiles, yearly_means
     )
-
 
 # Funzione per simulare distribuzioni e percentili, salvare il grafico e il CSV
 def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="distribution_plot.png", csv_file_m="forecast_percentiles_monthly.csv", csv_file_y="forecast_percentiles_yearly.csv"):
