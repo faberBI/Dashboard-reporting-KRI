@@ -291,12 +291,9 @@ if selected_kri == "⚡ Energy Risk":
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
         # -----------------------------------------------------------
-    
-        (monthly_distributions, monthly_percentiles, monthly_means,
-         yearly_distributions, yearly_percentiles, yearly_means) = get_monthly_and_yearly_distribution(
-             simulated_df, unique_years, forward_prices=forward_price
-         )
-    
+
+        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years, forward_prices=forward_price)
+        
         # Qui suppongo che "analyze_simulation" produca una figura
         monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years, forward_prices=forward_price)
         st.pyplot(fig)
