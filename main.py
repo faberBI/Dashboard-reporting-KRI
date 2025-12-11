@@ -201,8 +201,7 @@ if selected_kri == "⚡ Energy Risk":
     np.random.seed(42)
     random.seed(42)
     
-    n_simulations = st.number_input("Numero di simulazioni", min_value=100, max_value=100_000, value=10_000, step=100)
-    n_trials_heston = st.number_input("Numero di trial Heston", min_value=10, max_value=1000, value=100, step=10)
+    n_simulations = st.number_input("Numero di simulazioni", min_value=1000, max_value=1000_000, value=10_000, step=1000)
     end_date = st.date_input("Data finale simulazione", pd.to_datetime("2027-12-31"))
     start_date = st.date_input("Dati aggiornati al", pd.Timestamp.today().date())
     start_date_sim = pd.Timestamp.today().normalize()
@@ -297,7 +296,7 @@ if selected_kri == "⚡ Energy Risk":
         
             # ======== 2) PESATURA PER ANNI CALDI (downweight) ===========
             year_means = sample_series.groupby(sample_series.index.year).transform("mean")
-            inv_year_mean = 1 / (year_means ** 2)
+            inv_year_mean = 1 / (year_means ** 1.5)
             inv_year_mean = inv_year_mean / inv_year_mean.max()
         
             # ======== 3) PESATURA COMBINATA ===========
