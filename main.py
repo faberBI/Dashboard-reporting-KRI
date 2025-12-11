@@ -251,42 +251,33 @@ if selected_kri == "⚡ Energy Risk":
             st.error("❌ Il dataset filtrato è vuoto.")
             st.stop()
        
+                # -----------------------------------------------------------
+        # SIMULAZIONE MONTE CARLO SEMPLIFICATA
         # -----------------------------------------------------------
-        #  SIMULAZIONE HESTON CON NUOVA FUNZIONE STABILE
-        # -----------------------------------------------------------
-        best_params, simulated_prices = run_heston(
-            df_excel,
-            n_trials=n_trials_heston,
-            n_simulations=n_simulations,
-            end_date=end_date
-        )
-    
-        st.success("🎯 Parametri Heston ottimizzati:")
-        st.json(best_params)
-    
-    
-    
-        # -----------------------------------------------------------
-        # CREAZIONE DATAFRAME SIMULAZIONE
-        # -----------------------------------------------------------
-    
-        final_day = df_excel["Date"].max()
-        horizon = (pd.to_datetime(end_date) - final_day).days
-    
-        future_dates_sim = pd.date_range(
-            start=final_day,
-            periods=horizon,
-            freq="D"
-        )
-    
+        np.random.seed(42)
+        
+        # Estrai log returns storici
+        log_returns = df_excel["Log_Returns"].dropna().values
+        S0 = df_excel["GMEPIT24 Index"].iloc[-1]
+        
+        # Crea array per i prezzi simulati
+        simulated_prices = np.zeros((n_simulations, days_to_simulate))
+        
+        for i in range(n_simulations):
+            # Estrai casualmente rendimenti giornalieri
+            random_returns = np.random.choice(log_returns, size=days_to_simulate, replace=True)
+            # Calcola prezzi cumulativi
+            simulated_prices[i, :] = S0 * np.exp(np.cumsum(random_returns))
+        
+        # Costruisci DataFrame con date future
         simulated_df = pd.DataFrame(
             simulated_prices.T,
-            index=future_dates_sim,
+            index=future_dates,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-    
-        # Pulisce valori anomali
-        simulated_df = simulated_df.mask((simulated_df < 33.4) | (simulated_df > 383))
+        
+        # Pulisce valori anomali (opzionale)
+        simulated_df = simulated_df.mask((simulated_df < 33.4) | (simulated_df > 383))    
         
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
