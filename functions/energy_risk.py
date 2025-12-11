@@ -206,7 +206,7 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
         days_to_simulate,
         n_simulations )
     
-    simulated_prices = np.clip(simulated_prices, 30, 210)
+    simulated_prices = np.clip(simulated_prices, 30, 350)
 
     # Step 3: Visualizzare il risultato delle simulazioni
     plt.figure(figsize=(10, 6))
