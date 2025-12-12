@@ -350,7 +350,8 @@ if selected_kri == "⚡ Energy Risk":
         df_hist_styled = df_historical.style.format({"Historical Price": format_euro}).background_gradient(cmap='Greens', low=0.1, high=0.4)
         st.session_state.df_historical = df_historical
         st.dataframe(df_hist_styled)
-        forward_price_full = forward_price.copy()
+        forward_price_full = np.array(forward_price_full)
+        forecast_price_50 = np.array(forecast_price["50%"])
         
         predict_price = 0.5 * forward_price_full + 0.5 * forecast_price["50%"].tolist()
         # predict_price = forecast_price['50%'].values.tolist()
