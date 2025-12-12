@@ -220,7 +220,7 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
 # 6) DISTRIBUZIONI MENSILI E ANNUALI
 # ============================================================
 
-ddef get_monthly_and_yearly_distribution(df, years, forward_prices=None, last_n_years_for_10pct=2):
+def get_monthly_and_yearly_distribution(df, years, forward_prices=None, last_n_years_for_10pct=2):
     monthly_percentiles = {}
     monthly_distributions = {}
     monthly_means = {}
