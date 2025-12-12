@@ -322,7 +322,7 @@ if selected_kri == "⚡ Energy Risk":
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
         floor_last3 = prezzi_storici_df[prezzi_storici_df.index > (df_excel["Date"].max() - pd.DateOffset(years=3))].quantile(0.05)
-        simulated_df = simulated_df.clip(lower=floor_last3)
+        #simulated_df = simulated_df.clip(lower=floor_last3)
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
         # -----------------------------------------------------------
