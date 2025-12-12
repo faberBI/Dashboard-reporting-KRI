@@ -286,7 +286,7 @@ if selected_kri == "⚡ Energy Risk":
                 raise ValueError(f"Nessun dato storico disponibile per la finestra {n_years_history} anni.")
             
             # ------------- WINSORIZING DINAMICO SOLO LATO SINISTRO --------------
-            q05 = sample_series.quantile(0.05)
+            q05 = sample_series.quantile(0.1)
             sample_series = sample_series.clip(lower=q05)
             
             # Numero di giorni da simulare per questo anno
