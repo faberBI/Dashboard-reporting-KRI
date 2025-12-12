@@ -373,9 +373,6 @@ if selected_kri == "⚡ Energy Risk":
         predict_price = (0.4 * predict_arr + 0.6 * forward_arr).tolist()
         predict_price[5] = predict_arr[5]
 
-        st.write(list(predict_price))
-        st.write(list(forward_arr))
-        st.write(list(predict_arr))
         # -----------------------
         # Calcolo Open Position e Risk
         # -----------------------
