@@ -373,8 +373,8 @@ if selected_kri == "⚡ Energy Risk":
         forward_arr = np.array(forward_price_full)
 
         # Calcola la media ponderata 50%-50%
-        predict_price = (0.2 * predict_arr + 0.8 * forward_arr).tolist()
-        
+        predict_price = (0.4 * predict_arr + 0.6 * forward_arr).tolist()
+        predict_price[0] = predict_arr[0]
         # -----------------------
         # Calcolo Open Position e Risk
         # -----------------------
