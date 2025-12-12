@@ -1269,7 +1269,7 @@ def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3
 
     # Conformal adjustment
     calibration_y = series[-252:]
-    samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period), random_state=234)
+    samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period))
     lower_cal = np.percentile(samples_cal, 2.5, axis=1)
     upper_cal = np.percentile(samples_cal, 97.5, axis=1)
     nonconformity = np.maximum(lower_cal - calibration_y, calibration_y - upper_cal)
