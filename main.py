@@ -354,8 +354,8 @@ if selected_kri == "⚡ Energy Risk":
         forward_price_full = forward_price.copy()
         
         # Converti in array
-        forward_arr = np.array(forward_price)
-        forecast_arr = forecast_price['50%'].to_numpy()
+        forward_arr = np.array(forward_price, dtype=float)
+        forecast_arr = forecast_price['50%'].to_numpy(dtype=float)
 
         # Media ponderata 50%-50%
         predict_arr = 0.5 * forward_arr + 0.5 * forecast_arr
