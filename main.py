@@ -1506,6 +1506,7 @@ if uploaded_file and run_sim:
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         final_var_df.to_excel(writer, index=True, sheet_name="Tranches")
         portfolio_var.to_excel(writer, index=True, sheet_name="Portfolio")
+        final_var_annual_no_tranche.to_excel(writer, index=True, sheet_name="Portfolio-yearly")
     st.download_button(
         label="📥 Scarica risultati in Excel",
         data=output.getvalue(),
