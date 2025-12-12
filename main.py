@@ -1055,6 +1055,7 @@ elif selected_kri == "🛡️💻 Cyber":
     print('Cyber')
 elif selected_kri == "📈 Interest Rate":
     import matplotlib.pyplot as plt
+    np.random.seed(234)
     series = {
     
     # --- Euribor / Money Market ---
@@ -1249,7 +1250,7 @@ def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3
         log_lik = -0.5 * np.sum(((X_next - mean)**2)/var + np.log(2*np.pi*var))
         return log_lik
 
-    study = optuna.create_study(direction="maximize")
+    study = optuna.create_study(direction="maximize",sampler=optuna.samplers.TPESampler(seed=234))
     study.optimize(objective, n_trials=100)
 
     theta_opt = study.best_params["theta"]
@@ -1268,7 +1269,7 @@ def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3
 
     # Conformal adjustment
     calibration_y = series[-252:]
-    samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period))
+    samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period), random_state=234)
     lower_cal = np.percentile(samples_cal, 2.5, axis=1)
     upper_cal = np.percentile(samples_cal, 97.5, axis=1)
     nonconformity = np.maximum(lower_cal - calibration_y, calibration_y - upper_cal)
