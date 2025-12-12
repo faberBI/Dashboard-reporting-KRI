@@ -323,8 +323,8 @@ if selected_kri == "⚡ Energy Risk":
             index=future_dates,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
+
         
-        #simulated_df = simulated_df.clip(lower=floor_last3)
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
         # -----------------------------------------------------------
@@ -462,7 +462,9 @@ if selected_kri == "⚡ Energy Risk":
             "unique_years": unique_years,
             "anni_prezzi": anni_prezzi,
             "start_date_sim": start_date_sim,
-            "df_ebitda": df[["Anno", "Ebitda"]]
+            "df_ebitda": df[["Anno", "Ebitda"]],
+            "percentili_mese": monthly_percentiles, 
+            "media_mensile": monthly_means
         })
 
     # -----------------------
@@ -507,6 +509,7 @@ if selected_kri == "⚡ Energy Risk":
             st.session_state.df_risk_new = df_risk_new
             st.session_state.df_prezzi_new = df_prezzi_new
             st.session_state.df_target_policy_new = df_target_policy_new
+
     
             st.subheader("📋 Tabella Open Position (aggiornata)")
             st.dataframe(df_open_new)
@@ -618,8 +621,13 @@ if selected_kri == "⚡ Energy Risk":
                 written = True
             if "energy_df" in st.session_state and not st.session_state.energy_df.empty:
                 st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
+                written = True            
+            if "percentili_mese" in st.session_state:
+                st.session_state.percentili_mese.to_excel(writer, sheet_name='Percentili mese', index=False)
                 written = True
-    
+            if "media_mensile" in st.session_state:
+                st.session_state.media_mensile.to_excel(writer, sheet_name='Media mensile PUN ', index=False)
+                written = True
             if not written:
                 pd.DataFrame({"Info": ["Nessun dato disponibile"]}).to_excel(writer, sheet_name="Empty", index=False)
     
