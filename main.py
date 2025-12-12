@@ -353,7 +353,7 @@ if selected_kri == "⚡ Energy Risk":
         
         forward_price_full = forward_price.copy()
           
-        predict_price = yearly_means.values.tolist()
+        predict_price = list(yearly_means.values())
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
 
