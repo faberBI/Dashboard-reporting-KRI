@@ -368,7 +368,13 @@ if selected_kri == "⚡ Energy Risk":
         p95 = [0]*(len(anni_prezzi)-len(p95)) + p95
         p5 = [0]*(len(anni_prezzi)-len(p5)) + p5
         forward_price_full = [0]*(len(anni_prezzi)-len(forward_price_full)) + forward_price_full
+        # AGGIUNTA
+        predict_arr = np.array(predict_price)
+        forward_arr = np.array(forward_price_full)
 
+        # Calcola la media ponderata 50%-50%
+        predict_price = (0.2 * predict_arr + 0.8 * forward_arr).tolist()
+        
         # -----------------------
         # Calcolo Open Position e Risk
         # -----------------------
