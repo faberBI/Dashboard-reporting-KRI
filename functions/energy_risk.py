@@ -338,7 +338,7 @@ def analyze_simulation(sim_df, years, forward_prices=None):
     (
         monthly_distributions, monthly_percentiles, monthly_means,
         yearly_distributions, yearly_percentiles, yearly_means
-    ) = get_monthly_and_yearly_distribution(sim_df, years, forward_prices=forward_prices)
+    ) = get_monthly_and_yearly_distribution(sim_df, years, forward_prices=forward_prices,last_n_years_for_10pct=2)
     
     # Genera il grafico annuale
     fig, ax = plt.subplots(figsize=(10, 6))
