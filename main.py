@@ -355,7 +355,7 @@ if selected_kri == "⚡ Energy Risk":
         forward_price_full = np.array(forward_price_full)
         forecast_price_50 = np.array(forecast_price["50%"])
         
-        predict_price = 0.5 * forward_price_full + 0.5 * forecast_price["50%"].tolist()
+        predict_price = 0.5 * forward_price_full + 0.5 * forecast_price["50%"]
         # predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
