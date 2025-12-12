@@ -623,11 +623,22 @@ if selected_kri == "⚡ Energy Risk":
                 st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
                 written = True            
             if "percentili_mese" in st.session_state:
-                st.session_state.percentili_mese.to_excel(writer, sheet_name='Percentili mese', index=False)
-                written = True
+                percentili_df = pd.DataFrame.from_dict(
+                    st.session_state.percentili_mese,
+                    orient='index',
+                    columns=['5%', '50%', '95%']
+                )
+                percentili_df.index.name = 'Anno-Mese'
+                percentili_df.to_excel(writer, sheet_name='Percentili mese', index=True)
+            
             if "media_mensile" in st.session_state:
-                st.session_state.media_mensile.to_excel(writer, sheet_name='Media mensile PUN ', index=False)
-                written = True
+                media_df = pd.DataFrame.from_dict(
+                    st.session_state.media_mensile,
+                    orient='index',
+                    columns=['Media']
+                )
+                media_df.index.name = 'Anno-Mese'
+                media_df.to_excel(writer, sheet_name='Media mensile PUN', index=True)
             if not written:
                 pd.DataFrame({"Info": ["Nessun dato disponibile"]}).to_excel(writer, sheet_name="Empty", index=False)
     
