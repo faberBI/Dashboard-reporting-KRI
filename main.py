@@ -1055,7 +1055,6 @@ elif selected_kri == "🛡️💻 Cyber":
     print('Cyber')
 elif selected_kri == "📈 Interest Rate":
     import matplotlib.pyplot as plt
-    np.random.seed(234)
     series = {
     
     # --- Euribor / Money Market ---
@@ -1269,6 +1268,7 @@ def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3
 
     # Conformal adjustment
     calibration_y = series[-252:]
+    np.random.seed(234)
     samples_cal = np.random.choice(simulations.flatten(), size=(len(calibration_y), n_period))
     lower_cal = np.percentile(samples_cal, 2.5, axis=1)
     upper_cal = np.percentile(samples_cal, 97.5, axis=1)
