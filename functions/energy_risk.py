@@ -234,7 +234,7 @@ def get_monthly_and_yearly_distribution(df, years, forward_prices=None, last_n_y
     for i, year in enumerate(years):
 
         # Percentile da usare: 10% per ultimi N anni, 5% altrimenti
-        perc_low = 10 if year > last_year - last_n_years_for_10pct else 5
+        perc_low = 20 if year > last_year - last_n_years_for_10pct else 5
 
         # Mensile
         for month in range(1, 13):
