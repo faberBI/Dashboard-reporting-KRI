@@ -352,16 +352,8 @@ if selected_kri == "⚡ Energy Risk":
         st.dataframe(df_hist_styled)
         
         forward_price_full = forward_price.copy()
-        
-        # Converti in array
-        forward_arr = np.array(forward_price, dtype=float)
-        forecast_arr = forecast_price['50%'].to_numpy(dtype=float)
-
-        # Media ponderata 50%-50%
-        predict_arr = 0.5 * forward_arr + 0.5 * forecast_arr
-        predict_price = predict_arr.tolist()
-        
-        #predict_price = forecast_price['50%'].values.tolist()
+          
+        predict_price = yearly_means.values.tolist()
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
 
