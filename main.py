@@ -351,7 +351,7 @@ if selected_kri == "⚡ Energy Risk":
         st.session_state.df_historical = df_historical
         st.dataframe(df_hist_styled)
         
-        predict_price = yearly_means.values.tolist()
+        predict_price = 0.5 * forward_price_full + 0.5 * forecast_price["50%"].tolist()
         # predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
