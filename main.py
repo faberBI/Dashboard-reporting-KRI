@@ -350,13 +350,13 @@ if selected_kri == "⚡ Energy Risk":
         df_hist_styled = df_historical.style.format({"Historical Price": format_euro}).background_gradient(cmap='Greens', low=0.1, high=0.4)
         st.session_state.df_historical = df_historical
         st.dataframe(df_hist_styled)
+        forward_price_full = forward_price.copy()
         
         predict_price = 0.5 * forward_price_full + 0.5 * forecast_price["50%"].tolist()
         # predict_price = forecast_price['50%'].values.tolist()
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
 
-        forward_price_full = forward_price.copy()
         budget_price_full = [0]*(len(anni_prezzi)-len(budget_price)) + budget_price
 
         # Allinea lunghezze
