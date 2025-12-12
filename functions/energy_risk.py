@@ -220,8 +220,7 @@ def run_heston(df, n_trials=2000, n_simulations=1000, end_date="2027-12-31"):
 # 6) DISTRIBUZIONI MENSILI E ANNUALI
 # ============================================================
 
-def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
-
+ddef get_monthly_and_yearly_distribution(df, years, forward_prices=None, last_n_years_for_10pct=2):
     monthly_percentiles = {}
     monthly_distributions = {}
     monthly_means = {}
@@ -230,40 +229,44 @@ def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
     yearly_distributions = {}
     yearly_means = {}
 
+    last_year = df.index.max().year
+
     for i, year in enumerate(years):
 
-        # Mensile
-        for month in range(1,13):
+        # Percentile da usare: 10% per ultimi N anni, 5% altrimenti
+        perc_low = 10 if year > last_year - last_n_years_for_10pct else 5
 
-            vals = df[(df.index.year==year) & (df.index.month==month)].values.flatten()
+        # Mensile
+        for month in range(1, 13):
+            vals = df[(df.index.year == year) & (df.index.month == month)].values.flatten()
             vals = vals[~np.isnan(vals)]
 
-            if len(vals)>0:
-                p5,p50,p95 = np.percentile(vals,[5,50,95])
+            if len(vals) > 0:
+                p_low, p50, p95 = np.percentile(vals, [perc_low, 50, 95])
                 m = np.mean(vals)
             else:
-                p5=p50=p95=m=np.nan
-                vals=np.array([])
+                p_low = p50 = p95 = m = np.nan
+                vals = np.array([])
 
-            monthly_percentiles[(year,month)] = (p5,p50,p95)
-            monthly_means[(year,month)] = m
-            monthly_distributions[(year,month)] = vals
+            monthly_percentiles[(year, month)] = (p_low, p50, p95)
+            monthly_means[(year, month)] = m
+            monthly_distributions[(year, month)] = vals
 
         # Annuale
-        vals_y = df[df.index.year==year].values.flatten()
+        vals_y = df[df.index.year == year].values.flatten()
         vals_y = vals_y[~np.isnan(vals_y)]
 
-        if len(vals_y)>0:
-            p5_y,_,p95_y = np.percentile(vals_y,[5,50,95])
+        if len(vals_y) > 0:
+            p_low_y, _, p95_y = np.percentile(vals_y, [perc_low, 50, 95])
             mean_y = np.mean(vals_y)
 
             if forward_prices is not None and i < len(forward_prices):
-                mean_y = 0.1*mean_y + 0.90*forward_prices[i]
+                mean_y = 0.1 * mean_y + 0.90 * forward_prices[i]
         else:
-            p5_y=p95_y=mean_y=np.nan
-            vals_y=np.array([])
+            p_low_y = p95_y = mean_y = np.nan
+            vals_y = np.array([])
 
-        yearly_percentiles[year] = (p5_y,mean_y,p95_y)
+        yearly_percentiles[year] = (p_low_y, mean_y, p95_y)
         yearly_means[year] = mean_y
         yearly_distributions[year] = vals_y
 
@@ -271,6 +274,7 @@ def get_monthly_and_yearly_distribution(df, years, forward_prices=None):
         monthly_distributions, monthly_percentiles, monthly_means,
         yearly_distributions, yearly_percentiles, yearly_means
     )
+
 
 # Funzione per simulare distribuzioni e percentili, salvare il grafico e il CSV
 def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="distribution_plot.png", csv_file_m="forecast_percentiles_monthly.csv", csv_file_y="forecast_percentiles_yearly.csv"):
