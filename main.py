@@ -1312,6 +1312,14 @@ def plot_full_forecast(y, df_forecast):
     st.pyplot(plt.gcf())
     plt.close()
 
+def get_spread_for_date(date, spread_df):
+    row = spread_df[(spread_df["From"] <= date) & (spread_df["To"] > date)]
+    if not row.empty:
+        return float(row["Spread"].iloc[0])
+    else:
+        return float(spread_df["Spread"].iloc[-1]) 
+
+
 # ============================================================
 # STREAMLIT INTERFACCIA
 # ============================================================
@@ -1328,6 +1336,10 @@ if uploaded_file and run_sim:
 
     max_horizon_days = (pd.to_datetime(tranche_df['Maturity']).max() - last_date).days
 
+    spread_df = pd.read_excel(uploaded_file, sheet_name="SpreadSchedule")
+    spread_df["From"] = pd.to_datetime(spread_df["From"])
+    spread_df["To"] = pd.to_datetime(spread_df["To"])
+
     # 1️⃣ Simulazione unica EURIBOR
     forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, n_sims= 5000, horizon_days= max_horizon_days)
 
@@ -1339,14 +1351,13 @@ if uploaded_file and run_sim:
     # 2️⃣ Ciclo su tranche usando la simulazione unica
     for idx, row in tranche_df.iterrows():
         tranche_name = row.get("Tranche", f"T{idx+1}")
-        unhedged = (row["Notional"] - row["Hedged"])
-        plan_rate = (row["Euribor"] + row["Spread"])
-    
+        unhedged = (row["Notional"] - row["Hedged"]) 
         # Taglio forecast fino alla maturità della tranche
         maturity_date = pd.to_datetime(row["Maturity"])
         forecast_tranche = forecast_quarterly[forecast_quarterly.index <= maturity_date]
-        var_rate = forecast_tranche["upper_adj"] + row["Spread"]
-    
+        spread_series = forecast_tranche.index.map(lambda d: get_spread_for_date(d, spread_df))
+        plan_rate = (row["Euribor"] + spread_series)
+        var_rate = forecast_tranche["upper_adj"] + spread_series
         var_amount = (var_rate/100) * unhedged
         plan_amount = (plan_rate/100) * unhedged
         days = forecast_tranche.index.to_series().diff().dt.days.fillna(90)
@@ -1359,6 +1370,7 @@ if uploaded_file and run_sim:
             "Notional": row["Notional"],
             "Hedged": row["Hedged"],
             "Un-Hedged": unhedged,
+            "Spread": spread_series.values,
             "Var Rate": var_rate,
             "Plan Rate": plan_rate,
             "Var Amount (€)": var_amount,
@@ -1445,6 +1457,30 @@ if uploaded_file and run_sim:
     st.subheader("📈 VaR Cumulato di Portafoglio (in milioni €)")
     st.dataframe(portfolio_var)
 
+    st.subheader("📊 Risultati VaR Annualizzati (in milioni €)")
+    final_copy = final_var_df.copy()
+    final_copy.rename(columns={'index': 'Date'}, inplace=True)
+    final_copy['Date'] = pd.to_datetime(final_copy['Date'])
+    final_copy = final_copy.set_index('Date')
+    final_copy["Year"] = final_copy.index.year
+    agg_rules = {
+        "Var Cashflow (€)": "sum",
+        "Plan Cashflow (€)": "sum",
+        "KRI Cashflow": "sum",
+        "Notional": "first",
+        "Hedged": "first",
+        "Un-Hedged": "first",
+        "Var Rate": "mean",
+        "Plan Rate": "mean",
+        "Var Amount (€)": "mean",
+        "Plan Amount (€)": "mean",
+        "KRI Amount": "mean"}
+    final_var_annual_no_tranche = final_copy.groupby(["Year"]).agg(agg_rules)
+    final_var_annual_no_tranche = to_millions(final_var_annual_no_tranche, cols_mln)
+    
+    st.dataframe(final_var_annual_no_tranche)
+
+    
     st.subheader("📉 Grafico VaR di Portafoglio (in milioni €)")
     st.line_chart(portfolio_var.set_index('index')[["Var Cashflow (€)", "Plan Cashflow (€)"]])
 
