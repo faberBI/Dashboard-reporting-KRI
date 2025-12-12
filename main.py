@@ -354,6 +354,9 @@ if selected_kri == "⚡ Energy Risk":
         forward_price_full = forward_price.copy()
           
         predict_price = list(yearly_means.values())
+
+        st.write(list(predict_price))
+        
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
 
@@ -369,6 +372,7 @@ if selected_kri == "⚡ Energy Risk":
         # -----------------------
         # Calcolo Open Position e Risk
         # -----------------------
+        
         df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
             anni=df["Anno"].tolist(),
             fabbisogno=fabbisogno,
