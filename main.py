@@ -1249,7 +1249,7 @@ def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3
         log_lik = -0.5 * np.sum(((X_next - mean)**2)/var + np.log(2*np.pi*var))
         return log_lik
 
-    study = optuna.create_study(direction="maximize",sampler=optuna.samplers.TPESampler(seed=234))
+    study = optuna.create_study(direction="maximize")#sampler=optuna.samplers.TPESampler(seed=234))
     study.optimize(objective, n_trials=100)
 
     theta_opt = study.best_params["theta"]
