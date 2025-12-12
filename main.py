@@ -354,8 +354,6 @@ if selected_kri == "⚡ Energy Risk":
         forward_price_full = forward_price.copy()
           
         predict_price = list(yearly_means.values())
-
-        st.write(list(predict_price))
         
         p95 = forecast_price['95%'].values.tolist()
         p5 = forecast_price['5%'].values.tolist()
@@ -374,7 +372,10 @@ if selected_kri == "⚡ Energy Risk":
         # Calcola la media ponderata 50%-50%
         predict_price = (0.4 * predict_arr + 0.6 * forward_arr).tolist()
         predict_price[0] = forward_arr[0]
-        
+
+        st.write(list(predict_price))
+        st.write(list(forward_arr))
+        st.write(list(predict_arr))
         # -----------------------
         # Calcolo Open Position e Risk
         # -----------------------
