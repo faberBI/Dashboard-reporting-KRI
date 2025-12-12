@@ -249,83 +249,81 @@ if selected_kri == "⚡ Energy Risk":
         if df_excel.empty:
             st.error("❌ Il dataset filtrato è vuoto.")
             st.stop()
-       
-        # SIMULAZIONE MONTE CARLO SEMPLIFICATA "ROLLING YEARS +2"
+
         np.random.seed(42)
-        
+
+        # Dati storici
         prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
-        
+
         # Clip globale 1%-99%
         lower_bound = prezzi_storici_df.quantile(0.01)
         upper_bound = prezzi_storici_df.quantile(0.99)
         prezzi_storici_df = prezzi_storici_df.clip(lower=lower_bound, upper=upper_bound)
-        
+
         simulated_prices = np.zeros((n_simulations, days_to_simulate))
-        
+
         # Date future
         future_dates = pd.date_range(start=df_excel["Date"].max() + pd.Timedelta(days=1),
                                      periods=days_to_simulate, freq="D")
-        
         future_years = sorted(future_dates.year.unique())
         start_day = future_dates[0]
-        
+
         for i, year in enumerate(future_years):
         
             # 3,5,7,9... anni di storico
             n_years_history = 3 + i*2
             end_history = df_excel["Date"].max()
             start_history = end_history - pd.DateOffset(years=n_years_history)
-        
-            # ------------ NUOVO APPROCCIO ----------------
+
+            # ------------ FILTRO FINESTRA STORICA ----------------
             mask = (prezzi_storici_df.index > start_history) & \
                    (prezzi_storici_df.index <= end_history)
-        
+
             sample_series = prezzi_storici_df[mask]
-        
+
             if sample_series.empty:
                 raise ValueError(f"Nessun dato storico disponibile per la finestra {n_years_history} anni.")
-            
-            # ------------- WINSORIZING DINAMICO SOLO LATO SINISTRO --------------
-            q05 = sample_series.quantile(0.2)
-            sample_series = sample_series.clip(lower=q05)
-            
+
             # Numero di giorni da simulare per questo anno
             year_dates = future_dates[future_dates.year == year]
             n_days = len(year_dates)
-        
-            # ======== 1) PESATURA PER RECENCY ===========
-            recency_score = (sample_series.index.to_julian_date() -
-                             sample_series.index.to_julian_date().min())
-            recency_score = recency_score / recency_score.max()  # scala 0-1
-        
-            # ======== 2) PESATURA PER ANNI CALDI (downweight) ===========
-            year_means = sample_series.groupby(sample_series.index.year).transform("mean")
-            inv_year_mean = 1 / (year_means ** 1.5)
-            inv_year_mean = inv_year_mean / inv_year_mean.max()
-        
-            # ======== 3) PESATURA COMBINATA ===========
-            weights = recency_score * inv_year_mean
-            weights = np.nan_to_num(weights)
-            prob = weights / weights.sum()
-        
-            vals = sample_series.values
-        
-            # ======== 4) SAMPLING CON PROBABILITÀ ===========
-            sampled_block = np.random.choice(vals, size=(n_simulations, n_days),
-                                             replace=True, p=prob)
-        
-            # Inserisci nel master array
+
             for j, sim_date in enumerate(year_dates):
+                # -------------- PRESERVA LA STAGIONALITÀ ---------------
+                month_now = sim_date.month
+                month_sample = sample_series[sample_series.index.month == month_now]
+
+                if month_sample.empty:
+                    raise ValueError(f"Nessun dato disponibile per il mese {month_now} nella finestra storica")
+
+                # ======== 1) PESATURA PER RECENCY ===========
+                recency_score = (month_sample.index.to_julian_date() -
+                                 month_sample.index.to_julian_date().min())
+                recency_score = recency_score / recency_score.max()  # scala 0-1
+
+                # ======== 2) PESATURA PER ANNI CALDI (downweight) ===========
+                year_means = month_sample.groupby(month_sample.index.year).transform("mean")
+                inv_year_mean = 1 / (year_means ** 1.5)
+                inv_year_mean = inv_year_mean / inv_year_mean.max()
+
+                # ======== 3) PESATURA COMBINATA ===========
+                weights = recency_score * inv_year_mean
+                weights = np.nan_to_num(weights)
+                prob = weights / weights.sum()
+
+                # ======== 4) SAMPLING CON PROBABILITÀ ===========
+                sampled_value = np.random.choice(month_sample.values, size=n_simulations, replace=True, p=prob)
+
                 idx = (sim_date - start_day).days
-                simulated_prices[:, idx] = sampled_block[:, j]
-        
+                simulated_prices[:, idx] = sampled_value
+
         # Creazione DataFrame finale
         simulated_df = pd.DataFrame(
             simulated_prices.T,
             index=future_dates,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
-        floor_last3 = prezzi_storici_df[prezzi_storici_df.index > (df_excel["Date"].max() - pd.DateOffset(years=3))].quantile(0.05)
+        
         #simulated_df = simulated_df.clip(lower=floor_last3)
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
