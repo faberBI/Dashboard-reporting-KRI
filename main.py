@@ -60,7 +60,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "💰🔑 Access to Funding", "🛡️💻 Cyber","💳 Credit risk" ,"📈 Interest Rate"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "💰🔑 Access to Funding", "🛡️💻 Cyber","💳 Credit risk" ,"📈 Interest Rate", "Liquidity Risk💰"]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -924,7 +924,7 @@ elif selected_kri == "🟠 Copper Price":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 # -----------------------
-# 🌪️ Access to Funding
+# 💰🔑 Access to Funding
 # -----------------------
 elif selected_kri == "💰🔑 Access to Funding":
     print('Access to Funding')
@@ -1522,3 +1522,81 @@ if uploaded_file and run_sim:
         file_name="VaR_multi_tranche.xlsx",
         mime="application/vnd.ms-excel"
     )
+# -----------------------
+# 💰Liquidity Risk
+# -----------------------
+elif selected_kri == "Liquidity Risk💰":
+    st.subheader("📊 Monthly KRI Liquidity 📊")
+    run_sim = st.button("🚀 Calcolo KRI Liquidity...")
+
+    if uploaded_file and run_sim:
+        input_df = pd.read_excel(uploaded_file, sheet_name="cash_flow")
+        st.subheader("📋 Cash Flow data caricati dall’Excel")
+        input_df[['Debt drawings (RCF, Loan, Bond)','Escrow Account','Cash avaible net Time Depo','Loan Repayments','Derivative Settlements (CCS & IRS)','Coupon','EUR Interest Payments',
+         'Suppliers -Opex/Capex', 
+         'Others Cost', 
+         'Factoring Suppliers Opex/Capex', 
+         'Salaries/Payroll', 
+         'HR Others Cost (Telemaco…)', 
+         'Inps/Irpef Contributions', 
+         'Rents and property costs', 
+         'Utilities', 
+         'VAT', 
+         'Corporate Taxes (IRES/IRAP)', 
+         'Others Tax (F24/F23)', 
+         'Guarantees Cost']]
+        
+        st.dataframe(input_df)
+        def fonti_finanziamento(row, check_col, sum_cols, alt_cols):
+            if row[check_col] > 0:
+                return row[sum_cols].sum()
+            else:
+                return row[alt_cols].sum()
+            
+        input_df['Num1'] = input_df.apply(lambda row: fonti_finanziamento(row, 'Escrow Account', ['Debt drawings (RCF, Loan, Bond)','Escrow Account','Cash avaible net Time Depo'], ['Debt drawings (RCF, Loan, Bond)','Cash avaible net Time Depo']), axis=1)
+        input_df['Deno1'] = input_df[['Loan Repayments','Derivative Settlements (CCS & IRS)','Coupon','EUR Interest Payments']].abs().sum(axis=1)
+        cols_operativi = ['Suppliers -Opex/Capex', 'Others Cost', 'Factoring Suppliers Opex/Capex',
+                  'Salaries/Payroll', 'HR Others Cost (Telemaco…)', 'Inps/Irpef Contributions',
+                  'Rents and property costs', 'VAT', 'Corporate Taxes (IRES/IRAP)', 'Guarantees Cost']
+
+        input_df['Deno2'] = input_df['Deno1'] + input_df[cols_operativi].abs().sum(axis=1)
+        input_df['Indicatore 12m'] = np.maximum(input_df['Num1'] / input_df['Deno1'], 0)
+        input_df['Liquidity Coverage Ratio (con spese operative)'] = np.maximum(input_df['Num1'] / input_df['Deno2'], 0)
+                import plotly.express as px
+
+        # Controllo se la colonna 'M/€' esiste
+        if 'M/€' in input_df.columns:
+            # Creazione del grafico
+            fig = px.line(
+                input_df,
+                x='M/€',
+                y=['Indicatore 12m', 'Liquidity Coverage Ratio (con spese operative)'],
+                labels={
+                    'variable': 'KRI'
+                },
+                title="📈 Liquidity Risk KRI Monthly",
+                markers=True
+            )
+
+            fig.update_layout(
+                xaxis_title="Mese",
+                legend_title="KRI",
+                template="plotly_white"
+            )
+
+            # Mostra il grafico in Streamlit
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("⚠️ La colonna 'M/€' non è presente nel DataFrame.")
+        # Export Excel
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        input_df.to_excel(writer, index=True, sheet_name="Tranches")
+            st.download_button(
+            label="📥 Scarica risultati in Excel",
+            data=output.getvalue(),
+            file_name="KRI_Liquidity_Risk.xlsx",
+            mime="application/vnd.ms-excel"
+        )
+    
