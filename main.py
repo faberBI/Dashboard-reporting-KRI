@@ -1547,12 +1547,14 @@ elif selected_kri == "Liquidity Risk💰":
          'Guarantees Cost']]
         
         st.dataframe(input_df)
+        
         def fonti_finanziamento(row, check_col, sum_cols, alt_cols):
             if row[check_col] > 0:
                 return row[sum_cols].sum()
             else:
                 return row[alt_cols].sum()
             
+        input_df['Escrow Account'] = pd.to_numeric(input_df['Escrow Account'], errors='coerce').fillna(0)
         input_df['Num1'] = input_df.apply(lambda row: fonti_finanziamento(row, 'Escrow Account', ['Debt drawings (RCF, Loan, Bond)','Escrow Account','Cash avaible net Time Depo'], ['Debt drawings (RCF, Loan, Bond)','Cash avaible net Time Depo']), axis=1)
         input_df['Deno1'] = input_df[['Loan Repayments','Derivative Settlements (CCS & IRS)','Coupon','EUR Interest Payments']].abs().sum(axis=1)
         cols_operativi = ['Suppliers -Opex/Capex', 'Others Cost', 'Factoring Suppliers Opex/Capex',
