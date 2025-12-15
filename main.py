@@ -1592,7 +1592,7 @@ elif selected_kri == "Liquidity Risk💰":
         import io
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        input_df.to_excel(writer, index=True, sheet_name="Tranches")
+            input_df.to_excel(writer, index=True, sheet_name="Tranches")
             st.download_button(
             label="📥 Scarica risultati in Excel",
             data=output.getvalue(),
