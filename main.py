@@ -1599,4 +1599,6 @@ elif selected_kri == "Liquidity Risk💰":
             file_name="KRI_Liquidity_Risk.xlsx",
             mime="application/vnd.ms-excel"
         )
+        
+    
     
