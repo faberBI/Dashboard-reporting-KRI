@@ -1543,7 +1543,6 @@ elif selected_kri == "Liquidity Risk💰":
          'Utilities', 
          'VAT', 
          'Corporate Taxes (IRES/IRAP)', 
-         'Others Tax (F24/F23)', 
          'Guarantees Cost']]
         
         st.dataframe(input_df)
