@@ -1540,7 +1540,6 @@ elif selected_kri == "Liquidity Risk💰":
          'HR Others Cost (Telemaco…)', 
          'Inps/Irpef Contributions', 
          'Rents and property costs', 
-         'Utilities', 
          'VAT', 
          'Corporate Taxes (IRES/IRAP)', 
          'Guarantees Cost']]
