@@ -1530,7 +1530,7 @@ elif selected_kri == "Liquidity Risk💰":
     run_liquidity  = st.button("🚀 Calcolo KRI Liquidity...")
 
     if uploaded_file and run_liquidity:
-        input_df = pd.read_excel(uploaded_file, sheet_name="cash_flow")
+        input_df = pd.read_excel(uploaded_file)
         st.subheader("📋 Cash Flow data caricati dall’Excel")
         input_df[['Debt drawings (RCF, Loan, Bond)','Escrow Account','Cash avaible net Time Depo','Loan Repayments','Derivative Settlements (CCS & IRS)','Coupon','EUR Interest Payments',
          'Suppliers -Opex/Capex', 
