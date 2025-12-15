@@ -1542,10 +1542,7 @@ elif selected_kri == "Liquidity Risk💰":
          'Rents and property costs', 
          'VAT', 
          'Corporate Taxes (IRES/IRAP)', 
-         'Guarantees Cost']]
-        
-        st.dataframe(input_df)
-        
+         'Guarantees Cost']]        
         def fonti_finanziamento(row, check_col, sum_cols, alt_cols):
             if row[check_col] > 0:
                 return row[sum_cols].sum()
@@ -1562,6 +1559,8 @@ elif selected_kri == "Liquidity Risk💰":
         input_df['Deno2'] = input_df['Deno1'] + input_df[cols_operativi].abs().sum(axis=1)
         input_df['Indicatore 12m'] = np.maximum(input_df['Num1'] / input_df['Deno1'], 0)
         input_df['Liquidity Coverage Ratio (con spese operative)'] = np.maximum(input_df['Num1'] / input_df['Deno2'], 0)
+
+        st.dataframe(input_df[['Indicatore 12m','Liquidity Coverage Ratio (con spese operative)']])
         import plotly.express as px
 
         # Controllo se la colonna 'M/€' esiste
