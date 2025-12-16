@@ -1530,185 +1530,173 @@ elif selected_kri == "Liquidity Risk💰":
     run_liquidity  = st.button("🚀 Calcolo KRI Liquidity...")
 
     if uploaded_file and run_liquidity:
-        input_df = pd.read_excel(uploaded_file, sheet_name = 'cash_monthly_data')
-        input_plan_df = pd.read_excel(uploaded_file, sheet_name = 'bp_data')
+        # Caricamento dati
+        input_df = pd.read_excel(uploaded_file, sheet_name='cash_monthly_data')
+        input_plan_df = pd.read_excel(uploaded_file, sheet_name='bp_data')
+
+        # Normalizza i nomi delle colonne: rimuove spazi invisibili e strip
+        input_df.columns = [col.replace('\xa0', ' ').strip() for col in input_df.columns]
+
         st.subheader("📋 Cash Flow data caricati dall’Excel")
-        input_df[['Debt drawings (RCF, Loan, Bond)','Escrow Account','Cash avaible net Time Depo','Loan Repayments','Derivative Settlements (CCS & IRS)','Coupon','EUR Interest Payments',
-         'Suppliers -Opex/Capex', 
-         'Others Cost', 
-         'Factoring Suppliers Opex/Capex', 
-         'Salaries/Payroll', 
-         'HR Others Cost (Telemaco…)', 
-         'Inps/Irpef Contributions', 
-         'Rents and property costs', 
-         'VAT', 
-         'Corporate Taxes (IRES/IRAP)', 
-         'Guarantees Cost']]        
+
+        # Funzione per calcolo fonti finanziamento
         def fonti_finanziamento(row, check_col, sum_cols, alt_cols):
             if row[check_col] > 0:
                 return row[sum_cols].sum()
             else:
                 return row[alt_cols].sum()
-            
+        
         input_df['Escrow Account'] = pd.to_numeric(input_df['Escrow Account'], errors='coerce').fillna(0)
-        input_df['Num1'] = input_df.apply(lambda row: fonti_finanziamento(row, 'Escrow Account', ['Debt drawings (RCF, Loan, Bond)','Escrow Account','Cash avaible net Time Depo'], ['Debt drawings (RCF, Loan, Bond)','Cash avaible net Time Depo']), axis=1)
+        input_df['Num1'] = input_df.apply(
+            lambda row: fonti_finanziamento(
+                row,
+                'Escrow Account',
+                ['Debt drawings (RCF, Loan, Bond)','Escrow Account','Cash avaible net Time Depo'],
+                ['Debt drawings (RCF, Loan, Bond)','Cash avaible net Time Depo']
+            ),
+            axis=1
+        )
+
         input_df['Deno1'] = input_df[['Loan Repayments','Derivative Settlements (CCS & IRS)','Coupon','EUR Interest Payments']].abs().sum(axis=1)
+
         cols_operativi = ['Suppliers -Opex/Capex', 'Others Cost', 'Factoring Suppliers Opex/Capex',
-                  'Salaries/Payroll', 'HR Others Cost (Telemaco…)', 'Inps/Irpef Contributions',
-                  'Rents and property costs', 'VAT', 'Corporate Taxes (IRES/IRAP)', 'Guarantees Cost']
+                          'Salaries/Payroll', 'HR Others Cost (Telemaco…)', 'Inps/Irpef Contributions',
+                          'Rents and property costs', 'VAT', 'Corporate Taxes (IRES/IRAP)', 'Guarantees Cost']
 
         input_df['Deno2'] = input_df['Deno1'] + input_df[cols_operativi].abs().sum(axis=1)
-        input_df['Indicatore 12m'] = np.where(input_df['Deno1'] > 0,input_df['Num1'] / input_df['Deno1'], np.nan)
-        input_df['Liquidity Coverage Ratio (con spese operative)'] = np.where(input_df['Deno2'] > 0,input_df['Num1'] / input_df['Deno2'], np.nan)
-        input_df.columns = [col.replace('\xa0', ' ').strip() for col in input_df.columns]
-        st.dataframe(input_df[['Indicatore 12m','Liquidity Coverage Ratio (con spese operative)']])
+
+        # Calcolo indicatori
+        input_df['Indicatore 12m'] = np.where(input_df['Deno1'] > 0, input_df['Num1'] / input_df['Deno1'], np.nan)
+        input_df['Liquidity Coverage Ratio (con spese operative)'] = np.where(input_df['Deno2'] > 0, input_df['Num1'] / input_df['Deno2'], np.nan)
+
+        # Selezione sicura delle colonne per visualizzazione
+        cols_to_show = ['Indicatore 12m', 'Liquidity Coverage Ratio (con spese operative)']
+        existing_cols = [col for col in cols_to_show if col in input_df.columns]
+        if existing_cols:
+            st.dataframe(input_df[existing_cols])
+        else:
+            st.warning("⚠️ Le colonne richieste non sono presenti nel DataFrame.")
+
         import plotly.express as px
 
         # Controllo se la colonna 'M/€' esiste
         if 'M/€' in input_df.columns:
-            # Creazione del grafico
             fig = px.line(
                 input_df,
                 x='M/€',
-                y=['Indicatore 12m', 'Liquidity Coverage Ratio (con spese operative)'],
-                labels={
-                    'variable': 'KRI'
-                },
+                y=existing_cols,
+                labels={'variable': 'KRI'},
                 title="📈 Liquidity Risk KRI Monthly",
                 markers=True
             )
-
             fig.update_layout(
                 xaxis_title="Mese",
                 legend_title="KRI",
                 template="plotly_white"
             )
-
-            # Mostra il grafico in Streamlit
             st.plotly_chart(fig, use_container_width=True)
-            
-            st.subheader("📊 Copertura Opex Capex 📊")
-            input_plan = input_plan_df.copy()
-            input_plan["EBITDA_org_cash@Risk"] = input_plan["EBITA@Risk"] + input_plan["Cash adjustments"]
-            input_plan["EBITDA_org_cash"] = input_plan["EBITDAaL organic IFRS"] + input_plan["Cash adjustments"]  
-            input_plan["EBITDAaL cash@Risk"] = input_plan["EBITDA_org_cash@Risk"] + input_plan["One-off cash"]
-            input_plan["EBITDAaL cash"] = input_plan["EBITDA_org_cash"] + input_plan["One-off cash"]
-                        
-            input_plan["Operating Free Cash Flow pre-tax@Risk"] = (
-                input_plan["EBITDAaL cash@Risk"]
-                + input_plan["Capex"]
-                + input_plan["Change in Working Capital"]
-                + input_plan["Change in TFR"]
-                + input_plan["Change in Commercial Basket"]
-                + input_plan["Change in ARO fund"]
-                )
-
-            input_plan["Operating Free Cash Flow pre-tax"] = (
-                input_plan["EBITDAaL cash"]
-                + input_plan["Capex"]
-                + input_plan["Change in Working Capital"]
-                + input_plan["Change in TFR"]
-                + input_plan["Change in Commercial Basket"]
-                + input_plan["Change in ARO fund"]
-                )
-            
-            input_plan["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk"] = input_plan["Operating Free Cash Flow pre-tax@Risk"] + input_plan["Cash Taxes"]
-            input_plan["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)"] = input_plan["Operating Free Cash Flow pre-tax"] + input_plan["Cash Taxes"]
-
-            
-            input_plan["Totale@Risk"] = (
-                input_plan["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk"]
-                + input_plan["Interest expenses (fixed al 2025)"]
-                + input_plan["Dividendi"]
-                )
-
-            input_plan["Totale"] = (
-                input_plan["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)"]
-                + input_plan["Interest expenses (fixed al 2025)"]
-                + input_plan["Dividendi"]
-                )
-
-            # -----------------------------
-            # LIQUIDITY MARGIN con STOP
-            # -----------------------------
-            initial_liquidity = st.number_input(
-                "Initial Liquidity (€m)",
-                min_value=0.0,
-                value=5491.0,
-                step=50.0,
-                format="%.0f"
-            )
-            
-            def liquidity_margin(series, initial):
-                result = []
-                current = initial
-                for v in series:
-                    current += v
-                    if current <= 0:
-                        result.append(np.nan)
-                        break
-                    result.append(current)
-                return result + [np.nan] * (len(series) - len(result))
-            
-            input_plan["Liquidity_Margin@Risk"] = liquidity_margin(
-                input_plan["Totale@Risk"], initial_liquidity
-            )
-            
-            input_plan["Liquidity_Margin"] = liquidity_margin(
-                input_plan["Totale"], initial_liquidity
-            )
-            y_base = input_plan["Liquidity_Margin"]
-            y_risk = input_plan["Liquidity_Margin@Risk"]
-            floor_value = 650
-            fig, ax = plt.subplots(figsize=(10, 5))
-            x = input_plan.index
-            fig, ax = plt.subplots(figsize=(10, 5))
-            # Liquidity Margin (base)
-            ax.plot(
-                x,
-                y_base,
-                linewidth=3,
-                label="Liquidity Margin"
-                )
-            # Liquidity Margin @Risk
-            ax.plot(
-                x,
-                y_risk,
-                linewidth=3,
-                label="Liquidity Margin @Risk"
-                )
-            # Floor
-            ax.plot(
-                x,
-                [floor_value] * len(x),
-                linestyle=":",
-                linewidth=3,
-                label="Floor (650 mln)"
-            )
-            # Formatting
-            ax.set_title("Liquidity Scenario", fontsize=16)
-            ax.set_xlabel("Time")
-            ax.set_ylabel("€m")
-            ax.grid(True, alpha=0.3)
-            ax.legend()
-            plt.xticks(rotation=45)
-            plt.tight_layout()
-            st.pyplot(fig)
-        
         else:
             st.warning("⚠️ La colonna 'M/€' non è presente nel DataFrame.")
+
+        # -----------------------------
+        # Copertura Opex/Capex e Liquidity Margin
+        # -----------------------------
+        # Normalizzazione colonne input_plan_df
+        input_plan_df.columns = [col.replace('\xa0', ' ').strip() for col in input_plan.columns]
+
+        # Calcoli EBITDA e Operating Free Cash Flow
+        input_plan_df["EBITDA_org_cash@Risk"] = input_plan_df["EBITA@Risk"] + input_plan_df["Cash adjustments"]
+        input_plan_df["EBITDA_org_cash"] = input_plan_df["EBITDAaL organic IFRS"] + input_plan_df["Cash adjustments"]  
+        input_plan_df["EBITDAaL cash@Risk"] = input_plan_df["EBITDA_org_cash@Risk"] + input_plan_df["One-off cash"]
+        input_plan_df["EBITDAaL cash"] = input_plan_df["EBITDA_org_cash"] + input_plan_df["One-off cash"]
+
+        input_plan_df["Operating Free Cash Flow pre-tax@Risk"] = (
+            input_plan_df["EBITDAaL cash@Risk"]
+            + input_plan_df["Capex"]
+            + input_plan_df["Change in Working Capital"]
+            + input_plan_df["Change in TFR"]
+            + input_plan_df["Change in Commercial Basket"]
+            + input_plan_df["Change in ARO fund"]
+        )
+
+        input_plan_df["Operating Free Cash Flow pre-tax"] = (
+            input_plan_df["EBITDAaL cash"]
+            + input_plan_df["Capex"]
+            + input_plan_df["Change in Working Capital"]
+            + input_plan_df["Change in TFR"]
+            + input_plan_df["Change in Commercial Basket"]
+            + input_plan_df["Change in ARO fund"]
+        )
+
+        input_plan_df["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk"] = input_plan_df["Operating Free Cash Flow pre-tax@Risk"] + input_plan_df["Cash Taxes"]
+        input_plan_df["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)"] = input_plan_df["Operating Free Cash Flow pre-tax"] + input_plan_df["Cash Taxes"]
+
+        input_plan_df["Totale@Risk"] = (
+            input_plan_df["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk"]
+            + input_plan_df["Interest expenses (fixed al 2025)"]
+            + input_plan_df["Dividendi"]
+        )
+
+        input_plan_df["Totale"] = (
+            input_plan_df["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)"]
+            + input_plan_df["Interest expenses (fixed al 2025)"]
+            + input_plan_df["Dividendi"]
+        )
+
+        # Liquidity Margin con STOP
+        initial_liquidity = st.number_input(
+            "Initial Liquidity (€m)",
+            min_value=0.0,
+            value=5491.0,
+            step=50.0,
+            format="%.0f"
+        )
+
+        def liquidity_margin(series, initial):
+            result = []
+            current = initial
+            for v in series:
+                current += v
+                if current <= 0:
+                    result.append(np.nan)
+                    break
+                result.append(current)
+            return result + [np.nan] * (len(series) - len(result))
+
+        input_plan_df["Liquidity_Margin@Risk"] = liquidity_margin(input_plan_df["Totale@Risk"], initial_liquidity)
+        input_plan_df["Liquidity_Margin"] = liquidity_margin(input_plan_df["Totale"], initial_liquidity)
+
+        # Grafico Liquidity Margin
+        y_base = input_plan["Liquidity_Margin"]
+        y_risk = input_plan["Liquidity_Margin@Risk"]
+        floor_value = 650
+        fig, ax = plt.subplots(figsize=(10, 5))
+        x = input_plan.index
+        ax.plot(x, y_base, linewidth=3, label="Liquidity Margin")
+        ax.plot(x, y_risk, linewidth=3, label="Liquidity Margin @Risk")
+        ax.plot(x, [floor_value]*len(x), linestyle=":", linewidth=3, label="Floor (650 mln)")
+        ax.set_title("Liquidity Scenario", fontsize=16)
+        ax.set_xlabel("Time")
+        ax.set_ylabel("€m")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(fig)
+
         # Export Excel
         import io
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-            input_df.to_excel(writer, index=True, sheet_name="Liquidity Coverage Ratio")
-            
+            input_df.to_excel(writer, index=True, sheet_name="Liquidity Coverage Ratio")
+            input_plan_df.to_excel(writer, index=True, sheet_name="Liquidity Coverage Ratio2")
             st.download_button(
-            label="📥 Scarica risultati in Excel",
-            data=output.getvalue(),
-            file_name="KRI_Liquidity_Risk.xlsx",
-            mime="application/vnd.ms-excel"
-        )
+                label="📥 Scarica risultati in Excel",
+                data=output.getvalue(),
+                file_name="KRI_Liquidity_Risk.xlsx",
+                mime="application/vnd.ms-excel"
+            )
+
         
     
     
