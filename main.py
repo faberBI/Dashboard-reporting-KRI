@@ -1530,7 +1530,8 @@ elif selected_kri == "Liquidity Risk💰":
     run_liquidity  = st.button("🚀 Calcolo KRI Liquidity...")
 
     if uploaded_file and run_liquidity:
-        input_df = pd.read_excel(uploaded_file)
+        input_df = pd.read_excel(uploaded_file, sheet_name = 'cash_monthly_data')
+        input_plan_df = pd.read_excel(uploaded_file, sheet_name = 'bp_data')
         st.subheader("📋 Cash Flow data caricati dall’Excel")
         input_df[['Debt drawings (RCF, Loan, Bond)','Escrow Account','Cash avaible net Time Depo','Loan Repayments','Derivative Settlements (CCS & IRS)','Coupon','EUR Interest Payments',
          'Suppliers -Opex/Capex', 
@@ -1585,13 +1586,123 @@ elif selected_kri == "Liquidity Risk💰":
 
             # Mostra il grafico in Streamlit
             st.plotly_chart(fig, use_container_width=True)
+            
+            st.subheader("📊 Copertura Opex Capex 📊")
+            input_plan = input_plan_df.copy()
+            input_plan["EBITDA_org_cash@Risk"] = input_plan["EBITA@Risk"] + input_plan["Cash adjustments"]
+            input_plan["EBITDA_org_cash"] = input_plan["EBITDAaL organic IFRS"] + input_plan["Cash adjustments"]  
+            input_plan["EBITDAaL cash@Risk"] = input_plan["EBITDA_org_cash@Risk"] + input_plan["One-off cash"]
+            input_plan["EBITDAaL cash"] = input_plan["EBITDA_org_cash"] + input_plan["One-off cash"]
+                        
+            input_plan["Operating Free Cash Flow pre-tax@Risk"] = (
+                input_plan["EBITDAaL cash@Risk"]
+                + input_plan["Capex"]
+                + input_plan["Change in Working Capital"]
+                + input_plan["Change in TFR"]
+                + input_plan["Change in Commercial Basket"]
+                + input_plan["Change in ARO fund"]
+                )
+
+            input_plan["Operating Free Cash Flow pre-tax"] = (
+                input_plan["EBITDAaL cash"]
+                + input_plan["Capex"]
+                + input_plan["Change in Working Capital"]
+                + input_plan["Change in TFR"]
+                + input_plan["Change in Commercial Basket"]
+                + input_plan["Change in ARO fund"]
+                )
+            
+            input_plan["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk"] = input_plan["Operating Free Cash Flow pre-tax@Risk"] + input_plan["Cash Taxes"]
+            input_plan["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)"] = input_plan["Operating Free Cash Flow pre-tax"] + input_plan["Cash Taxes"]
+
+            
+            input_plan["Totale@Risk"] = (
+                input_plan["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk"]
+                + input_plan["Interest expenses (fixed al 2025)"]
+                + input_plan["Dividendi"]
+                )
+
+            input_plan["Totale"] = (
+                input_plan["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)"]
+                + input_plan["Interest expenses (fixed al 2025)"]
+                + input_plan["Dividendi"]
+                )
+
+            # -----------------------------
+            # LIQUIDITY MARGIN con STOP
+            # -----------------------------
+            initial_liquidity = st.number_input(
+                "Initial Liquidity (€m)",
+                min_value=0.0,
+                value=5491.0,
+                step=50.0,
+                format="%.0f"
+            )
+            
+            def liquidity_margin(series, initial):
+                result = []
+                current = initial
+                for v in series:
+                    current += v
+                    if current <= 0:
+                        result.append(np.nan)
+                        break
+                    result.append(current)
+                return result + [np.nan] * (len(series) - len(result))
+            
+            input_plan["Liquidity_Margin@Risk"] = liquidity_margin(
+                input_plan["Totale@Risk"], initial_liquidity
+            )
+            
+            input_plan["Liquidity_Margin"] = liquidity_margin(
+                input_plan["Totale"], initial_liquidity
+            )
+        y_base = input_plan["Liquidity_Margin"]
+        y_risk = input_plan["Liquidity_Margin@Risk"]
+        floor_value = 650
+        fig, ax = plt.subplots(figsize=(10, 5))
+        x = input_plan.index
+                fig, ax = plt.subplots(figsize=(10, 5))
+        # Liquidity Margin (base)
+        ax.plot(
+            x,
+            y_base,
+            linewidth=3,
+            label="Liquidity Margin"
+        )
+        # Liquidity Margin @Risk
+        ax.plot(
+            x,
+            y_risk,
+            linewidth=3,
+            label="Liquidity Margin @Risk"
+        )
+        # Floor
+        ax.plot(
+            x,
+            [floor_value] * len(x),
+            linestyle=":",
+            linewidth=3,
+            label="Floor (650 mln)"
+        )
+        # Formatting
+        ax.set_title("Liquidity Scenario", fontsize=16)
+        ax.set_xlabel("Time")
+        ax.set_ylabel("€m")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(fig)
+        
         else:
             st.warning("⚠️ La colonna 'M/€' non è presente nel DataFrame.")
         # Export Excel
         import io
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-            input_df.to_excel(writer, index=True, sheet_name="Tranches")
+            input_df.to_excel(writer, index=True, sheet_name="Liquidity Coverage Ratio")
+            
             st.download_button(
             label="📥 Scarica risultati in Excel",
             data=output.getvalue(),
