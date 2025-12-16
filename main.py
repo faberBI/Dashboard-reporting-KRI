@@ -1657,43 +1657,43 @@ elif selected_kri == "Liquidity Risk💰":
             input_plan["Liquidity_Margin"] = liquidity_margin(
                 input_plan["Totale"], initial_liquidity
             )
-        y_base = input_plan["Liquidity_Margin"]
-        y_risk = input_plan["Liquidity_Margin@Risk"]
-        floor_value = 650
-        fig, ax = plt.subplots(figsize=(10, 5))
-        x = input_plan.index
-        fig, ax = plt.subplots(figsize=(10, 5))
-        # Liquidity Margin (base)
-        ax.plot(
-            x,
-            y_base,
-            linewidth=3,
-            label="Liquidity Margin"
-        )
-        # Liquidity Margin @Risk
-        ax.plot(
-            x,
-            y_risk,
-            linewidth=3,
-            label="Liquidity Margin @Risk"
-        )
-        # Floor
-        ax.plot(
-            x,
-            [floor_value] * len(x),
-            linestyle=":",
-            linewidth=3,
-            label="Floor (650 mln)"
-        )
-        # Formatting
-        ax.set_title("Liquidity Scenario", fontsize=16)
-        ax.set_xlabel("Time")
-        ax.set_ylabel("€m")
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        st.pyplot(fig)
+            y_base = input_plan["Liquidity_Margin"]
+            y_risk = input_plan["Liquidity_Margin@Risk"]
+            floor_value = 650
+            fig, ax = plt.subplots(figsize=(10, 5))
+            x = input_plan.index
+            fig, ax = plt.subplots(figsize=(10, 5))
+            # Liquidity Margin (base)
+            ax.plot(
+                x,
+                y_base,
+                linewidth=3,
+                label="Liquidity Margin"
+                )
+            # Liquidity Margin @Risk
+            ax.plot(
+                x,
+                y_risk,
+                linewidth=3,
+                label="Liquidity Margin @Risk"
+                )
+            # Floor
+            ax.plot(
+                x,
+                [floor_value] * len(x),
+                linestyle=":",
+                linewidth=3,
+                label="Floor (650 mln)"
+            )
+            # Formatting
+            ax.set_title("Liquidity Scenario", fontsize=16)
+            ax.set_xlabel("Time")
+            ax.set_ylabel("€m")
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            st.pyplot(fig)
         
         else:
             st.warning("⚠️ La colonna 'M/€' non è presente nel DataFrame.")
