@@ -1662,7 +1662,7 @@ elif selected_kri == "Liquidity Risk💰":
         floor_value = 650
         fig, ax = plt.subplots(figsize=(10, 5))
         x = input_plan.index
-                fig, ax = plt.subplots(figsize=(10, 5))
+        fig, ax = plt.subplots(figsize=(10, 5))
         # Liquidity Margin (base)
         ax.plot(
             x,
