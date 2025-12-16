@@ -1560,7 +1560,7 @@ elif selected_kri == "Liquidity Risk💰":
         input_df['Deno2'] = input_df['Deno1'] + input_df[cols_operativi].abs().sum(axis=1)
         input_df['Indicatore 12m'] = np.where(input_df['Deno1'] > 0,input_df['Num1'] / input_df['Deno1'], np.nan)
         input_df['Liquidity Coverage Ratio (con spese operative)'] = np.where(input_df['Deno2'] > 0,input_df['Num1'] / input_df['Deno2'], np.nan)
-
+        input_df.columns = [col.replace('\xa0', ' ').strip() for col in input_df.columns]
         st.dataframe(input_df[['Indicatore 12m','Liquidity Coverage Ratio (con spese operative)']])
         import plotly.express as px
 
