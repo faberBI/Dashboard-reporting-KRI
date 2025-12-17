@@ -60,7 +60,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "💰🔑 Access to Funding", "🛡️💻 Cyber","💳 Credit risk" ,"📈 Interest Rate", "Liquidity Risk💰"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "🛡️💻 Cyber","💳 Credit risk" ,"📈 Interest Rate", "Liquidity Risk💰"]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -923,11 +923,6 @@ elif selected_kri == "🟠 Copper Price":
             file_name="Simulazione_Copper_price.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-# -----------------------
-# 💰🔑 Access to Funding
-# -----------------------
-elif selected_kri == "💰🔑 Access to Funding":
-    print('Access to Funding')
     
 elif selected_kri == "💳 Credit risk":
     st.subheader("🏦 Credit Risk – Aging & Indicatori")
@@ -1327,7 +1322,28 @@ elif selected_kri == "📈 Interest Rate":
             return float(row["Spread"].iloc[0])
         else:
             return float(spread_df["Spread"].iloc[-1]) 
-    
+
+    def get_plan_euribor_for_date(date, plan_df):
+        year = date.year
+
+        # Ordiniamo per sicurezza
+        plan_df_sorted = plan_df.sort_values("Anno")
+
+        # Se l'anno è presente → uso diretto
+        if year in plan_df_sorted["Anno"].values:
+            return plan_df_sorted.loc[plan_df_sorted["Anno"] == year, "Tasso"].values[0]
+
+        # Se l'anno è successivo all'ultimo disponibile → ultimo valore noto
+        if year > plan_df_sorted["Anno"].max():
+            return plan_df_sorted.iloc[-1]["Tasso"]
+
+        # Se l'anno è precedente al primo disponibile → primo valore noto
+        if year < plan_df_sorted["Anno"].min():
+            return plan_df_sorted.iloc[0]["Tasso"]
+
+        # Fallback 
+        return np.nan
+
     
     # ============================================================
     # STREAMLIT INTERFACCIA
@@ -1337,6 +1353,9 @@ elif selected_kri == "📈 Interest Rate":
     
     if uploaded_file and run_euribor:
         tranche_df = pd.read_excel(uploaded_file, sheet_name="Tranches")
+        plan_euribor_df = pd.read_excel(uploaded_file, sheet_name="Forward")
+        plan_euribor_df["Anno"] = plan_euribor_df["Anno"].astype(int)
+        
         st.subheader("📋 Tranche caricate dall’Excel")
         st.dataframe(tranche_df)
         
@@ -1365,7 +1384,8 @@ elif selected_kri == "📈 Interest Rate":
             maturity_date = pd.to_datetime(row["Maturity"])
             forecast_tranche = forecast_quarterly[forecast_quarterly.index <= maturity_date]
             spread_series = forecast_tranche.index.map(lambda d: get_spread_for_date(d, spread_df))
-            plan_rate = (row["Euribor"] + spread_series)
+            plan_euribor_series = forecast_tranche.index.map(lambda d: get_plan_euribor_for_date(d, plan_euribor_df))
+            plan_rate = plan_euribor_series + spread_series
             var_rate = forecast_tranche["upper_adj"] + spread_series
             var_amount = (var_rate/100) * unhedged
             plan_amount = (plan_rate/100) * unhedged
