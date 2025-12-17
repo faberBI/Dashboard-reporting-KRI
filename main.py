@@ -1304,11 +1304,11 @@ elif selected_kri == "📈 Interest Rate":
             data=[plan_euribor_df.loc[plan_euribor_df['Anno'] == d.year, 'Tasso'].values[0] for d in idx]
         )
 
-        buffer_pct = 0.9
+        buffer_pct = 0.3
         lower_limit = plan_rate_series * (1 - buffer_pct)
 
         # Applica il limite inferiore elemento per elemento
-        lower_adj = np.maximum(lower_adj, lower_limit.values)
+        lower_adj = np.minimum(lower_adj, plan_rate_series.values)
     
         forecast_df = pd.DataFrame({
             "lower_emp": lower_emp,
