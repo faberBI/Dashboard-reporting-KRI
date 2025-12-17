@@ -1290,15 +1290,15 @@ elif selected_kri == "📈 Interest Rate":
         # Applicazione buffer su lower_adj basato su plan + spread
         # ===========================
         # -----------------------------
-    # Costruzione indice giornaliero del forecast
-    # -----------------------------
-    idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
-    # -----------------------------
-    # Applicazione limite inferiore su base tassi annuali fissi
-    # -----------------------------
-    if plan_euribor_df is not None:
-        # Assicurati che il tasso sia float
-        plan_euribor_df['Tasso'] = plan_euribor_df['Tasso'].astype(float)
+        # Costruzione indice giornaliero del forecast
+        # -----------------------------
+        idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
+        # -----------------------------
+        # Applicazione limite inferiore su base tassi annuali fissi
+        # -----------------------------
+        if plan_euribor_df is not None:
+            # Assicurati che il tasso sia float
+            plan_euribor_df['Tasso'] = plan_euribor_df['Tasso'].astype(float)
 
         # Serie giornaliera basata sul tasso fisso annuale
         plan_rate_series = pd.Series(
