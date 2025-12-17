@@ -1602,8 +1602,7 @@ elif selected_kri == "Liquidity Risk💰":
         # -----------------------------
         # Copertura Opex/Capex e Liquidity Margin
         # -----------------------------
-        # Normalizzazione colonne input_plan_df
-        input_plan_df.columns = [col.replace('\xa0', ' ').strip() for col in input_plan.columns]
+
 
         # Calcoli EBITDA e Operating Free Cash Flow
         input_plan_df["EBITDA_org_cash@Risk"] = input_plan_df["EBITA@Risk"] + input_plan_df["Cash adjustments"]
