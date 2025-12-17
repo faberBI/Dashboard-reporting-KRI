@@ -1293,7 +1293,7 @@ elif selected_kri == "📈 Interest Rate":
         
         if plan_euribor_df is not None and spread_df is not None:
             plan_rate_series = pd.Series(
-                data=[get_plan_euribor_for_date(d, plan_euribor_df) + get_spread_for_date(d, spread_df) for d in idx],
+                data=[get_plan_euribor_for_date(d, plan_euribor_df) for d in idx],
                 index=idx
             )
             buffer_pct = 0.1
