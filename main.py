@@ -1377,6 +1377,9 @@ elif selected_kri == "📈 Interest Rate":
     if uploaded_file and run_euribor:
         tranche_df = pd.read_excel(uploaded_file, sheet_name="Tranches")
         plan_euribor_df = pd.read_excel(uploaded_file, sheet_name="Forward")
+        tassi_impliciti = pd.read_excel(uploaded_file, sheet_name = 'Tassi_impliciti')
+        tassi_impliciti['Data'] = pd.to_datetime(tassi_impliciti['Data'])
+        
         plan_euribor_df["Anno"] = plan_euribor_df["Anno"].astype(int)
         
         st.subheader("📋 Tranche caricate dall’Excel")
@@ -1450,6 +1453,7 @@ elif selected_kri == "📈 Interest Rate":
         # Forecast unico Monte Carlo (median e intervallo conformalizzato)
         plt.plot(forecast_quarterly.index, forecast_quarterly['median'], label='Mean Forecast', color='green', linestyle='--')
         plt.plot(plan_series_plot.index, plan_series_plot.values, label = 'Euribor 3m Piano', color = 'blue', linestyle= '-.')
+        plt.plot(tassi_impliciti['Data'],tassi_impliciti['Tasso Forward'], label = 'Forward Euribor Fonte Bloomberg', color = 'red', linestyle= '-.')
         plt.fill_between(
             forecast_quarterly.index,
             forecast_quarterly['lower_adj'],
