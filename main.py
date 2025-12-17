@@ -1390,7 +1390,7 @@ elif selected_kri == "📈 Interest Rate":
             
             buffer_pct = 0.1
             lower_limit = plan_rate * (1 - buffer_pct)
-            forecast_tranche['lower_adj'] = np.maximum(forecast_tranche['lower_adj'], lower_limit)
+            forecast_tranche['lower_adj'] = forecast_tranche['lower_adj'].clip(lower=lower_limit)
             
             var_amount = (var_rate/100) * unhedged
             plan_amount = (plan_rate/100) * unhedged
