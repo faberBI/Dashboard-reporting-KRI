@@ -1613,6 +1613,7 @@ elif selected_kri == "Liquidity Risk💰":
         input_plan_df["Operating Free Cash Flow pre-tax@Risk"] = (
             input_plan_df["EBITDAaL cash@Risk"]
             + input_plan_df["Capex"]
+            + input_plan_df['PNRR subsidies']
             + input_plan_df["Change in Working Capital"]
             + input_plan_df["Change in TFR"]
             + input_plan_df["Change in Commercial Basket"]
@@ -1622,6 +1623,7 @@ elif selected_kri == "Liquidity Risk💰":
         input_plan_df["Operating Free Cash Flow pre-tax"] = (
             input_plan_df["EBITDAaL cash"]
             + input_plan_df["Capex"]
+            + input_plan_df['PNRR subsidies']
             + input_plan_df["Change in Working Capital"]
             + input_plan_df["Change in TFR"]
             + input_plan_df["Change in Commercial Basket"]
