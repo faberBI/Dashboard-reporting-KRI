@@ -1231,9 +1231,9 @@ elif selected_kri == "📈 Interest Rate":
     # ============================================================
     # SIMULAZIONE UNICA EURIBOR MONTE CARLO + CONFORMAL
     # ============================================================
-    def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3*360):
+        def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3*360, plan_euribor_df=None, spread_df=None):
         np.random.seed(234)
-        # Ottimizzazione parametri OU
+        
         def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
             X = np.zeros(n_steps)
             X[0] = X0
@@ -1286,7 +1286,20 @@ elif selected_kri == "📈 Interest Rate":
             mask = upper_adj <= lower_adj
             upper_adj[mask] = lower_adj[mask] + 0.2
     
+        # ===========================
+        # Applicazione buffer su lower_adj basato su plan + spread
+        # ===========================
         idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
+        
+        if plan_euribor_df is not None and spread_df is not None:
+            plan_rate_series = pd.Series(
+                data=[get_plan_euribor_for_date(d, plan_euribor_df) + get_spread_for_date(d, spread_df) for d in idx],
+                index=idx
+            )
+            buffer_pct = 0.1
+            lower_limit = plan_rate_series * (1 - buffer_pct)
+            lower_adj = np.maximum(lower_adj, lower_limit.values)  # applicazione elemento per elemento
+    
         forecast_df = pd.DataFrame({
             "lower_emp": lower_emp,
             "upper_emp": upper_emp,
@@ -1369,8 +1382,8 @@ elif selected_kri == "📈 Interest Rate":
         spread_df["To"] = pd.to_datetime(spread_df["To"])
     
         # 1️⃣ Simulazione unica EURIBOR
-        forecast_df, forecast_quarterly = simulate_euribor(series, df_dropped, n_sims= 5000, horizon_days= max_horizon_days)
-    
+        forecast_df, forecast_quarterly = simulate_euribor(series=series, df_dropped=df_dropped, n_sims=5000, horizon_days=max_horizon_days, plan_euribor_df=plan_euribor_df, spread_df=spread_df)
+        
         st.subheader("Risultati simulazione Tassi - Euribor ")
         st.dataframe(forecast_quarterly)
         
@@ -1386,12 +1399,7 @@ elif selected_kri == "📈 Interest Rate":
             spread_series = forecast_tranche.index.map(lambda d: get_spread_for_date(d, spread_df))
             plan_euribor_series = forecast_tranche.index.map(lambda d: get_plan_euribor_for_date(d, plan_euribor_df))
             plan_rate = plan_euribor_series + spread_series
-            var_rate = forecast_tranche["upper_adj"] + spread_series
-            
-            buffer_pct = 0.1
-            lower_limit = plan_rate * (1 - buffer_pct)
-            forecast_tranche['lower_adj'] = forecast_tranche['lower_adj'].clip(lower=lower_limit)
-            
+            var_rate = forecast_tranche["upper_adj"] + spread_series            
             var_amount = (var_rate/100) * unhedged
             plan_amount = (plan_rate/100) * unhedged
             days = forecast_tranche.index.to_series().diff().dt.days.fillna(90)
