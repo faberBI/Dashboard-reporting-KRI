@@ -1289,11 +1289,28 @@ elif selected_kri == "📈 Interest Rate":
         # ===========================
         # Applicazione buffer su lower_adj basato su plan + spread
         # ===========================
-        idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
-        plan_rate_series = pd.Series(data=[get_plan_euribor_for_date(d, plan_euribor_df) for d in idx],index=idx)
+        # -----------------------------
+    # Costruzione indice giornaliero del forecast
+    # -----------------------------
+    idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
+    # -----------------------------
+    # Applicazione limite inferiore su base tassi annuali fissi
+    # -----------------------------
+    if plan_euribor_df is not None:
+        # Assicurati che il tasso sia float
+        plan_euribor_df['Tasso'] = plan_euribor_df['Tasso'].astype(float)
+
+        # Serie giornaliera basata sul tasso fisso annuale
+        plan_rate_series = pd.Series(
+            index=idx,
+            data=[plan_euribor_df.loc[plan_euribor_df['Anno'] == d.year, 'Tasso'].values[0] for d in idx]
+        )
+
         buffer_pct = 0.1
         lower_limit = plan_rate_series * (1 - buffer_pct)
-        lower_adj = pd.Series(lower_adj, index=idx).clip(lower=lower_limit).values
+
+        # Applica il limite inferiore elemento per elemento
+        lower_adj = np.maximum(lower_adj, lower_limit.values)
     
         forecast_df = pd.DataFrame({
             "lower_emp": lower_emp,
