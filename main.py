@@ -1536,7 +1536,8 @@ elif selected_kri == "Liquidity Risk💰":
 
         # Normalizza i nomi delle colonne: rimuove spazi invisibili e strip
         input_df.columns = [col.replace('\xa0', ' ').strip() for col in input_df.columns]
-
+        input_plan_df.columns = [col.replace('\xa0', ' ').strip() for col in input_plan_df.columns]
+        
         st.subheader("📋 Cash Flow data caricati dall’Excel")
 
         # Funzione per calcolo fonti finanziamento
