@@ -1415,13 +1415,18 @@ elif selected_kri == "📈 Interest Rate":
         final_var_df = pd.concat(results_var).reset_index()
         final_var_df["KRI Amount"] = final_var_df["Var Amount (€)"]- final_var_df["Plan Amount (€)"]
         final_var_df["KRI Cashflow"] = final_var_df["Var Cashflow (€)"]- final_var_df["Plan Cashflow (€)"]
+
+        plan_series_plot = pd.Series(index=forecast_quarterly.index,data=[get_plan_euribor_for_date(d, plan_euribor_df) for d in forecast_quarterly.index])
+
         
         st.subheader("📊 Forecast Euribor 3M 📊 ")
         plt.figure(figsize=(15,6))
         # Serie storica
         plt.plot(df_dropped.index, df_dropped['euribor_3m'], label="Originale", color='black')
+        
         # Forecast unico Monte Carlo (median e intervallo conformalizzato)
         plt.plot(forecast_quarterly.index, forecast_quarterly['median'], label='Mean Forecast', color='green', linestyle='--')
+        plt.plot(plan_series_plot.index, plan_series_plot.values, label = 'Euribor 3m Piano', color = 'blue', linestyle= '-.')
         plt.fill_between(
             forecast_quarterly.index,
             forecast_quarterly['lower_adj'],
