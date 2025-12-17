@@ -1284,7 +1284,7 @@ elif selected_kri == "📈 Interest Rate":
     
         while np.any(upper_adj <= lower_adj):
             mask = upper_adj <= lower_adj
-            upper_adj[mask] = lower_adj[mask] + 0.2
+            upper_adj[mask] = lower_adj[mask] + 0.05
     
         # ===========================
         # Applicazione buffer su lower_adj basato su plan + spread
@@ -1304,7 +1304,7 @@ elif selected_kri == "📈 Interest Rate":
             data=[plan_euribor_df.loc[plan_euribor_df['Anno'] == d.year, 'Tasso'].values[0] for d in idx]
         )
 
-        buffer_pct = 0.3
+        buffer_pct = 0.4
         lower_limit = plan_rate_series * (1 - buffer_pct)
 
         # Applica il limite inferiore elemento per elemento
