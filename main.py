@@ -1670,6 +1670,8 @@ elif selected_kri == "Liquidity Risk💰":
         y_base = input_plan_df["Liquidity_Margin"]
         y_risk = input_plan_df["Liquidity_Margin@Risk"]
         floor_value = 650
+        import matplotlib.pyplot as plt
+        
         fig, ax = plt.subplots(figsize=(10, 5))
         x = input_plan.index
         ax.plot(x, y_base, linewidth=3, label="Liquidity Margin")
