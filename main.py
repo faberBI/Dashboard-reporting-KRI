@@ -1317,7 +1317,8 @@ elif selected_kri == "📈 Interest Rate":
             "lower_adj": lower_adj,
             "upper_adj": upper_adj
         }, index=idx)
-        forecast_quarterly = forecast_df.resample("Q").mean()
+        
+        forecast_quarterly = (forecast_df.resample("Q").mean() * 0.8 + plan_rate_series.resample("Q").mean() * 0.2)
     
         return forecast_df, forecast_quarterly
     
