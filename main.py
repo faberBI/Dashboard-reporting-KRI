@@ -1231,7 +1231,7 @@ elif selected_kri == "📈 Interest Rate":
     # ============================================================
     # SIMULAZIONE UNICA EURIBOR MONTE CARLO + CONFORMAL
     # ============================================================
-    def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3*360, plan_euribor_df=None, spread_df=None):
+    def simulate_euribor(series, df_dropped, n_sims=1000, alpha=0.05, horizon_days=3*360, plan_euribor_df=None):
         np.random.seed(234)
         
         def simulate_ou(X0, theta, mu, sigma, n_steps, dt=1.0):
@@ -1291,14 +1291,14 @@ elif selected_kri == "📈 Interest Rate":
         # ===========================
         idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
         
-        if plan_euribor_df is not None and spread_df is not None:
+        if plan_euribor_df is not None:
             plan_rate_series = pd.Series(
                 data=[get_plan_euribor_for_date(d, plan_euribor_df) for d in idx],
                 index=idx
             )
             buffer_pct = 0.1
             lower_limit = plan_rate_series * (1 - buffer_pct)
-            lower_adj = np.maximum(lower_adj, lower_limit.values)  # applicazione elemento per elemento
+            lower_adj = np.maximum(lower_adj, lower_limit.values)  
     
         forecast_df = pd.DataFrame({
             "lower_emp": lower_emp,
