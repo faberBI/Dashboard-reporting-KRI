@@ -1387,6 +1387,11 @@ elif selected_kri == "📈 Interest Rate":
             plan_euribor_series = forecast_tranche.index.map(lambda d: get_plan_euribor_for_date(d, plan_euribor_df))
             plan_rate = plan_euribor_series + spread_series
             var_rate = forecast_tranche["upper_adj"] + spread_series
+            
+            buffer_pct = 0.05
+            lower_limit = plan_rate * (1 - buffer_pct)
+            forecast_tranche['lower_adj'] = np.maximum(forecast_tranche['lower_adj'], lower_limit)
+            
             var_amount = (var_rate/100) * unhedged
             plan_amount = (plan_rate/100) * unhedged
             days = forecast_tranche.index.to_series().diff().dt.days.fillna(90)
