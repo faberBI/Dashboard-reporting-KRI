@@ -1665,7 +1665,7 @@ elif selected_kri == "Liquidity Risk💰":
 
         input_plan_df["Liquidity_Margin@Risk"] = liquidity_margin(input_plan_df["Totale@Risk"], initial_liquidity)
         input_plan_df["Liquidity_Margin"] = liquidity_margin(input_plan_df["Totale"], initial_liquidity)
-
+        st.dataframe(input_plan_df)
         # Grafico Liquidity Margin
         y_base = input_plan_df["Liquidity_Margin"]
         y_risk = input_plan_df["Liquidity_Margin@Risk"]
