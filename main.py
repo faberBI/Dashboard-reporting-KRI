@@ -1304,11 +1304,6 @@ elif selected_kri == "📈 Interest Rate":
             data=[plan_euribor_df.loc[plan_euribor_df['Anno'] == d.year, 'Tasso'].values[0] for d in idx]
         )
 
-        buffer_pct = np.random.uniform(0.10, 0.16, size=len(plan_rate_series))
-        lower_limit = plan_rate_series * (1 - buffer_pct)
-
-        # Applica il limite inferiore elemento per elemento
-        lower_adj = np.minimum(lower_adj, lower_limit.values)
     
         forecast_df = pd.DataFrame({
             "lower_emp": lower_emp,
@@ -1321,6 +1316,11 @@ elif selected_kri == "📈 Interest Rate":
         forecast_quarterly = forecast_df.resample("Q").mean()
         # Media ponderata solo sulla colonna 'median'
         forecast_quarterly['median'] = (forecast_quarterly['median'] * 0.5+ plan_rate_series.resample("Q").mean() * 0.5)
+        plan_q = plan_rate_series.resample("Q").mean()
+        
+        buffer_q = np.random.uniform(0.10, 0.16, size=len(plan_q))
+        plan_cap_q = plan_q * (1 - buffer_q)
+       forecast_quarterly['lower_adj'] = np.minimum(forecast_quarterly['lower_adj'], plan_cap_q.values)
     
         return forecast_df, forecast_quarterly
     
