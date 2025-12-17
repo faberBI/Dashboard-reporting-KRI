@@ -1388,7 +1388,7 @@ elif selected_kri == "📈 Interest Rate":
             plan_rate = plan_euribor_series + spread_series
             var_rate = forecast_tranche["upper_adj"] + spread_series
             
-            buffer_pct = 0.05
+            buffer_pct = 0.1
             lower_limit = plan_rate * (1 - buffer_pct)
             forecast_tranche['lower_adj'] = np.maximum(forecast_tranche['lower_adj'], lower_limit)
             
