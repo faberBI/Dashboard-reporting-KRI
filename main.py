@@ -1308,7 +1308,7 @@ elif selected_kri == "📈 Interest Rate":
         lower_limit = plan_rate_series * (1 - buffer_pct)
 
         # Applica il limite inferiore elemento per elemento
-        lower_adj = np.maximum(lower_adj, lower_limit.values)
+        lower_adj = np.minimum(lower_adj, lower_limit.values)
     
         forecast_df = pd.DataFrame({
             "lower_emp": lower_emp,
