@@ -1667,8 +1667,8 @@ elif selected_kri == "Liquidity Risk💰":
         input_plan_df["Liquidity_Margin"] = liquidity_margin(input_plan_df["Totale"], initial_liquidity)
 
         # Grafico Liquidity Margin
-        y_base = input_plan["Liquidity_Margin"]
-        y_risk = input_plan["Liquidity_Margin@Risk"]
+        y_base = input_plan_df["Liquidity_Margin"]
+        y_risk = input_plan_df["Liquidity_Margin@Risk"]
         floor_value = 650
         fig, ax = plt.subplots(figsize=(10, 5))
         x = input_plan.index
