@@ -1448,7 +1448,6 @@ elif selected_kri == "📈 Interest Rate":
         
         # Forecast unico Monte Carlo (median e intervallo conformalizzato)
         plt.plot(forecast_quarterly.index, forecast_quarterly['median'], label='Mean Forecast', color='green', linestyle='--')
-        plt.plot(forecast_quarterly.index, forecast_quarterly['mean'], label='Mean Forecast', color='green', linestyle='--')
         plt.plot(plan_series_plot.index, plan_series_plot.values, label = 'Euribor 3m Piano', color = 'blue', linestyle= '-.')
         plt.plot(tassi_impliciti['Data'],tassi_impliciti['Tasso Forward'], label = 'Forward Euribor Fonte Bloomberg', color = 'red', linestyle= '-.')
         plt.fill_between(
