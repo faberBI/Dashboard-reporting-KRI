@@ -1631,6 +1631,9 @@ elif selected_kri == "Liquidity Risk💰":
         input_plan_df["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk"] = input_plan_df["Operating Free Cash Flow pre-tax@Risk"] + input_plan_df["Cash Taxes"]
         input_plan_df["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)"] = input_plan_df["Operating Free Cash Flow pre-tax"] + input_plan_df["Cash Taxes"]
 
+        input_plan_df.loc[input_plan_df.index[0], 'Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk'] *= 3 / 12
+        input_plan_df.loc[input_plan_df.index[0], 'Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)'] *= 3 / 12
+        
         input_plan_df["Totale@Risk"] = (
             input_plan_df["Operating Free Cash Flow post-tax  (ultim 3 mesi per 2025)@Risk"]
             + input_plan_df["Interest expenses (fixed al 2025)"]
