@@ -1304,7 +1304,7 @@ elif selected_kri == "📈 Interest Rate":
             data=[plan_euribor_df.loc[plan_euribor_df['Anno'] == d.year, 'Tasso'].values[0] for d in idx]
         )
 
-        buffer_pct = np.random.uniform(0.10, 0.16)
+        buffer_pct = np.random.uniform(0.10, 0.16, size=len(plan_rate_series))
         lower_limit = plan_rate_series * (1 - buffer_pct)
 
         # Applica il limite inferiore elemento per elemento
