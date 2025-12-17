@@ -1382,7 +1382,7 @@ elif selected_kri == "📈 Interest Rate":
         spread_df["To"] = pd.to_datetime(spread_df["To"])
     
         # 1️⃣ Simulazione unica EURIBOR
-        forecast_df, forecast_quarterly = simulate_euribor(series=series, df_dropped=df_dropped, n_sims=5000, horizon_days=max_horizon_days, plan_euribor_df=plan_euribor_df, spread_df=spread_df)
+        forecast_df, forecast_quarterly = simulate_euribor(series=series, df_dropped=df_dropped, n_sims=5000, horizon_days=max_horizon_days, plan_euribor_df=plan_euribor_df)
         
         st.subheader("Risultati simulazione Tassi - Euribor ")
         st.dataframe(forecast_quarterly)
