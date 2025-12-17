@@ -1269,6 +1269,7 @@ elif selected_kri == "📈 Interest Rate":
         lower_emp = np.percentile(simulations, 100*alpha/2, axis=0)
         upper_emp = np.percentile(simulations, 100*(1-alpha/2), axis=0)
         median = np.median(simulations, axis=0)
+        mean = np.mean(simulations, axis=0)
     
         # Conformal adjustment
         calibration_y = series[-252:]
@@ -1286,16 +1287,10 @@ elif selected_kri == "📈 Interest Rate":
             mask = upper_adj <= lower_adj
             upper_adj[mask] = lower_adj[mask] + 0.05
     
-        # ===========================
-        # Applicazione buffer su lower_adj basato su plan + spread
-        # -----------------------------
         
         idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
-        # -----------------------------
-        # Applicazione limite inferiore su base tassi annuali fissi
-        # -----------------------------
+    
         if plan_euribor_df is not None:
-            # Assicurati che il tasso sia float
             plan_euribor_df['Tasso'] = plan_euribor_df['Tasso'].astype(float)
 
         # Serie giornaliera basata sul tasso fisso annuale
@@ -1309,13 +1304,14 @@ elif selected_kri == "📈 Interest Rate":
             "lower_emp": lower_emp,
             "upper_emp": upper_emp,
             "median": median,
+            'mean': mean,
             "lower_adj": lower_adj,
             "upper_adj": upper_adj
         }, index=idx)
         
         forecast_quarterly = forecast_df.resample("Q").mean()
         # Media ponderata solo sulla colonna 'median'
-        forecast_quarterly['median'] = (forecast_quarterly['median'] * 1+ plan_rate_series.resample("Q").mean() * 0)
+        forecast_quarterly['median'] = (forecast_quarterly['median'] * 0.5+ plan_rate_series.resample("Q").mean() * 0.5)
         plan_q = plan_rate_series.resample("Q").mean()
         forecast_quarterly['lower_adj'] = (forecast_quarterly['lower_adj']*0.85)
     
@@ -1452,6 +1448,7 @@ elif selected_kri == "📈 Interest Rate":
         
         # Forecast unico Monte Carlo (median e intervallo conformalizzato)
         plt.plot(forecast_quarterly.index, forecast_quarterly['median'], label='Mean Forecast', color='green', linestyle='--')
+        plt.plot(forecast_quarterly.index, forecast_quarterly['mean'], label='Mean Forecast', color='green', linestyle='--')
         plt.plot(plan_series_plot.index, plan_series_plot.values, label = 'Euribor 3m Piano', color = 'blue', linestyle= '-.')
         plt.plot(tassi_impliciti['Data'],tassi_impliciti['Tasso Forward'], label = 'Forward Euribor Fonte Bloomberg', color = 'red', linestyle= '-.')
         plt.fill_between(
