@@ -1290,15 +1290,10 @@ elif selected_kri == "📈 Interest Rate":
         # Applicazione buffer su lower_adj basato su plan + spread
         # ===========================
         idx = pd.date_range(start=df_dropped.index[-1] + pd.Timedelta(days=1), periods=n_period, freq="D")
-        
-        if plan_euribor_df is not None:
-            plan_rate_series = pd.Series(
-                data=[get_plan_euribor_for_date(d, plan_euribor_df) for d in idx],
-                index=idx
-            )
-            buffer_pct = 0.1
-            lower_limit = plan_rate_series * (1 - buffer_pct)
-            lower_adj = np.maximum(lower_adj, lower_limit.values)  
+        plan_rate_series = pd.Series(data=[get_plan_euribor_for_date(d, plan_euribor_df) for d in idx],index=idx)
+        buffer_pct = 0.1
+        lower_limit = plan_rate_series * (1 - buffer_pct)
+        lower_adj = pd.Series(lower_adj, index=idx).clip(lower=lower_limit).values
     
         forecast_df = pd.DataFrame({
             "lower_emp": lower_emp,
