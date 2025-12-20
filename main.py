@@ -18,6 +18,8 @@ from PIL import Image
 from arch import arch_model
 from catboost import CatBoostRegressor
 from copulas.multivariate import GaussianMultivariate
+from sklearn.model_selection import train_test_split, TimeSeriesSplit
+from sklearn.feature_selection import RFECV
 import pickle
 from datetime import datetime
 from ecbdata import ecbdata
@@ -1060,10 +1062,6 @@ elif selected_kri == "🛡️💻 Cyber":
 elif selected_kri == "📈 Interest Rate":
     import matplotlib.pyplot as plt
     series = {
-    
-    # --- Euribor / Money Market ---
-    "euribor_3m": "FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA",
-
     # --- Politica monetaria BCE ---
     "deposit_rate": "FM.D.U2.EUR.4F.KR.DFR.LEV",
     "mro_rate": "FM.B.U2.EUR.4F.KR.MRR_FR.LEV",
@@ -1168,51 +1166,193 @@ elif selected_kri == "📈 Interest Rate":
     - gold
     """)
     
-    df_ecb = download_ecb_series(series)
-    df_yahoo = download_yahoo_series(yahoo_symbols)
-    df_all = df_ecb.join(df_yahoo, how="outer")
-    df_all = df_all.sort_index().ffill()
-    df_dropped = df_all.dropna()
-    st.write("Database pronto ☑️")
+    df_dropped =  pd.read_excel('Data/df_final.xlsx')
+        df_features.set_index('index',inplace = True)
     
-    stl = STL(df_dropped['euribor_3m'], period=30, robust=True)
-    res = stl.fit()
-    trend = res.trend
-    seasonal = res.seasonal
-    residual = res.resid
+    # --- Split 80/20/20 train / val / test ---
+    X = df_features.drop(columns=['euribor_3m'])
+    y = df_features['euribor_3m']
     
-    # --- Split train / val / test ---
-    n = len(df_dropped)
-    train_end = int(0.8 * n)
-    val_end = int(0.9 * n)
+    # Primo split: train (60%), temp (40%)
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=0.4, random_state=42, shuffle=False
+    )
     
-    X = df_dropped.drop(columns='euribor_3m')
-    X_train = X.iloc[:train_end]
-    X_val = X.iloc[train_end:val_end]
-    X_test = X.iloc[val_end:]
+    # Secondo split: val (50% di temp = 20% totale), test (50% di temp = 20% totale)
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.5, random_state=42, shuffle=False
+    )
     
-    trend_train = trend.iloc[:train_end]
-    trend_val = trend.iloc[train_end:val_end]
-    trend_test = trend.iloc[val_end:]
+    # --- Feature selection con RFECV (min_features_to_select=5) ---
+    cat_rfe = CatBoostRegressor(iterations=200, depth=4, learning_rate=0.05, verbose=0, random_state=42)
+    rfecv = RFECV(estimator=cat_rfe, step=1, cv=TimeSeriesSplit(n_splits=10), scoring='neg_mean_squared_error', min_features_to_select=3)
+    rfecv.fit(X_train, y_train)
     
-    residual_train = residual.iloc[:train_end]
-    residual_val = residual.iloc[train_end:val_end]
-    residual_test = residual.iloc[val_end:]
+    X_train_sel = X_train.iloc[:, rfecv.support_]
+    X_val_sel = X_val.iloc[:, rfecv.support_]
+    X_test_sel = X_test.iloc[:, rfecv.support_]
     
-    seasonal_train = seasonal.iloc[:train_end]
-    seasonal_val = seasonal.iloc[train_end:val_end]
-    seasonal_test = seasonal.iloc[val_end:]
+    print("Feature selezionate:", X_train_sel.columns.tolist())
     
-    y_pred_test = pd.read_excel("utils/test_pred.xlsx")
-    y_pred_val =  pd.read_excel("utils/val_pred.xlsx")
-    y_pred_train =  pd.read_excel("utils/train_pred.xlsx")
+    # --- Funzione obiettivo CatBoost + TimeSeriesSplit ---
+    def objective_catboost(trial, X, y):
+        params = {
+            'iterations': trial.suggest_int('iterations', 20, 500),
+            'depth': trial.suggest_int('depth', 3, 5),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.1),
+            'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 3, 10),
+            'bagging_temperature': trial.suggest_float('bagging_temperature', 0.5, 1),
+            'random_strength': trial.suggest_float('random_strength', 1, 10),
+            'border_count': trial.suggest_int('border_count', 32, 128),
+            'verbose': 0,
+            'random_state': 42
+        }
+        tscv = TimeSeriesSplit(n_splits=10)
+        rmses = []
+        for train_idx, val_idx in tscv.split(X):
+            X_tr, X_v = X.iloc[train_idx], X.iloc[val_idx]
+            y_tr, y_v = y.iloc[train_idx], y.iloc[val_idx]
+            model = CatBoostRegressor(**params)
+            model.fit(X_tr, y_tr, eval_set=(X_v, y_v), early_stopping_rounds=20, verbose=False)
+            y_pred = model.predict(X_v)
+            rmses.append(mean_squared_error(y_v, y_pred))
+        return np.mean(rmses)
     
-    y_pred_test.set_index('Unnamed: 0', inplace = True)
-    y_pred_val.set_index('Unnamed: 0', inplace = True)
-    y_pred_train.set_index('Unnamed: 0', inplace = True)
+    # --- Ottimizzazione CatBoost ---
+    study = optuna.create_study(direction='minimize')
+    study.optimize(lambda trial: objective_catboost(trial, X_train_sel, y_train), n_trials=1000)
+    best_params = study.best_params
+    print("Best params:", best_params)
     
+    # --- Modello finale ---
+    model = CatBoostRegressor(**best_params)
+    model.fit(pd.concat([X_train_sel, X_val_sel]), pd.concat([y_train, y_val]), verbose=0)
+    
+    y_pred_train = model.predict(X_train_sel)
+    y_pred_val = model.predict(X_val_sel)
+    y_pred_test = model.predict(X_test_sel)
+    
+    # --- Metriche ---
+    def evaluate_model(y_true, y_pred):
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+        rmse = mean_squared_error(y_true, y_pred)
+        mse = mean_squared_error(y_true, y_pred)
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        mape = np.mean(np.abs((y_true - y_pred)/(y_true+1e-6)))*100
+        return {"RMSE": rmse, "MSE": mse, "MAE": mae, "R2": r2, "MAPE(%)": mape}
+
+    metrics_df = pd.DataFrame(
+    evaluate_model(y_test, y_pred_test),
+    index=["TEST"]
+     )
+    
+    st.subheader("Model performance")
+    st.dataframe(metrics_df.style.format("{:.4f}"))
+    
+    def ou_loglik(theta, mu, sigma, X):
+        X_prev = X[:-1]
+        X_next = X[1:]
+    
+        mean = X_prev + theta * (mu - X_prev)
+        var = sigma**2
+    
+        loglik = -0.5 * np.sum(
+            np.log(2 * np.pi * var) +
+            (X_next - mean)**2 / var
+        )
+        return loglik
+    
+    def objective_ou(trial, series):
+        theta = trial.suggest_float("theta", 1e-4, 1.0, log=True)
+        mu = trial.suggest_float("mu", series.min(), series.max())
+        sigma = trial.suggest_float("sigma", 1e-4, np.std(series)*5, log=True)
+    
+        return ou_loglik(theta, mu, sigma, series)
+    
+    
+    residuals_train = y_train - y_pred_train
+    residuals_val = y_val - y_pred_val
+    residuals = pd.concat([residuals_train, residuals_val])
+    
+    series_ou = residuals.values  
+    
+    study_ou = optuna.create_study(direction="maximize")
+    study_ou.optimize(lambda trial: objective_ou(trial, series_ou), n_trials=300)
+    
+    best_params_ou = study_ou.best_params
+    
+    theta_ou = best_params_ou["theta"]
+    mu_ou = best_params_ou["mu"]
+    sigma_ou = best_params_ou["sigma"]
+    
+    print("OU params:")
+    print(f"theta = {theta_ou:.4f}")
+    print(f"mu    = {mu_ou:.4f}")
+    print(f"sigma = {sigma_ou:.4f}")
+    
+    
+    def simulate_ou(X0, theta, mu, sigma, n_steps):
+        X = np.zeros(n_steps)
+        X[0] = X0
+        for t in range(1, n_steps):
+            X[t] = (
+                X[t-1]
+                + theta * (mu - X[t-1])
+                + sigma * np.random.randn()
+            )
+        return X
+    
+    n_sims = 1000
+    horizon = len(y_test)
+    
+    ou_sims = np.zeros((n_sims, horizon))
+    X0 = residuals.iloc[-1]
+    
+    for i in range(n_sims):
+        ou_sims[i] = simulate_ou(X0, theta_ou, mu_ou, sigma_ou, horizon)
+    
+    ou_mean = ou_sims.mean(axis=0)
+
+    y_hybrid_mean = y_pred_test + ou_mean
+
+    metrics_df_ou = pd.DataFrame(evaluate_model(y_test, y_hybrid_mean), index=["TEST"])
+    st.subheader("Model performance Hybrid Model (ML + OU)")
+    st.dataframe(metrics_df_ou.style.format("{:.4f}"))
+    
+       st.subheader("Euribor 3M – Hybrid CatBoost + OU")
+    
+    fig, ax = plt.subplots(figsize=(14, 6))
+    
+    ax.plot(
+        y_test.index,
+        y_test,
+        label="Reale",
+        linewidth=2
+    )
+    
+    ax.plot(
+        y_test.index,
+        y_hybrid_mean,
+        label="Hybrid CB + OU",
+        linewidth=2
+    )
+    
+    ax.fill_between(
+        y_test.index,
+        y_hybrid_lower,
+        y_hybrid_upper,
+        alpha=0.2,
+        label="OU interval"
+    )
+    ax.set_title("Euribor 3M – Hybrid CatBoost + OU")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Rate")
+    ax.grid(True)
+    ax.legend()
     st.subheader("📊 Trend analisi with Hybrid ML model 📊")
-    plot_predictions_streamlit(df_dropped, y_pred_train, y_pred_val, y_pred_test, train_end, val_end)
+    
     
     df_ecb = download_ecb_series(series, start = '2021-01-01')
     df_yahoo = download_yahoo_series(yahoo_symbols, start = '2021-01-01')
