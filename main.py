@@ -1321,7 +1321,7 @@ elif selected_kri == "📈 Interest Rate":
     st.subheader("Model performance Hybrid Model (ML + OU)")
     st.dataframe(metrics_df_ou.style.format("{:.4f}"))
     
-       st.subheader("Euribor 3M – Hybrid CatBoost + OU")
+    st.subheader("Euribor 3M – Hybrid CatBoost + OU")
     
     fig, ax = plt.subplots(figsize=(14, 6))
     
