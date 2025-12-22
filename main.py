@@ -32,7 +32,7 @@ import yfinance as yf
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk, get_monthly_and_yearly_distribution)
-from functions.copper import simulate_cb_egarch_outsample, get_forecast_plot
+from functions.copper import get_copper_prediction, plot_copper_forecast
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
 # -----------------------
@@ -796,38 +796,14 @@ elif selected_kri == "🌪️ Natural Event Risk":
 # 🌪️ Copper Risk
 # -----------------------
 elif selected_kri == "🟠 Copper Price":
-    st.subheader("🟠 Simulazione Future a 3 mesi su Copper")
+    st.subheader("🟠 Simulazione Future a 3 mesi su Copper (prezzi in euro) ")
     st.info("Esegui la simulazione multivariata sul future del copper a 3 mesi")
 
-    df = pd.read_excel('Data/df.xlsx')
-    df.set_index('Date', inplace=True)
+    df_model = pd.read_excel('Data/df_model.xlsx')
 
-    N = len(df)
-    train_end = int(0.8 * N)
-    val_end = train_end + int(0.1 * N)
-
-    train = df.iloc[:train_end]
-    val = df.iloc[train_end:val_end]
-    test = df.iloc[val_end:]
-
-    now = datetime.now()
-    last_date = now.strftime("%d-%m-%Y")
-
-    # Caricamento modelli
-    with open('utils/catboost_model.pkl', 'rb') as file:
-        model_cb = pickle.load(file)
-
-    with open('utils/copula_model.pkl', 'rb') as file:
-        copula_model = pickle.load(file)
-
-    with open('utils/egarch_model.pkl', 'rb') as file:
-        egarch_model = pickle.load(file)
-
-    with open('utils/egarch_fit.pkl', 'rb') as file:
-        egarch_fit = pickle.load(file)
-
-    S0_test = float(df['PX_LAST'].iloc[-1])
-    
+    with open("egarch_model (1).pkl", "rb") as f:
+        egarch_model = pickle.load(f)
+    egarch_fit = egarch_model.fit(update_freq=30, disp='off')
     # -----------------------------------------------
     # 📅 Selezione data finale simulazione
     # -----------------------------------------------
@@ -836,14 +812,8 @@ elif selected_kri == "🟠 Copper Price":
         value=datetime(2028, 12, 31),
         min_value=datetime.now()
     )
-
-    # -----------------------------------------------
-    # 📦 INPUT: quantità per anno + prezzo budget
-    # -----------------------------------------------
-    start_year = datetime.now().year
-    end_year = end_date.year
-    years = list(range(start_year, end_year + 1))
-
+    n_sims = st.slider("Number of Monte Carlo simulations", min_value=100, max_value=100_000, value=10_000, step=100)
+    
     st.subheader("📦 Quantità di Copper da vendere per anno")
 
     quantities = {}
@@ -857,7 +827,7 @@ elif selected_kri == "🟠 Copper Price":
         )
 
     budget_price = st.number_input(
-        "💰 Prezzo di budget (USD per tonnellata)",
+        "💰 Prezzo di budget (EUR per tonnellata)",
         min_value=0.0,
         step=10.0,
         value=9000.0,
@@ -870,43 +840,25 @@ elif selected_kri == "🟠 Copper Price":
     if st.button("💹 Esegui simulazione Copper Risk"):
         st.info("Simulazione in corso...")
 
-        result_df, sim_prices = simulate_cb_egarch_outsample(
-            copula_model=copula_model,
-            model_cb=model_cb,
-            egarch_model=egarch_model,
-            egarch_fit=egarch_fit,
-            last_date=last_date,
-            end_date=end_date.strftime("%Y-%m-%d"),
-            S0=S0_test,
-            n_sims=10
-        )
+        result_df , result_df_annual = get_copper_prediction(df_model, end_date = end_date , n_sims= n_sims, alpha = 0.05)
 
-        fig = get_forecast_plot(df, result_df)
+        fig = plot_copper_forecast(df_model, result_df_annual)
         st.pyplot(fig)
 
         st.subheader("📊 Risultati Simulazione")
         result_df.index = pd.to_datetime(result_df.index)
 
         # -----------------------------------------------
-        # 📅 Groupby per anno
-        # -----------------------------------------------
-        result_df["year"] = result_df.index.year
-        result_df_yearly = result_df.groupby("year")[["median", "average", "lower", "upper"]].mean()
-
-        # -----------------------------------------------
         # 💰 Aggiunta quantità e calcolo P&L vs budget
         # -----------------------------------------------
-        result_df_yearly["qty"] = result_df_yearly.index.map(quantities)
+        result_df_annual["qty"] = result_df_yearly.index.map(quantities)
 
-        result_df_yearly["PnL_vs_budget"] = (
-            (result_df_yearly["lower"] - budget_price) * result_df_yearly["qty"]
+        result_df_annual["PnL_vs_budget"] = (
+            (result_df_annual["lower_adj"] - budget_price) * result_df_annual["qty"]
         )
         
         st.subheader("📘 Risultati per anno (medie + quantità + PnL)")
-        st.dataframe(result_df_yearly)
-
-        st.subheader("📘 Estratto risultati giornalieri")
-        st.dataframe(result_df.head())
+        st.dataframe(result_df_annual)
 
         # -----------------------------------------------
         # 💾 Download Excel
@@ -914,8 +866,8 @@ elif selected_kri == "🟠 Copper Price":
         import io
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            result_df.to_excel(writer, index=True, sheet_name='Giornaliero Simulazione')
-            result_df_yearly.to_excel(writer, index=True, sheet_name='Annuale Aggregato')
+            result_df.to_excel(writer, index=True, sheet_name='Mensile Simulazione')
+            result_df_annual.to_excel(writer, index=True, sheet_name='Annuale Aggregato')
             df.to_excel(writer, index=True, sheet_name='Copper Price')
             buffer.seek(0)
 
