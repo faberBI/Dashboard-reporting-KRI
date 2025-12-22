@@ -1122,7 +1122,7 @@ elif selected_kri == "📈 Interest Rate":
     - gold
     """)
     
-    df_dropped =  pd.read_excel('Data/df_final.xlsx')
+    df_features =  pd.read_excel('Data/df_final.xlsx')
     df_features.set_index('index',inplace = True)
     
     # --- Split 80/20/20 train / val / test ---
