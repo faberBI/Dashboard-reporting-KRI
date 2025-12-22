@@ -860,6 +860,7 @@ elif selected_kri == "🟠 Copper Price":
         result_df_annual["VaR_vs_budget"] = ((result_df_annual["lower_adj"] - budget_price) * result_df_annual["qty"]) / 1_000_000
         
         st.subheader("📘 VaR per anno (mln €)")
+        result_df_annual.index = result_df_annual.index.year
         st.dataframe(result_df_annual)
         fig = plot_var_vs_budget(result_df_annual)
         st.pyplot(fig)
