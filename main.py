@@ -801,7 +801,7 @@ elif selected_kri == "🟠 Copper Price":
 
     df_model = pd.read_excel('Data/df_model.xlsx')
 
-    with open("egarch_model (1).pkl", "rb") as f:
+    with open("modell_egarch.pkl", "rb") as f:
         egarch_model = pickle.load(f)
     egarch_fit = egarch_model.fit(update_freq=30, disp='off')
     # -----------------------------------------------
