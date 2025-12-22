@@ -800,9 +800,10 @@ elif selected_kri == "🟠 Copper Price":
     st.info("Esegui la simulazione multivariata sul future del copper a 3 mesi")
 
     df_model = pd.read_excel('Data/df_model.xlsx')
-    df_model.set_index('Date')
+    df_model.set_index('Date', inplace = True)
+    
     df_model.index = pd.to_datetime(df_model.index)
-    st.dataframe(df_model)
+
     # -----------------------------------------------
     # 📅 Selezione data finale simulazione
     # -----------------------------------------------
