@@ -812,7 +812,11 @@ elif selected_kri == "🟠 Copper Price":
     n_sims = st.slider("Number of Monte Carlo simulations", min_value=100, max_value=100_000, value=10_000, step=100)
     
     st.subheader("📦 Quantità di Copper da vendere per anno")
+    start_year = df_model.index[-1].year
+    end_year = end_date.year
 
+    # Lista anni
+    years = list(range(start_year, end_year + 1))
     quantities = {}
     for y in years:
         quantities[y] = st.number_input(
