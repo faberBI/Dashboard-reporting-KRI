@@ -133,7 +133,7 @@ def plot_var_vs_budget(result_df_annual):
     fig, ax = plt.subplots(figsize=(10, 5))
     
     # Grafico barre VaR_vs_budget
-    ax.bar(years, df_plot["VaR_vs_budget"], color='orange', alpha=0.7)
+    ax.bar(years, df_plot["VaR_vs_budget"], color='#00196c', alpha=0.7)
     
     ax.set_title("VaR vs Budget per anno")
     ax.set_xlabel("Anno")
