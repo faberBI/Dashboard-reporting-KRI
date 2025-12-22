@@ -801,9 +801,6 @@ elif selected_kri == "🟠 Copper Price":
 
     df_model = pd.read_excel('Data/df_model.xlsx')
 
-    with open("utils/modell_egarch.pkl", "rb") as f:
-        egarch_model = pickle.load(f)
-    egarch_fit = egarch_model.fit(update_freq=30, disp='off')
     # -----------------------------------------------
     # 📅 Selezione data finale simulazione
     # -----------------------------------------------
@@ -840,7 +837,7 @@ elif selected_kri == "🟠 Copper Price":
     if st.button("💹 Esegui simulazione Copper Risk"):
         st.info("Simulazione in corso...")
 
-        result_df , result_df_annual = get_copper_prediction(df_model, end_date = end_date , n_sims= n_sims, alpha = 0.05)
+        result_df , result_df_annual = get_copper_prediction(df_model, end_date, n_sims=10_000, alpha=0.05, egarch_pickle_path="egarch_fit_def.pkl")
 
         fig = plot_copper_forecast(df_model, result_df_annual)
         st.pyplot(fig)
