@@ -1138,10 +1138,15 @@ elif selected_kri == "📈 Interest Rate":
     X_val, X_test, y_val, y_test = train_test_split(
         X_temp, y_temp, test_size=0.5, random_state=42, shuffle=False
     )
-    
-    # --- Feature selection con RFECV (min_features_to_select=5) ---
-    cat_rfe = CatBoostRegressor(iterations=200, depth=4, learning_rate=0.05, verbose=0, random_state=42)
-    rfecv = RFECV(estimator=cat_rfe, step=1, cv=TimeSeriesSplit(n_splits=10), scoring='neg_mean_squared_error', min_features_to_select=3)
+    from sklearn.linear_model import Ridge
+    rfe_estimator = Ridge(alpha=1.0)
+    rfecv = RFECV(
+    estimator=rfe_estimator,
+    step=1,
+    cv=TimeSeriesSplit(n_splits=10),
+    scoring='neg_mean_squared_error',
+    min_features_to_select=3
+    )
     rfecv.fit(X_train, y_train)
     
     X_train_sel = X_train.iloc[:, rfecv.support_]
