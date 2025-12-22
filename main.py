@@ -1240,7 +1240,7 @@ elif selected_kri == "📈 Interest Rate":
     series_ou = residuals.values  
     
     study_ou = optuna.create_study(direction="maximize")
-    study_ou.optimize(lambda trial: objective_ou(trial, series_ou), n_trials=300)
+    study_ou.optimize(lambda trial: objective_ou(trial, series_ou), n_trials=100)
     
     best_params_ou = study_ou.best_params
     
@@ -1320,6 +1320,7 @@ elif selected_kri == "📈 Interest Rate":
     df_all = df_ecb.join(df_yahoo, how="outer")
     df_all = df_all.sort_index().ffill()
     df_dropped = df_all.dropna()
+    
     # ============================================================
     # FUNZIONE PER IL CALCOLO DEL VAR DI UNA SINGOLA TRANCHE
     # ============================================================
@@ -1421,6 +1422,7 @@ elif selected_kri == "📈 Interest Rate":
     # ============================================================
     # GRAFICO STREAMLIT
     # ============================================================
+    
     def plot_full_forecast(y, df_forecast):
         plt.figure(figsize=(15,6))
         plt.plot(y, label="Originale", color='black')
