@@ -1143,10 +1143,10 @@ elif selected_kri == "📈 Interest Rate":
     rfecv = RFECV(
     estimator=rfe_estimator,
     step=1,
-    cv=TimeSeriesSplit(n_splits=10),
+    cv=TimeSeriesSplit(n_splits=5),
     scoring='neg_mean_squared_error',
-    min_features_to_select=3
-    )
+    min_features_to_select=3)
+    
     rfecv.fit(X_train, y_train)
     
     X_train_sel = X_train.iloc[:, rfecv.support_]
@@ -1181,7 +1181,7 @@ elif selected_kri == "📈 Interest Rate":
     
     # --- Ottimizzazione CatBoost ---
     study = optuna.create_study(direction='minimize')
-    study.optimize(lambda trial: objective_catboost(trial, X_train_sel, y_train), n_trials=1000)
+    study.optimize(lambda trial: objective_catboost(trial, X_train_sel, y_train), n_trials=100)
     best_params = study.best_params
     print("Best params:", best_params)
     
