@@ -122,3 +122,22 @@ def plot_copper_forecast(df_model, result_df_annual):
 
     return fig
 
+def plot_var_vs_budget(result_df_annual):
+    # Copia il DataFrame
+    df_plot = result_df_annual.copy()
+    # Assicurati che l'indice sia datetime
+    df_plot.index = pd.to_datetime(df_plot.index)
+    # Estrai solo gli anni per il plot
+    years = df_plot.index.year
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    
+    # Grafico barre VaR_vs_budget
+    ax.bar(years, df_plot["VaR_vs_budget"], color='orange', alpha=0.7)
+    
+    ax.set_title("VaR vs Budget per anno")
+    ax.set_xlabel("Anno")
+    ax.set_ylabel("VaR vs Budget (EUR)")
+    ax.grid(axis='y', linestyle='--', alpha=0.6)
+    
+    return fig
