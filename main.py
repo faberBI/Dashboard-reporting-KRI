@@ -1019,7 +1019,7 @@ elif selected_kri == "📈 Interest Rate":
     import matplotlib.pyplot as plt
     series = {
     # --- Politica monetaria BCE ---
-    "euribor_3m": "FM.U2.EUR.IB3MD.LEV",
+    "euribor_3m": "FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA",
     "deposit_rate": "FM.D.U2.EUR.4F.KR.DFR.LEV",
     "mro_rate": "FM.B.U2.EUR.4F.KR.MRR_FR.LEV",
     "marginal_lending": "FM.D.U2.EUR.4F.KR.MLFR.LEV",
