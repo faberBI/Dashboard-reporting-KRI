@@ -855,7 +855,7 @@ elif selected_kri == "🟠 Copper Price":
         # -----------------------------------------------
         # 💰 Aggiunta quantità e calcolo P&L vs budget
         # -----------------------------------------------
-        result_df_annual["qty"] = result_df_annual.index.map(quantities)
+        result_df_annual["qty"] = result_df_annual.index.year.map(quantities)
 
         result_df_annual["VaR_vs_budget"] = (
             (result_df_annual["lower_adj"] - budget_price) * result_df_annual["qty"]
