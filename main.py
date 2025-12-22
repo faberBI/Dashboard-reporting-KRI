@@ -32,7 +32,7 @@ import yfinance as yf
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk, get_monthly_and_yearly_distribution)
-from functions.copper import get_copper_prediction, plot_copper_forecast
+from functions.copper import get_copper_prediction, plot_copper_forecast, plot_var_vs_budget
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
 # -----------------------
@@ -857,13 +857,14 @@ elif selected_kri == "🟠 Copper Price":
         # -----------------------------------------------
         result_df_annual["qty"] = result_df_annual.index.map(quantities)
 
-        result_df_annual["PnL_vs_budget"] = (
+        result_df_annual["VaR_vs_budget"] = (
             (result_df_annual["lower_adj"] - budget_price) * result_df_annual["qty"]
         )
         
-        st.subheader("📘 Risultati per anno (medie + quantità + PnL)")
+        st.subheader("📘 VaR per anno")
         st.dataframe(result_df_annual)
-
+        fig = plot_var_vs_budget(result_df_annual)
+        st.pyplot(fig)
         # -----------------------------------------------
         # 💾 Download Excel
         # -----------------------------------------------
