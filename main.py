@@ -793,7 +793,7 @@ elif selected_kri == "🌪️ Natural Event Risk":
             except Exception as e:
                 st.error(f"❌ Errore durante la simulazione: {e}")
 # -----------------------
-# 🌪️ Copper Risk
+# 🟠 Copper Risk
 # -----------------------
 elif selected_kri == "🟠 Copper Price":
     st.subheader("🟠 Simulazione Future a 3 mesi su Copper (prezzi in euro) ")
@@ -802,7 +802,7 @@ elif selected_kri == "🟠 Copper Price":
     df_model = pd.read_excel('Data/df_model.xlsx')
     df_model.set_index('Date')
     df_model.index = pd.to_datetime(df_model.index)
-    
+    st.dataframe(df_model)
     # -----------------------------------------------
     # 📅 Selezione data finale simulazione
     # -----------------------------------------------
@@ -843,7 +843,7 @@ elif selected_kri == "🟠 Copper Price":
     if st.button("💹 Esegui simulazione Copper Risk"):
         st.info("Simulazione in corso...")
 
-        result_df , result_df_annual = get_copper_prediction(df_model, end_date, n_sims=10_000, alpha=0.05, egarch_pickle_path="egarch_fit_def.pkl")
+        result_df , result_df_annual = get_copper_prediction(df_model, end_date, n_sims=10_000, alpha=0.05, egarch_pickle_path="utils/egarch_fit_def.pkl")
 
         fig = plot_copper_forecast(df_model, result_df_annual)
         st.pyplot(fig)
