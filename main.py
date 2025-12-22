@@ -1167,7 +1167,7 @@ elif selected_kri == "📈 Interest Rate":
     """)
     
     df_dropped =  pd.read_excel('Data/df_final.xlsx')
-        df_features.set_index('index',inplace = True)
+    df_features.set_index('index',inplace = True)
     
     # --- Split 80/20/20 train / val / test ---
     X = df_features.drop(columns=['euribor_3m'])
