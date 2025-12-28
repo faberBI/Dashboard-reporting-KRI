@@ -802,7 +802,7 @@ elif selected_kri == "🟠 Copper Price":
             df[f"lag_{lag}"] = df["y"].shift(lag)
         return df.dropna().reset_index(drop=True)
     
-    st.subheader("🟠 Simulazione Future a 3 mesi su Copper (prezzi in euro)")
+    st.subheader("🟠 Simulazione su Copper (prezzi in euro)")
     st.info("Esegui la simulazione multivariata del copper")
 
     df_model = pd.read_excel('Data/copper_price.xlsx')
