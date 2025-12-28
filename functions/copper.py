@@ -10,7 +10,7 @@ def plot_copper_forecast(df_model, result_df_annual):
     fig, ax = plt.subplots(figsize=(14,7))
 
     # Prezzo storico
-    ax.plot(df_model.index, df_model['Copper'], label='Historical Price', color='blue')
+    ax.plot(df_model.index, df_model['Copper'], label='Historical Price in €', color='blue')
 
     # Previsioni future
     ax.plot(result_df_annual.index, result_df_annual['Mean_Forecast'], label='Forecast Average', color='orange', linestyle='--')
