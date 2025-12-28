@@ -141,3 +141,80 @@ def plot_var_vs_budget(result_df_annual):
     ax.grid(axis='y', linestyle='--', alpha=0.6)
     
     return fig
+
+
+
+def monte_carlo_forecast_cp(series, cat_model, garch_fit, BEST_LAG,
+                             CALIBRATION_H=24, N_SIM=1000, alpha=0.05,
+                             end_date=None, random_seed=42):
+    import numpy as np
+    import pandas as pd
+
+    np.random.seed(random_seed)
+
+    # Horizon in mesi
+    today = pd.Timestamp.now().normalize()
+    if end_date is None:
+        end_date = today + pd.DateOffset(years=5)
+    else:
+        end_date = pd.to_datetime(end_date)
+
+    future_dates = pd.date_range(start=last_date + pd.offsets.MonthBegin(1),
+                                 end=end_date,
+                                 freq='M')
+    H = len(future_dates)
+    # Monte Carlo simulation
+    last_series = series.copy()
+    sim_paths = np.zeros((N_SIM, H))
+
+    garch_fc = garch_fit.forecast(horizon=H)
+    sigma = np.sqrt(garch_fc.variance.values[-1])
+    DIST = garch_fit.model.distribution.name.lower()
+
+    for sim in range(N_SIM):
+        path_series = last_series.copy()
+        if DIST == "t":
+            z = np.random.standard_t(df=garch_fit.params["nu"], size=H)
+        else:
+            z = np.random.standard_normal(H)
+        for h in range(H):
+            lags = path_series.iloc[-BEST_LAG:].values
+            X_future = pd.DataFrame([lags], columns=[f"lag_{i+1}" for i in range(BEST_LAG)])
+            mu = cat_model.predict(X_future)[0]
+            eps = sigma[h] * z[h]
+            y_next = mu + eps
+            sim_paths[sim, h] = y_next
+            path_series = pd.concat([path_series, pd.Series([y_next])], ignore_index=True)
+
+    # Fan chart GARCH
+    forecast_mean = sim_paths.mean(axis=0)
+    lower_95 = np.percentile(sim_paths, 100*alpha/2, axis=0)
+    upper_95 = np.percentile(sim_paths, 100*(1-alpha/2), axis=0)
+
+    # Conformal Prediction
+    data_cp = make_lag_df(series, BEST_LAG)
+    calibration_data = data_cp.iloc[-CALIBRATION_H:]
+    X_cal = calibration_data.drop("y", axis=1)
+    y_cal = calibration_data["y"].values
+    y_cal_pred = cat_model.predict(X_cal)
+
+    # Conformity score normalizzato con GARCH
+    garch_cal_fc = garch_fit.forecast(horizon=CALIBRATION_H)
+    sigma_cal = np.sqrt(garch_cal_fc.variance.values[-1])
+    conformity_scores = np.abs((y_cal - y_cal_pred) / sigma_cal)
+    q_hat = np.quantile(conformity_scores, 1 - alpha)
+
+    # Intervalli CP adattivi
+    cp_lower = forecast_mean - q_hat * sigma
+    cp_upper = forecast_mean + q_hat * sigma
+
+    final_forecast = pd.DataFrame({
+        "Mean_Forecast": forecast_mean,
+        "GARCH_Lower_95": lower_95,
+        "GARCH_Upper_95": upper_95,
+        "CP_Lower_95": cp_lower,
+        "CP_Upper_95": cp_upper
+    }, index = future_dates)
+
+    return final_forecast
+
