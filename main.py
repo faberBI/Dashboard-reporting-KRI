@@ -800,7 +800,10 @@ elif selected_kri == "🟠 Copper Price":
     st.info("Esegui la simulazione multivariata sul future del copper a 3 mesi")
 
     df_model = pd.read_excel('Data/copper_price.xlsx')
-    df_model.set_index('Time', inplace = True)
+    df_model["Time"] = pd.to_datetime(df_model["Time"], errors="coerce")
+    df_model = df.sort_values("Time").reset_index(drop=True)
+    price_col = 'Copper'
+    series = (pd.to_numeric(df_model[price_col], errors="coerce").dropna().reset_index(drop=True))
     df_model.index = pd.to_datetime(df_model.index)
 
     # -----------------------------------------------
