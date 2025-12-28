@@ -10,16 +10,16 @@ def plot_copper_forecast(df_model, result_df_annual):
     fig, ax = plt.subplots(figsize=(14,7))
 
     # Prezzo storico
-    ax.plot(df_model.index, df_model['copper_price'], label='Historical Price', color='blue')
+    ax.plot(df_model.index, df_model['Copper'], label='Historical Price', color='blue')
 
     # Previsioni future
-    ax.plot(result_df_annual.index, result_df_annual['average'], label='Forecast Average', color='orange', linestyle='--')
+    ax.plot(result_df_annual.index, result_df_annual['Mean_Forecast'], label='Forecast Average', color='orange', linestyle='--')
 
     # Banda di incertezza
-    if 'lower_adj' in result_df_annual.columns and 'upper_adj' in result_df_annual.columns:
+    if 'CP_Lower_95' in result_df_annual.columns and 'upper_95' in result_df_annual.columns:
         ax.fill_between(result_df_annual.index, 
-                        result_df_annual['lower_adj'], 
-                        result_df_annual['upper_adj'], 
+                        result_df_annual['CP_Lower_95'], 
+                        result_df_annual['upper_95'], 
                         color='green', alpha=0.2, label='Adjusted Forecast')
 
     ax.set_title('Historical and Forecasted Copper Prices')
