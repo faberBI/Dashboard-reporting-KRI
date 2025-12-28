@@ -796,15 +796,32 @@ elif selected_kri == "🌪️ Natural Event Risk":
 # 🟠 Copper Risk
 # -----------------------
 elif selected_kri == "🟠 Copper Price":
+    def make_lag_df(series, n_lags):
+        df = pd.DataFrame({"y": series})
+        for lag in range(1, n_lags + 1):
+            df[f"lag_{lag}"] = df["y"].shift(lag)
+        return df.dropna().reset_index(drop=True)
+    
     st.subheader("🟠 Simulazione Future a 3 mesi su Copper (prezzi in euro) ")
-    st.info("Esegui la simulazione multivariata sul future del copper a 3 mesi")
+    st.info("Esegui la simulazione multivariata del copper")
 
     df_model = pd.read_excel('Data/copper_price.xlsx')
+
+    # Controlla se la colonna 'Time' esiste
+    if "Time" not in df_model.columns:
+        raise KeyError("La colonna 'Time' non esiste nel file Excel!")
+
     df_model["Time"] = pd.to_datetime(df_model["Time"], errors="coerce")
     df_model = df_model.sort_values("Time").reset_index(drop=True)
+
     price_col = 'Copper'
-    series = (pd.to_numeric(df_model[price_col], errors="coerce").dropna().reset_index(drop=True))
-    df_model.index = pd.to_datetime(df_model.index)
+    if price_col not in df_model.columns:
+        raise KeyError(f"La colonna '{price_col}' non esiste nel file Excel!")
+
+    series = pd.to_numeric(df_model[price_col], errors="coerce").dropna().reset_index(drop=True)
+
+    # Imposta 'Time' come indice
+    df_model.set_index("Time", inplace=True)
 
     # -----------------------------------------------
     # 📅 Selezione data finale simulazione
