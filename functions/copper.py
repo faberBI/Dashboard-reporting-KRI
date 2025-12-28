@@ -52,12 +52,7 @@ def plot_var_vs_budget(result_df_annual):
 
 
 
-def monte_carlo_forecast_cp_from_disk(series,
-                                      cat_model_path="saved_models/catboost_model.cbm",
-                                      garch_model_path="saved_models/garch_model.pkl",
-                                      params_path="saved_models/model_params.pkl",
-                                      N_SIM=1000, alpha=0.05,
-                                      end_date=None, random_seed=42):
+def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_model.cbm", garch_model_path="utils/garch_model.pkl", params_path="utils/model_params.pkl", N_SIM=1000, alpha=0.05, end_date=None, random_seed=42):
 
     np.random.seed(random_seed)
 
