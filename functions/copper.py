@@ -169,16 +169,20 @@ def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DI
 
     # ================= Dataset definitivo =================
     data = make_lag_df(series, BEST_LAG)
-    split_train = int(len(data)*0.9)
-    split_cal = split_train + calibration_size
+    n_total = len(data)
+    n_test = int(0.1 * n_total)  # 10% test
+    n_train = n_total - n_test   # 90% train
 
-    train = data.iloc[:split_train]
-    calibration = data.iloc[split_train:split_cal]
-    test = data.iloc[split_cal:]
+    train = data.iloc[:n_train]
+    test = data.iloc[n_train:]
+
+    # ================= Calibration =================
+    # Ultimi 12 mesi (o ultimo anno) della serie storica
+    calibration = data.iloc[-12:]  # assuming monthly data
 
     X_train, y_train = train.drop("y", axis=1), train["y"]
-    X_cal, y_cal = calibration.drop("y", axis=1), calibration["y"]
     X_test, y_test = test.drop("y", axis=1), test["y"]
+    X_cal, y_cal = calibration.drop("y", axis=1), calibration["y"]
 
     monotone_constraints = [1]*BEST_LAG
 
