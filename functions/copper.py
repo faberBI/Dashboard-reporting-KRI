@@ -23,10 +23,10 @@ def plot_copper_forecast(df_model, result_df_annual):
     ax.plot(result_df_annual.index, result_df_annual['Mean_Forecast'], label='Forecast Average', color='orange', linestyle='--')
 
     # Banda di incertezza
-    if 'CP_Lower_95' in result_df_annual.columns and 'upper_95' in result_df_annual.columns:
+    if 'CP_Lower_95' in result_df_annual.columns and 'GARCH_Upper_95' in result_df_annual.columns:
         ax.fill_between(result_df_annual.index, 
                         result_df_annual['CP_Lower_95'], 
-                        result_df_annual['upper_95'], 
+                        result_df_annual['GARCH_Upper_95'], 
                         color='green', alpha=0.2, label='Adjusted Forecast')
 
     ax.set_title('Historical and Forecasted Copper Prices')
