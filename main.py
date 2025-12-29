@@ -800,8 +800,6 @@ elif selected_kri == "🟠 Copper Price":
     st.info("Esegui la simulazione multivariata del copper")
 
     df_model = pd.read_excel('Data/copper_price.xlsx')
-        
-    # Controlla se la colonna 'Time' esiste
     if "Time" not in df_model.columns:
         raise KeyError("La colonna 'Time' non esiste nel file Excel!")
 
