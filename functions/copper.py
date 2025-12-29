@@ -169,7 +169,7 @@ def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DI
 
     # ================= Dataset definitivo =================
     data = make_lag_df(series, BEST_LAG)
-    split_train = int(len(data)*0.7)
+    split_train = int(len(data)*0.9)
     split_cal = split_train + calibration_size
 
     train = data.iloc[:split_train]
