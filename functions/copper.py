@@ -157,7 +157,7 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
     return final_forecast, df_yearly
 
 
-def copper_test_forecast_MC(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DIST="ged", calibration_size=24):
+def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DIST="ged", calibration_size=24):
 
     # ================= Preprocessing =================
     df = pd.read_excel(link_df)
