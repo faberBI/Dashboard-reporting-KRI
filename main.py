@@ -32,7 +32,7 @@ import yfinance as yf
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk, get_monthly_and_yearly_distribution)
-from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget)
+from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, montecarlo_cp_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
 # -----------------------
@@ -800,8 +800,7 @@ elif selected_kri == "🟠 Copper Price":
     st.info("Esegui la simulazione multivariata del copper")
 
     df_model = pd.read_excel('Data/copper_price.xlsx')
-    st.dataframe(df_model, use_container_width=True)
-    
+        
     # Controlla se la colonna 'Time' esiste
     if "Time" not in df_model.columns:
         raise KeyError("La colonna 'Time' non esiste nel file Excel!")
@@ -816,6 +815,17 @@ elif selected_kri == "🟠 Copper Price":
 
     # Imposta 'Time' come indice
     df_model.set_index("Time", inplace=True)
+
+    data = make_lag_df(series, 1)
+
+    split = int(len(data) * 0.9)
+    train, test = data.iloc[:split], data.iloc[split:]
+
+    X_train, y_train = train.drop("y", axis=1), train["y"]
+    X_test, y_test = test.drop("y", axis=1), test["y"]
+
+    _, fig = montecarlo_cp_forecast(df=df_model, series=series, X_train=X_train, X_test=X_test, catboost_path="utils/catboost_model.cbm")
+    st.pyplot(fig)
 
     # -----------------------------------------------
     # 📅 Selezione data finale simulazione
@@ -876,6 +886,9 @@ elif selected_kri == "🟠 Copper Price":
         result_df_annual["qty"] = result_df_annual.index.year.map(quantities)
 
         result_df_annual["VaR_vs_budget"] = ((result_df_annual["CP_Lower_95"] - budget_price) * result_df_annual["qty"]) / 1_000_000
+
+        result_df_annual.drop(['GARCH_Lower_95','CP_Upper_95'], axis =1, inplace = True)
+        result_df_annual.columns = ['Mean_Forecast', 'Upper_95','Lower_95','qty','VaR_vs_budget']
         
         st.subheader("📘 VaR per anno (mln €)")
         result_df_annual.index = result_df_annual.index.year
