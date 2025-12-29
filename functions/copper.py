@@ -253,5 +253,4 @@ def copper_test_forecast_MC(link_df, price_col='Copper', N_SIM=1000, alpha=0.05,
     ax.set_ylabel("Value")
     ax.legend()
     ax.grid(alpha=0.3)
-
     return fig
