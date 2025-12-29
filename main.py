@@ -816,8 +816,7 @@ elif selected_kri == "🟠 Copper Price":
     # Imposta 'Time' come indice
     df_model.set_index("Time", inplace=True)
 
-    _, fig = full_copper_forecast(link_df = 'Data/copper_price.xlsx', price_col='Copper', forecast_horizon_years=5, N_SIM=1000,
-                         CALIBRATION_H=24, alpha=0.05, DIST="ged", optuna_trials=300)
+    _, fig = final_forecast, fig = full_copper_forecast(link_df="Data/copper_price.xlsx", price_col="Copper", forecast_horizon_years=5, N_SIM=1000, CALIBRATION_H=24, alpha=0.05, DIST="ged", optuna_trials=300)
     st.pyplot(fig)
 
     # -----------------------------------------------
