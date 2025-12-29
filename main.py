@@ -32,7 +32,7 @@ import yfinance as yf
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk, get_monthly_and_yearly_distribution)
-from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
+from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, copper_test_forecast_MC)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
 # -----------------------
@@ -816,7 +816,7 @@ elif selected_kri == "🟠 Copper Price":
     # Imposta 'Time' come indice
     df_model.set_index("Time", inplace=True)
 
-    _, fig = full_copper_forecast(link_df="Data/copper_price.xlsx", price_col="Copper", forecast_horizon_years=5, N_SIM=1000, CALIBRATION_H=24, alpha=0.05, DIST="ged", optuna_trials=300)
+    fig = copper_test_forecast_MC(link_df="Data/copper_price.xlsx", price_col='Copper', N_SIM=1000, alpha=0.05, DIST="ged", calibration_size=24)
     st.pyplot(fig)
 
     # -----------------------------------------------
