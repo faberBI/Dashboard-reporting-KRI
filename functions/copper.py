@@ -147,5 +147,10 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
     
     return final_forecast, df_yearly
 
+    def make_lag_df(series, n_lags):
+        df = pd.DataFrame({"y": series})
+        for lag in range(1, n_lags + 1):
+            df[f"lag_{lag}"] = df["y"].shift(lag)
+        return df.dropna().reset_index(drop=True)
 
 
