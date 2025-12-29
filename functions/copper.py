@@ -15,9 +15,9 @@ def make_lag_df(series, n_lags):
 
 def plot_copper_forecast(df_model, result_df_annual):
     fig, ax = plt.subplots(figsize=(14,7))
-
+    df_yearly = df_model.resample('Y').mean()
     # Prezzo storico
-    ax.plot(df_model.index, df_model['Copper'], label='Historical Price in €', color='blue')
+    ax.plot(df_yearly.index, df_yearly['Copper'], label='Historical Price in €', color='blue')
 
     # Previsioni future
     ax.plot(result_df_annual.index, result_df_annual['Mean_Forecast'], label='Forecast Average', color='orange', linestyle='--')
