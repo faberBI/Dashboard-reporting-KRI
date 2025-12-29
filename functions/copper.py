@@ -154,7 +154,7 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
     
     return final_forecast, df_yearly
 
-def full_copper_forecast(df, price_col='Copper', forecast_horizon_years=5, N_SIM=1000,
+def full_copper_forecast(link_df, price_col='Copper', forecast_horizon_years=5, N_SIM=1000,
                          CALIBRATION_H=24, alpha=0.05, DIST="ged", optuna_trials=300):
     """
     Funzione completa: selezione lag, tuning CatBoost con Optuna, fit CatBoost,
@@ -178,6 +178,8 @@ def full_copper_forecast(df, price_col='Copper', forecast_horizon_years=5, N_SIM
     # =========================================================
     # Preprocessing
     # =========================================================
+    df = pd.read_excel(link_df)
+    df["Time"] = pd.to_datetime(df["Time"], errors="coerce")
     df = df.sort_values("Time").reset_index(drop=True)
     series = pd.to_numeric(df[price_col], errors="coerce")
     
