@@ -243,7 +243,7 @@ def full_copper_forecast(link_df, price_col='Copper', forecast_horizon_years=5, 
         return np.sqrt(mean_squared_error(y_test, preds))
     
     study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=optuna_trials, show_progress_bar=True)
+    study.optimize(objective, n_trials=optuna_trials, n_jobs=1, show_progress_bar=True)
     
     BEST_PARAMS = study.best_params
     print("✅ Best CatBoost params:", BEST_PARAMS)
