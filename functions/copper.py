@@ -6,7 +6,8 @@ from copulas.multivariate import GaussianMultivariate
 import pickle
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, mean_absolute_percentage_error
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def make_lag_df(series, n_lags):
     df = pd.DataFrame({"y": series})
@@ -155,8 +156,6 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
     
     return final_forecast, df_yearly
 
-import warnings
-warnings.filterwarnings("ignore")
 
 def copper_test_forecast_MC(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DIST="ged", calibration_size=24):
 
@@ -166,7 +165,7 @@ def copper_test_forecast_MC(link_df, price_col='Copper', N_SIM=1000, alpha=0.05,
     df = df.sort_values("Time").reset_index(drop=True)
     series = pd.to_numeric(df[price_col], errors="coerce").dropna()
 
-    BEST_LAG = 1  # Puoi cambiare o usare selezione automatica
+    BEST_LAG = 1 
 
     # ================= Dataset definitivo =================
     data = make_lag_df(series, BEST_LAG)
@@ -184,8 +183,7 @@ def copper_test_forecast_MC(link_df, price_col='Copper', N_SIM=1000, alpha=0.05,
     monotone_constraints = [1]*BEST_LAG
 
     # ================= CatBoost finale =================
-    BEST_PARAMS = {'iterations': 96, 'depth': 3, 'learning_rate': 0.07501216733365657,
-                   'l2_leaf_reg': 1.2784730546433896, 'max_ctr_complexity': 2, 'min_data_in_leaf': 24}
+    BEST_PARAMS = {'iterations': 96, 'depth': 3, 'learning_rate': 0.07501216733365657, 'l2_leaf_reg': 1.2784730546433896, 'max_ctr_complexity': 2, 'min_data_in_leaf': 24}
     cat_model = CatBoostRegressor(**BEST_PARAMS, loss_function="RMSE", verbose=False,
                                   monotone_constraints=monotone_constraints)
     cat_model.fit(X_train, y_train)
