@@ -157,7 +157,12 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
     return final_forecast, df_yearly
 
 
-def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DIST="ged", calibration_size=24):
+def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DIST="ged", calibration_size_pct=0.05):
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from catboost import CatBoostRegressor
+    from arch import arch_model
 
     # ================= Preprocessing =================
     df = pd.read_excel(link_df)
@@ -167,29 +172,32 @@ def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DI
 
     BEST_LAG = 1 
 
-    # ================= Dataset definitivo =================
+    # ================= Dataset con lag =================
     data = make_lag_df(series, BEST_LAG)
+    dates = df["Time"].iloc[-len(data):]  # allineamento con data dopo lag
+
     n_total = len(data)
-    n_test = int(0.1 * n_total)  # 10% test
-    n_train = n_total - n_test   # 90% train
+    n_train = int(n_total * 0.9)
+    n_cal = int(n_total * calibration_size_pct)
+    n_test = n_total - n_train - n_cal
 
     train = data.iloc[:n_train]
-    test = data.iloc[n_train:]
-
-    # ================= Calibration =================
-    # Ultimi 12 mesi (o ultimo anno) della serie storica
-    calibration = data.iloc[-12:]  # assuming monthly data
+    calibration = data.iloc[n_train:n_train+n_cal]
+    test = data.iloc[n_train+n_cal:]
 
     X_train, y_train = train.drop("y", axis=1), train["y"]
-    X_test, y_test = test.drop("y", axis=1), test["y"]
     X_cal, y_cal = calibration.drop("y", axis=1), calibration["y"]
+    X_test, y_test = test.drop("y", axis=1), test["y"]
 
-    monotone_constraints = [1]*BEST_LAG
+    dates_train = dates.iloc[:n_train]
+    dates_cal = dates.iloc[n_train:n_train+n_cal]
+    dates_test = dates.iloc[n_train+n_cal:]
 
     # ================= CatBoost finale =================
-    BEST_PARAMS = {'iterations': 96, 'depth': 3, 'learning_rate': 0.07501216733365657, 'l2_leaf_reg': 1.2784730546433896, 'max_ctr_complexity': 2, 'min_data_in_leaf': 24}
+    BEST_PARAMS = {'iterations': 96, 'depth': 3, 'learning_rate': 0.075, 
+                   'l2_leaf_reg': 1.278, 'max_ctr_complexity': 2, 'min_data_in_leaf': 24}
     cat_model = CatBoostRegressor(**BEST_PARAMS, loss_function="RMSE", verbose=False,
-                                  monotone_constraints=monotone_constraints)
+                                  monotone_constraints=[1]*BEST_LAG)
     cat_model.fit(X_train, y_train)
 
     # ================= GARCH sui residui =================
@@ -202,7 +210,7 @@ def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DI
     np.random.seed(42)
     sim_paths = np.zeros((N_SIM, len(X_test)))
     for sim in range(N_SIM):
-        if DIST=="t":
+        if DIST == "t":
             z = np.random.standard_t(df=garch_fit.params["nu"], size=len(X_test))
         else:
             z = np.random.standard_normal(len(X_test))
@@ -212,12 +220,11 @@ def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DI
     y_test_lower = np.percentile(sim_paths, 100*alpha/2, axis=0)
     y_test_upper = np.percentile(sim_paths, 100*(1-alpha/2), axis=0)
 
-    # ================= Conformal Prediction sul test set =================
-    # Calcolata usando il set di calibrazione
+    # ================= Conformal Prediction =================
     sigma_cal = np.sqrt(garch_fit.conditional_volatility[-len(X_cal):])
     sim_paths_cal = np.zeros((N_SIM, len(X_cal)))
     for sim in range(N_SIM):
-        if DIST=="t":
+        if DIST == "t":
             z = np.random.standard_t(df=garch_fit.params["nu"], size=len(X_cal))
         else:
             z = np.random.standard_normal(len(X_cal))
@@ -231,24 +238,10 @@ def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DI
     cp_upper_test = y_test_pred_mean + q_hat
 
     # ================= Plot =================
-    dates = df["Time"].iloc[-len(series):]
-    y_real = series.values
-    train_size = len(X_train)
-    cal_size = len(X_cal)
-    test_size = len(X_test)
-
-    dates_train = dates.iloc[:train_size]
-    dates_cal = dates.iloc[train_size:train_size+cal_size]
-    dates_test = dates.iloc[train_size+cal_size:train_size+cal_size+test_size]
-
-    y_train_real = y_real[:train_size]
-    y_cal_real = y_real[train_size:train_size+cal_size]
-    y_test_real = y_real[train_size+cal_size:train_size+cal_size+test_size]
-
     fig, ax = plt.subplots(figsize=(16,8))
-    ax.plot(dates_train, y_train_real, label="Train", color="black", linewidth=1.5)
-    ax.plot(dates_cal, y_cal_real, label="Calibration", color="gray", linewidth=1.5)
-    ax.plot(dates_test, y_test_real, label="Test (reale)", color="blue", linewidth=2)
+    ax.plot(dates_train, y_train.values, label="Train", color="black", linewidth=1.5)
+    ax.plot(dates_cal, y_cal.values, label="Calibration", color="gray", linewidth=1.5)
+    ax.plot(dates_test, y_test.values, label="Test (reale)", color="blue", linewidth=2)
     ax.plot(dates_test, y_test_pred_mean, label="Forecast Test (CatBoost + GARCH MC)", color="orange", linestyle="--", linewidth=2)
     ax.fill_between(dates_test, cp_lower_test, cp_upper_test, color='orange', alpha=0.2, label='CP 95%')
     ax.axvline(x=dates_test.iloc[0], color="gray", linestyle=":", linewidth=1)
@@ -257,4 +250,6 @@ def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DI
     ax.set_ylabel("Value")
     ax.legend()
     ax.grid(alpha=0.3)
+
     return fig
+
