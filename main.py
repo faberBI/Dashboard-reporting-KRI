@@ -824,7 +824,7 @@ elif selected_kri == "🟠 Copper Price":
     X_train, y_train = train.drop("y", axis=1), train["y"]
     X_test, y_test = test.drop("y", axis=1), test["y"]
 
-    _, fig = montecarlo_cp_forecast(df=df_model, series=series, X_train=X_train, X_test=X_test, catboost_path="utils/catboost_model.cbm")
+    _, fig  = montecarlo_cp_forecast(df_model, series, X_train, X_test, catboost_path, H=60, N_SIM=1000, CALIBRATION_H=24, alpha=0.05, DIST="ged")
     st.pyplot(fig)
 
     # -----------------------------------------------
