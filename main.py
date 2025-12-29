@@ -816,7 +816,7 @@ elif selected_kri == "🟠 Copper Price":
 
     fig = full_copper_forecast(link_df="Data/copper_price.xlsx", price_col='Copper', N_SIM=5000, alpha=0.05, DIST="ged", calibration_size_pct=0.05)
     st.pyplot(fig)
-
+    st.info("Fonte Dati: https://www.insee.fr/en/statistiques/serie/010767327")
     # -----------------------------------------------
     # 📅 Selezione data finale simulazione
     # -----------------------------------------------
@@ -866,7 +866,6 @@ elif selected_kri == "🟠 Copper Price":
 
         fig = plot_copper_forecast(df_model, result_df_annual)
         st.pyplot(fig)
-
         st.subheader("📊 Risultati Simulazione")
         result_df.index = pd.to_datetime(result_df.index)
 
