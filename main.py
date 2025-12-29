@@ -32,7 +32,7 @@ import yfinance as yf
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
 from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk, get_monthly_and_yearly_distribution)
-from functions.copper import monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget
+from functions.copper import monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, make_lag_df
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
 # -----------------------
@@ -795,13 +795,7 @@ elif selected_kri == "🌪️ Natural Event Risk":
 # -----------------------
 # 🟠 Copper Risk
 # -----------------------
-elif selected_kri == "🟠 Copper Price":
-    def make_lag_df(series, n_lags):
-        df = pd.DataFrame({"y": series})
-        for lag in range(1, n_lags + 1):
-            df[f"lag_{lag}"] = df["y"].shift(lag)
-        return df.dropna().reset_index(drop=True)
-    
+elif selected_kri == "🟠 Copper Price": 
     st.subheader("🟠 Simulazione su Copper (prezzi in euro)")
     st.info("Esegui la simulazione multivariata del copper")
 
