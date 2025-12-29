@@ -154,46 +154,115 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
     
     return final_forecast, df_yearly
 
-def montecarlo_cp_forecast(df, series, X_train, X_test, catboost_path, 
-                           H=60, N_SIM=1000, CALIBRATION_H=24, alpha=0.05, DIST="ged"):
+def full_copper_forecast(df, price_col='Copper', forecast_horizon_years=5, N_SIM=1000,
+                         CALIBRATION_H=24, alpha=0.05, DIST="ged", optuna_trials=300):
     """
-    Esegue forecast Monte Carlo con CatBoost + GARCH + Conformal Prediction.
+    Funzione completa: selezione lag, tuning CatBoost con Optuna, fit CatBoost,
+    GARCH sui residui, Monte Carlo forecast e Conformal Prediction.
     
     Args:
-        df: DataFrame originale con colonna 'Time'.
-        series: Serie temporale dei prezzi (pd.Series).
-        X_train, X_test: Lag features train/test.
-        catboost_path: path o link al modello CatBoost salvato.
-        H: Orizzonte forecast in periodi (mesi).
-        N_SIM: Numero di simulazioni Monte Carlo.
-        CALIBRATION_H: Numero di periodi per conformal calibration.
-        alpha: livello di significatività conformal prediction.
-        DIST: distribuzione GARCH ("t" o "ged").
+        df: DataFrame con colonne 'Time' e prezzi.
+        price_col: nome colonna dei prezzi.
+        forecast_horizon_years: anni di forecast.
+        N_SIM: numero simulazioni Monte Carlo.
+        CALIBRATION_H: ultimi periodi per Conformal Prediction.
+        alpha: livello di significatività per Conformal Prediction.
+        DIST: distribuzione GARCH ('t' o 'ged').
+        optuna_trials: numero trial Optuna.
         
     Returns:
-        final_forecast: DataFrame con Mean_Forecast, intervalli GARCH e Conformal.
-        fig: Matplotlib figure con plot storico + test + forecast.
+        final_forecast: DataFrame con forecast e intervalli.
+        fig: matplotlib figure con plot storico + test + forecast.
     """
     
-    # -----------------------------
-    # CARICAMENTO MODELO CATBOOST
-    # -----------------------------
-    cat_model = CatBoostRegressor()
-    cat_model.load_model(catboost_path)
+    # =========================================================
+    # Preprocessing
+    # =========================================================
+    df = df.sort_values("Time").reset_index(drop=True)
+    series = pd.to_numeric(df[price_col], errors="coerce")
     
-    # -----------------------------
-    # FIT GARCH sui residui train
-    # -----------------------------
-    y_train = X_train.join(series).iloc[:, -1]  # Assumiamo che X_train e series siano allineati
-    y_train = y_train.values
+    # Funzione lag features
+    def make_lag_df(series, n_lags):
+        df_lag = pd.DataFrame({"y": series})
+        for lag in range(1, n_lags+1):
+            df_lag[f"lag_{lag}"] = df_lag["y"].shift(lag)
+        return df_lag.dropna()
+    
+    # =========================================================
+    # 1) Best lag
+    # =========================================================
+    lag_scores = []
+    for n_lags in range(1, 10):
+        data = make_lag_df(series, n_lags)
+        split = int(len(data)*0.9)
+        train, test = data.iloc[:split], data.iloc[split:]
+        X_train, y_train = train.drop("y", axis=1), train["y"]
+        X_test, y_test = test.drop("y", axis=1), test["y"]
+        model = CatBoostRegressor(iterations=461, depth=7, learning_rate=0.0185698166207864,
+                                  l2_leaf_reg=9.9687496613796, loss_function="RMSE", verbose=False)
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
+        rmse = mean_squared_error(y_test, preds)
+        lag_scores.append((n_lags, rmse))
+    
+    BEST_LAG = min(lag_scores, key=lambda x:x[1])[0]
+    print(f"✅ Best lag: {BEST_LAG}")
+    
+    # =========================================================
+    # Dataset definitivo
+    # =========================================================
+    data = make_lag_df(series, BEST_LAG)
+    split = int(len(data)*0.9)
+    train, test = data.iloc[:split], data.iloc[split:]
+    X_train, y_train = train.drop("y", axis=1), train["y"]
+    X_test, y_test = test.drop("y", axis=1), test["y"]
+    monotone_constraints = [1]*BEST_LAG
+    
+    # =========================================================
+    # 2) Optuna CatBoost
+    # =========================================================
+    def objective(trial):
+        params = {
+            "iterations": trial.suggest_int("iterations", 10, 100),
+            "depth": trial.suggest_int("depth", 2, 3),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
+            "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1, 10),
+            "loss_function": "RMSE",
+            "verbose": False,
+            "monotone_constraints": [1],
+            "bootstrap_type": "Bayesian",
+            "max_ctr_complexity": trial.suggest_int("max_ctr_complexity", 1, 2),
+            "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 20, 30)
+        }
+        model = CatBoostRegressor(**params)
+        model.fit(X_train, y_train, eval_set=(X_test, y_test), early_stopping_rounds=10)
+        preds = model.predict(X_test)
+        return np.sqrt(mean_squared_error(y_test, preds))
+    
+    study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=optuna_trials, show_progress_bar=True)
+    
+    BEST_PARAMS = study.best_params
+    print("✅ Best CatBoost params:", BEST_PARAMS)
+    
+    # =========================================================
+    # 3) CatBoost finale
+    # =========================================================
+    cat_model = CatBoostRegressor(**BEST_PARAMS, loss_function="RMSE", verbose=False,
+                                  monotone_constraints=monotone_constraints)
+    cat_model.fit(X_train, y_train)
+    
+    # =========================================================
+    # 4) GARCH sui residui
+    # =========================================================
     residuals = y_train - cat_model.predict(X_train)
-    
     garch = arch_model(residuals, vol="Garch", p=1, q=1, mean="Zero", dist=DIST)
     garch_fit = garch.fit(disp="off")
     
-    # -----------------------------
-    # MONTE CARLO FORECAST
-    # -----------------------------
+    # =========================================================
+    # 5) Monte Carlo forecast
+    # =========================================================
+    H = forecast_horizon_years * 12
     last_series = series.copy()
     sim_paths = np.zeros((N_SIM, H))
     
@@ -201,50 +270,46 @@ def montecarlo_cp_forecast(df, series, X_train, X_test, catboost_path,
     sigma = np.sqrt(garch_fc.variance.values[-1])
     DIST_LOWER = garch_fit.model.distribution.name.lower()
     
-    BEST_LAG = X_train.shape[1]
-    
     for sim in range(N_SIM):
         path_series = last_series.copy()
-        if DIST_LOWER == "t":
+        if DIST_LOWER=="t":
             z = np.random.standard_t(df=garch_fit.params["nu"], size=H)
         else:
             z = np.random.standard_normal(H)
-        
         for h in range(H):
             lags = path_series.iloc[-BEST_LAG:].values
             X_future = pd.DataFrame([lags], columns=X_train.columns)
             mu = cat_model.predict(X_future)[0]
-            eps = sigma[h] * z[h]
+            eps = sigma[h]*z[h]
             y_next = mu + eps
-            sim_paths[sim, h] = y_next
+            sim_paths[sim,h] = y_next
             path_series = pd.concat([path_series, pd.Series([y_next])], ignore_index=True)
     
-    # -----------------------------
-    # FAN CHART GARCH
-    # -----------------------------
+    # =========================================================
+    # Fan chart GARCH
+    # =========================================================
     forecast_mean = sim_paths.mean(axis=0)
     lower_95 = np.percentile(sim_paths, 100*alpha/2, axis=0)
     upper_95 = np.percentile(sim_paths, 100*(1-alpha/2), axis=0)
     
-    # -----------------------------
-    # CONFORMAL PREDICTION
-    # -----------------------------
-    # Calibrazione sui dati più recenti
-    data_cp = X_train.join(series.iloc[-len(X_train):])
-    data_cp.columns = list(X_train.columns) + ["y"]
-    calibration_data = data_cp.iloc[-CALIBRATION_H:]
+    # =========================================================
+    # Conformal Prediction
+    # =========================================================
+    calibration_data = data.iloc[-CALIBRATION_H:]
     X_cal = calibration_data.drop("y", axis=1)
     y_cal = calibration_data["y"]
     y_cal_pred = cat_model.predict(X_cal)
-    
     conformity_scores = np.abs(y_cal - y_cal_pred)
-    q_hat = np.quantile(conformity_scores, 1 - alpha)
+    q_hat = np.quantile(conformity_scores, 1-alpha)
     
     cp_lower = forecast_mean - q_hat
     cp_upper = forecast_mean + q_hat
     
+    # =========================================================
+    # DataFrame finale
+    # =========================================================
     final_forecast = pd.DataFrame({
-        "Step": np.arange(1, H+1),
+        "Step": np.arange(1,H+1),
         "Mean_Forecast": forecast_mean,
         "GARCH_Lower_95": lower_95,
         "GARCH_Upper_95": upper_95,
@@ -252,26 +317,23 @@ def montecarlo_cp_forecast(df, series, X_train, X_test, catboost_path,
         "CP_Upper_95": cp_upper
     })
     
-    # -----------------------------
-    # PLOT
-    # -----------------------------
+    # =========================================================
+    # Plot storico + test + forecast
+    # =========================================================
     dates = df["Time"].iloc[-len(series):]
     y_real = series.values
     train_size = len(X_train)
     test_size = len(X_test)
-    
     dates_train = dates.iloc[:train_size]
-    dates_test = dates.iloc[train_size:train_size + test_size]
+    dates_test = dates.iloc[train_size:train_size+test_size]
     y_train_real = y_real[:train_size]
-    y_test_real = y_real[train_size:train_size + test_size]
+    y_test_real = y_real[train_size:train_size+test_size]
     y_test_pred = cat_model.predict(X_test)
     
     fig, ax = plt.subplots(figsize=(16,8))
-    
     ax.plot(dates_train, y_train_real, label="Storico Train", color="black", linewidth=1.5)
     ax.plot(dates_test, y_test_real, label="Storico Test (reale)", color="blue", linewidth=2)
     ax.plot(dates_test, y_test_pred, label="Forecast Test (CatBoost)", color="orange", linestyle="--", linewidth=2)
-    
     ax.axvline(x=dates_test.iloc[-1], color="gray", linestyle=":", linewidth=1)
     ax.set_title("Storico + Forecast Test con Conformal Prediction")
     ax.set_xlabel("Time")
@@ -279,10 +341,6 @@ def montecarlo_cp_forecast(df, series, X_train, X_test, catboost_path,
     ax.legend()
     ax.grid(alpha=0.3)
     
-    plt.tight_layout()
-    
     return final_forecast, fig
-
-
 
 
