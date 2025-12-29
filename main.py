@@ -896,7 +896,7 @@ elif selected_kri == "🟠 Copper Price":
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             result_df.to_excel(writer, index=True, sheet_name='Mensile Simulazione')
             result_df_annual.to_excel(writer, index=True, sheet_name='Annuale Aggregato')
-            df.to_excel(writer, index=True, sheet_name='Copper Price')
+            df_model.to_excel(writer, index=True, sheet_name='Copper Price')
             buffer.seek(0)
 
         st.download_button(
