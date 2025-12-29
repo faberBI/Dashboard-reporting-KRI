@@ -806,13 +806,13 @@ elif selected_kri == "🟠 Copper Price":
     st.info("Esegui la simulazione multivariata del copper")
 
     df_model = pd.read_excel('Data/copper_price.xlsx')
-    st.dataframe(df_model,    use_container_width=True    )
+    st.dataframe(df_model, use_container_width=True)
+    
     # Controlla se la colonna 'Time' esiste
     if "Time" not in df_model.columns:
         raise KeyError("La colonna 'Time' non esiste nel file Excel!")
 
-    #df_model["Time"] = pd.to_datetime(df_model["Time"], errors="coerce")
-    df_model = df_model.sort_values("Time").reset_index(drop=True)
+    df_model["Time"] = pd.to_datetime(df_model["Time"], errors="coerce")
 
     price_col = 'Copper'
     if price_col not in df_model.columns:
