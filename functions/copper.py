@@ -238,18 +238,24 @@ def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DI
     cp_upper_test = y_test_pred_mean + q_hat
 
     # ================= Plot =================
+    start_date = pd.Timestamp("2015-01-01")
+
+    mask_train = dates_train >= start_date
+    mask_cal = dates_cal >= start_date
+    mask_test = dates_test >= start_date
+
     fig, ax = plt.subplots(figsize=(16,8))
-    ax.plot(dates_train, y_train.values, label="Train", color="black", linewidth=1.5)
-    ax.plot(dates_cal, y_cal.values, label="Calibration", color="gray", linewidth=1.5)
-    ax.plot(dates_test, y_test.values, label="Test (reale)", color="blue", linewidth=2)
-    ax.plot(dates_test, y_test_pred_mean, label="Forecast Test (CatBoost + GARCH MC)", color="orange", linestyle="--", linewidth=2)
-    ax.fill_between(dates_test, cp_lower_test, cp_upper_test, color='orange', alpha=0.2, label='CP 95%')
+    ax.plot(dates_train[mask_train], y_train.values[mask_train], label="Train", color="black", linewidth=1.5)
+    ax.plot(dates_cal[mask_cal], y_cal.values[mask_cal], label="Calibration", color="gray", linewidth=1.5)
+    ax.plot(dates_test[mask_test], y_test.values[mask_test], label="Test (reale)", color="blue", linewidth=2)
+    ax.plot(dates_test[mask_test], y_test_pred_mean[mask_test], label="Forecast Test (CatBoost + GARCH MC)", color="orange", linestyle="--", linewidth=2)
+    ax.fill_between(dates_test[mask_test], cp_lower_test[mask_test], cp_upper_test[mask_test], color='orange', alpha=0.2, label='CP 95%')
     ax.axvline(x=dates_test.iloc[0], color="gray", linestyle=":", linewidth=1)
+
     ax.set_title("Forecast Test Hybrid Model con Conformal Prediction")
     ax.set_xlabel("Time")
     ax.set_ylabel("Value")
     ax.legend()
     ax.grid(alpha=0.3)
-
     return fig
 
