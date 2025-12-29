@@ -811,7 +811,7 @@ elif selected_kri == "🟠 Copper Price":
     if "Time" not in df_model.columns:
         raise KeyError("La colonna 'Time' non esiste nel file Excel!")
 
-    df_model["Time"] = pd.to_datetime(df_model["Time"], errors="coerce")
+    #df_model["Time"] = pd.to_datetime(df_model["Time"], errors="coerce")
     df_model = df_model.sort_values("Time").reset_index(drop=True)
 
     price_col = 'Copper'
