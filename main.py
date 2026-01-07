@@ -1406,6 +1406,31 @@ elif selected_kri == "📈 Interest Rate":
         plt.title("Serie storica + Forecast Monte Carlo EURIBOR 3M")
         plt.xlabel("Date")
         plt.ylabel("EURIBOR 3M")
+        plt.ylim(0, 6)
+        plt.legend()
+        plt.grid(True)
+        
+        st.pyplot(plt.gcf())
+        plt.close()
+
+        plt.figure(figsize=(15,6))
+        # Serie storica
+        plt.plot(df_dropped.index, df_dropped['euribor_3m'], label="Originale", color='black')
+        
+        # Forecast unico Monte Carlo (median e intervallo conformalizzato)
+        plt.plot(forecast_quarterly.index, forecast_quarterly['median'], label='Mean Forecast', color='green', linestyle='--')
+        plt.plot(plan_series_plot.index, plan_series_plot.values, label = 'Euribor 3m Piano', color = 'blue', linestyle= '-.')
+        plt.fill_between(
+            forecast_quarterly.index,
+            forecast_quarterly['lower_adj'],
+            forecast_quarterly['upper_adj'],
+            color='red', alpha=0.2, label='Adjusted Interval (Conformal)'
+        )
+        
+        plt.title("Serie storica + Forecast Monte Carlo EURIBOR 3M")
+        plt.xlabel("Date")
+        plt.ylabel("EURIBOR 3M")
+        plt.ylim(0, 6)
         plt.legend()
         plt.grid(True)
         
