@@ -1315,6 +1315,7 @@ elif selected_kri == "📈 Interest Rate":
     # ============================================================
     st.subheader("📊 Calcolo VaR 95% su Simulazioni Euribor 3M 📊")
     run_euribor = st.button("🚀 Simula Euribor 3M")
+    n_sims = st.slider("Number of Monte Carlo simulations", min_value=100, max_value=100_000, value=10_000, step=100)
     
     if uploaded_file and run_euribor:
         tranche_df = pd.read_excel(uploaded_file, sheet_name="Tranches")
@@ -1337,7 +1338,7 @@ elif selected_kri == "📈 Interest Rate":
         spread_df["To"] = pd.to_datetime(spread_df["To"])
     
         # 1️⃣ Simulazione unica EURIBOR
-        forecast_df, forecast_quarterly = simulate_euribor(series=series, df_dropped=df_dropped, n_sims=5000, horizon_days=max_horizon_days, plan_euribor_df=plan_euribor_df)
+        forecast_df, forecast_quarterly = simulate_euribor(series=series, df_dropped=df_dropped, n_sims=n_sims, horizon_days=max_horizon_days, plan_euribor_df=plan_euribor_df)
         
         st.subheader("Risultati simulazione Tassi - Euribor ")
         st.dataframe(forecast_quarterly)
