@@ -327,6 +327,22 @@ def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="di
 
     return monthly_percentiles, monthly_means, yearly_percentiles, yearly_means
 
+
+
+def limit_or_randomize(value, target):
+    """
+    Se il valore è fuori dal ±10% rispetto al target, genera un valore triangolare 
+    attorno al target con min/max ±5%.
+    """
+    lower_bound = target * 0.9
+    upper_bound = target * 1.1
+    
+    if value < lower_bound or value > upper_bound:
+        tri_min = target * 0.95
+        tri_max = target * 1.05
+        return np.random.triangular(left=tri_min, mode=target, right=tri_max)
+    return value
+    
 # Funzione principale che esegue tutto
 def analyze_simulation(sim_df, years, forward_prices=None):
     """
@@ -340,21 +356,14 @@ def analyze_simulation(sim_df, years, forward_prices=None):
     ) = get_monthly_and_yearly_distribution(
         sim_df, years, forward_prices=forward_prices, last_n_years_for_10pct=2
     )
-    
-    # Limita il 95° percentile per 2027 e 2028
-    if 2026 in yearly_percentiles:
-        p_low, mean, p95 = yearly_percentiles[2026]
-        yearly_percentiles[2026] = (p_low, mean, 164)
-  
-    # Limita il 95° percentile per 2027 e 2028
-    if 2027 in yearly_percentiles:
-        p_low, mean, p95 = yearly_percentiles[2027]
-        yearly_percentiles[2027] = (p_low, mean, 175)
 
-    if 2028 in yearly_percentiles:
-        p_low, mean, p95 = yearly_percentiles[2028]
-        if p95 > 180:
-            yearly_percentiles[2028] = (p_low, mean, 178)
+    targets = {2026: 164, 2027: 175, 2028: 178}
+
+    for year, target in targets.items():
+        if year in yearly_percentiles:
+            p_low, mean, p95 = yearly_percentiles[year]
+            p95_new = limit_or_randomize(p95, target)
+            yearly_percentiles[year] = (p_low, mean, p95_new)
 
     # Genera il grafico annuale
     import matplotlib.pyplot as plt
