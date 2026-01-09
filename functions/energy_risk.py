@@ -334,7 +334,7 @@ def limit_or_randomize(value, target):
     Se il valore è fuori dal ±10% rispetto al target, genera un valore triangolare 
     attorno al target con min/max ±5%.
     """
-    lower_bound = target * 0.9
+    lower_bound = target * 0.95
     upper_bound = target * 1.1
     
     if value < lower_bound or value > upper_bound:
