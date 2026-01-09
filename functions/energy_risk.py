@@ -365,32 +365,26 @@ def analyze_simulation(sim_df, years, forward_prices=None):
             p95_new = limit_or_randomize(p95, target)
             yearly_percentiles[year] = (p_low, mean, p95_new)
     
-# Abbassa p_low per 2032-2035 se l'ampiezza dell'anno successivo è più piccola
     adjustment_years = [2032, 2033, 2034, 2035]
-    
-    # Prima prendiamo le ampiezze originali
-    widths = {year: yearly_percentiles[year][2] - yearly_percentiles[year][0] 
-              for year in adjustment_years if year in yearly_percentiles}
-    
-    # Iteriamo per garantire aumento progressivo
-    for i in range(len(adjustment_years) - 1):
-        year = adjustment_years[i]
-        next_year = adjustment_years[i + 1]
-    
-        if year in yearly_percentiles and next_year in yearly_percentiles:
+    p5_min = 16
+    reduction_rate = 0.03  # 3%
+
+    # partiamo dal 2032 e iteriamo fino al 2035
+    for i, year in enumerate(adjustment_years):
+        if year in yearly_percentiles:
             p_low, mean, p95 = yearly_percentiles[year]
-            next_p_low, next_mean, next_p95 = yearly_percentiles[next_year]
-    
-            current_width = p95 - p_low
-            next_width = next_p95 - next_p_low
-    
-            # Se l'anno successivo ha intervallo minore o uguale, allarghiamo
-            if next_width <= current_width:
-                # Calcolo incremento proporzionale: facciamo crescere progressivamente
-                increment = max(current_width * 0.1, 1e-3)  # piccolo margine minimo
-                next_p_low_new = max(0, next_p_low - increment/2)
-                next_p95_new = next_p95 + increment/2
-                yearly_percentiles[next_year] = (next_p_low_new, next_mean, next_p95_new)
+
+            if i == 0:
+                # primo anno: non riduciamo oltre il minimo
+                new_p_low = max(p_low, p5_min)
+            else:
+                # abbassiamo del 3% rispetto all'anno precedente
+                prev_year = adjustment_years[i - 1]
+                prev_p_low = yearly_percentiles[prev_year][0]
+                new_p_low = max(prev_p_low * (1 - reduction_rate), p5_min)
+
+            # aggiorniamo il percentile
+            yearly_percentiles[year] = (new_p_low, mean, p95)
 
     # Genera il grafico annuale
     import matplotlib.pyplot as plt
