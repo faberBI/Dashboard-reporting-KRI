@@ -495,10 +495,10 @@ def compute_downside_upperside_risk(
                 break
         return pred_list
 
-    p95 = connect_with_history(p95, media_pun)
-    p5 = connect_with_history(p5, media_pun)
-    frwd = connect_with_history(frwd, media_pun)
-    predictive = connect_with_history(predictive, media_pun)
+    # p95 = connect_with_history(p95, media_pun)
+    # p5 = connect_with_history(p5, media_pun)
+    # frwd = connect_with_history(frwd, media_pun)
+    # predictive = connect_with_history(predictive, media_pun)
 
         
     def plot_line(data, label, color, annotate=True):
