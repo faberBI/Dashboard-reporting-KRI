@@ -491,7 +491,7 @@ def compute_downside_upperside_risk(
         for i, v in enumerate(pred_list):
             if v != 0 and last_hist_val is not None:
                 # Inserisce un punto fittizio all'inizio della previsione
-                pred_list[i] = (pred_list[i] + last_hist_val) / 2
+                pred_list[i] = pred_list[i]
                 break
         return pred_list
 
@@ -540,7 +540,7 @@ def compute_downside_upperside_risk(
     df_target_policy["% Purchased w/o Solar"] = (df_target_policy["Covered (MWh)"] / df_target_policy["Fabbisogno (MWh)"]) * 100
     df_target_policy["% Purchased with Solar"] = ((df_target_policy["Covered (MWh)"] + df_target_policy["Solar (MWh)"]) / df_target_policy["Fabbisogno (MWh)"]) * 100
     # da modificare
-    df_target_policy['Target Policy']  = [95, 85, 50, 95, 85, 50, 95, 85, 50, 50] 
+    df_target_policy['Target Policy']  = [95, 85, 50, 50, 50, 50, 50, 50, 50, 50] 
     return df_risk, df_open, df_prezzi, df_target_policy, fig
 
 
