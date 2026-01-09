@@ -325,7 +325,37 @@ if selected_kri == "⚡ Energy Risk":
             index=future_dates,
             columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
         )
+        df_sim = pd.DataFrame(simulated_prices.T, index=future_dates)
+        df_sim["Year"] = df_sim.index.year
 
+        # Percentili annuali
+        annual_lower_emp = df_sim.groupby("Year").apply(lambda x: np.percentile(x.iloc[:, :-1].values.flatten(), 2.5))
+        annual_upper_emp = df_sim.groupby("Year").apply(lambda x: np.percentile(x.iloc[:, :-1].values.flatten(), 97.5))
+
+        # Conformal calibration annuale
+        annual_calibration_y = prezzi_storici_df.resample("Y").mean().values[-len(annual_lower_emp):]
+
+        samples_cal = np.random.choice(simulated_prices.flatten(), size=(len(annual_lower_emp), simulated_prices.shape[0]))
+
+        lower_cal = np.percentile(samples_cal, 2.5, axis=1)
+        upper_cal = np.percentile(samples_cal, 97.5, axis=1)
+
+        nonconformity = np.maximum(lower_cal - annual_calibration_y, annual_calibration_y - upper_cal)
+        q_hat = np.quantile(np.append(nonconformity, np.inf), 0.95)
+
+        # Intervalli conformal annuali
+        lower_adj_annual = annual_lower_emp - q_hat
+        upper_adj_annual = annual_upper_emp + q_hat
+
+        # DataFrame finale annuale
+        annual_interval_df = pd.DataFrame({
+        "Lower_Conformal": lower_adj_annual,
+        "Upper_Conformal": upper_adj_annual
+        }, index=annual_lower_emp.index)
+
+        st.table(annual_interval_df)
+
+        
         
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
