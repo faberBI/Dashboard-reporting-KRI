@@ -272,8 +272,8 @@ if selected_kri == "⚡ Energy Risk":
         for i, year in enumerate(future_years):
         
             # 3,5,7,9... anni di storico
-            n_years_history = 3
             #n_years_history = 3 + i*2
+            n_years_history = 2 + i*1
             end_history = df_excel["Date"].max()
             start_history = end_history - pd.DateOffset(years=n_years_history)
 
