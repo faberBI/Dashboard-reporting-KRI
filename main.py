@@ -308,7 +308,7 @@ if selected_kri == "⚡ Energy Risk":
                 inv_year_mean = inv_year_mean / inv_year_mean.max()
 
                 # ======== 3) PESATURA COMBINATA ===========
-                weights = recency_score * inv_year_mean
+                weights = 0.5*recency_score + 0.5* inv_year_mean
                 weights = np.nan_to_num(weights)
                 prob = weights / weights.sum()
 
