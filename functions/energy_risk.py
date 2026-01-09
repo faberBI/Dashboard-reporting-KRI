@@ -365,9 +365,14 @@ def analyze_simulation(sim_df, years, forward_prices=None):
             p95_new = limit_or_randomize(p95, target)
             yearly_percentiles[year] = (p_low, mean, p95_new)
     
+# Abbassa p_low per 2032-2035 se l'ampiezza dell'anno successivo è più piccola
     adjustment_years = [2032, 2033, 2034, 2035]
     
-    # Partiamo dal 2032 e aumentiamo l'ampiezza anno dopo anno
+    # Prima prendiamo le ampiezze originali
+    widths = {year: yearly_percentiles[year][2] - yearly_percentiles[year][0] 
+              for year in adjustment_years if year in yearly_percentiles}
+    
+    # Iteriamo per garantire aumento progressivo
     for i in range(len(adjustment_years) - 1):
         year = adjustment_years[i]
         next_year = adjustment_years[i + 1]
@@ -376,16 +381,15 @@ def analyze_simulation(sim_df, years, forward_prices=None):
             p_low, mean, p95 = yearly_percentiles[year]
             next_p_low, next_mean, next_p95 = yearly_percentiles[next_year]
     
-            # Ampiezza dell'anno corrente
             current_width = p95 - p_low
             next_width = next_p95 - next_p_low
     
-            # Assicuriamoci che l'anno successivo abbia un intervallo più ampio
+            # Se l'anno successivo ha intervallo minore o uguale, allarghiamo
             if next_width <= current_width:
-                # Definiamo incremento (ad esempio +10% dell'intervallo corrente)
-                increment = current_width * 0.1
-                next_p_low_new = max(0, next_p_low - increment/2)   # abbassiamo p_low
-                next_p95_new = next_p95 + increment/2                # alziamo p95
+                # Calcolo incremento proporzionale: facciamo crescere progressivamente
+                increment = max(current_width * 0.1, 1e-3)  # piccolo margine minimo
+                next_p_low_new = max(0, next_p_low - increment/2)
+                next_p95_new = next_p95 + increment/2
                 yearly_percentiles[next_year] = (next_p_low_new, next_mean, next_p95_new)
 
     # Genera il grafico annuale
