@@ -259,8 +259,7 @@ if selected_kri == "⚡ Energy Risk":
 
         # Clip globale 1%-99%
         lower_bound = prezzi_storici_df.quantile(0.01)
-        upper_bound = prezzi_storici_df.quantile(0.99)
-        prezzi_storici_df = prezzi_storici_df.clip(lower=lower_bound, upper=upper_bound)
+        prezzi_storici_df = prezzi_storici_df.clip(lower=lower_bound)
 
         simulated_prices = np.zeros((n_simulations, days_to_simulate))
 
