@@ -335,11 +335,11 @@ def limit_or_randomize(value, target):
     attorno al target con min/max ±5%.
     """
     lower_bound = target * 0.95
-    upper_bound = target * 1.1
+    upper_bound = target * 1.07
     
     if value < lower_bound or value > upper_bound:
-        tri_min = target * 0.95
-        tri_max = target * 1.05
+        tri_min = target * 0.93
+        tri_max = target * 1.03
         return np.random.triangular(left=tri_min, mode=target, right=tri_max)
     return value
     
