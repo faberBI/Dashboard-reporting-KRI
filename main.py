@@ -273,7 +273,7 @@ if selected_kri == "⚡ Energy Risk":
         
             # 3,5,7,9... anni di storico
             #n_years_history = 3 + i*2
-            n_years_history = 3 + i*1
+            n_years_history = 4 + i*1
             end_history = df_excel["Date"].max()
             start_history = end_history - pd.DateOffset(years=n_years_history)
 
@@ -305,7 +305,7 @@ if selected_kri == "⚡ Energy Risk":
 
                 # ======== 2) PESATURA PER ANNI CALDI (downweight) ===========
                 year_means = month_sample.groupby(month_sample.index.year).transform("mean")
-                inv_year_mean = 1 / (year_means ** 1.0)
+                inv_year_mean = 1 / (year_means ** 1.02)
                 inv_year_mean = inv_year_mean / inv_year_mean.max()
 
                 # ======== 3) PESATURA COMBINATA ===========
