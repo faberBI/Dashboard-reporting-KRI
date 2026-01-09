@@ -367,8 +367,8 @@ def analyze_simulation(sim_df, years, forward_prices=None):
     
     adjustment_years = [2032, 2033, 2034, 2035]
     
-    # Partiamo dall'ultimo anno e risaliamo
-    for i in reversed(range(len(adjustment_years) - 1)):
+    # Partiamo dal 2032 e aumentiamo l'ampiezza anno dopo anno
+    for i in range(len(adjustment_years) - 1):
         year = adjustment_years[i]
         next_year = adjustment_years[i + 1]
     
@@ -376,15 +376,17 @@ def analyze_simulation(sim_df, years, forward_prices=None):
             p_low, mean, p95 = yearly_percentiles[year]
             next_p_low, next_mean, next_p95 = yearly_percentiles[next_year]
     
-            # Ampiezza dell'intervallo corrente e dell'anno successivo
+            # Ampiezza dell'anno corrente
             current_width = p95 - p_low
             next_width = next_p95 - next_p_low
     
-            # Se l'anno successivo ha ampiezza minore, riduciamo proporzionalmente p_low
-            if next_width < current_width:
-                reduction = current_width - next_width
-                p_low_new = max(0, p_low - reduction)
-                yearly_percentiles[year] = (p_low_new, mean, p95)
+            # Assicuriamoci che l'anno successivo abbia un intervallo più ampio
+            if next_width <= current_width:
+                # Definiamo incremento (ad esempio +10% dell'intervallo corrente)
+                increment = current_width * 0.1
+                next_p_low_new = max(0, next_p_low - increment/2)   # abbassiamo p_low
+                next_p95_new = next_p95 + increment/2                # alziamo p95
+                yearly_percentiles[next_year] = (next_p_low_new, next_mean, next_p95_new)
 
     # Genera il grafico annuale
     import matplotlib.pyplot as plt
