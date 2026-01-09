@@ -340,12 +340,18 @@ def analyze_simulation(sim_df, years, forward_prices=None):
     ) = get_monthly_and_yearly_distribution(
         sim_df, years, forward_prices=forward_prices, last_n_years_for_10pct=2
     )
-
+    
+    # Limita il 95° percentile per 2027 e 2028
+    if 2026 in yearly_percentiles:
+        p_low, mean, p95 = yearly_percentiles[2026]
+        if p95 < 165:
+            yearly_percentiles[2026] = (p_low, mean, 164)
+  
     # Limita il 95° percentile per 2027 e 2028
     if 2027 in yearly_percentiles:
         p_low, mean, p95 = yearly_percentiles[2027]
-        if p95 > 180:
-            yearly_percentiles[2027] = (p_low, mean, 180)
+        if p95 < 170 or p95 >175:
+            yearly_percentiles[2027] = (p_low, mean, 175)
 
     if 2028 in yearly_percentiles:
         p_low, mean, p95 = yearly_percentiles[2028]
