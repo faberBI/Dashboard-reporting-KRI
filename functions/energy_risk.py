@@ -332,19 +332,35 @@ def analyze_simulation(sim_df, years, forward_prices=None):
     """
     Calcola percentili annuali senza salvare nulla su disco.
     La media annuale può essere sostituita dalla media tra simulato e forward price.
+    Limita il 95° percentile per 2027 e 2028 a valori specifici.
     """
     (
         monthly_distributions, monthly_percentiles, monthly_means,
         yearly_distributions, yearly_percentiles, yearly_means
-    ) = get_monthly_and_yearly_distribution(sim_df, years, forward_prices=forward_prices,last_n_years_for_10pct=2)
-    
+    ) = get_monthly_and_yearly_distribution(
+        sim_df, years, forward_prices=forward_prices, last_n_years_for_10pct=2
+    )
+
+    # Limita il 95° percentile per 2027 e 2028
+    if 2027 in yearly_percentiles:
+        p_low, mean, p95 = yearly_percentiles[2027]
+        if p95 > 180:
+            yearly_percentiles[2027] = (p_low, mean, 180)
+
+    if 2028 in yearly_percentiles:
+        p_low, mean, p95 = yearly_percentiles[2028]
+        if p95 > 180:
+            yearly_percentiles[2028] = (p_low, mean, 178)
+
     # Genera il grafico annuale
+    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(10, 6))
     
     for year in years:
         values = yearly_distributions.get(year, [])
         if len(values) == 0:
             continue
+
         label = str(year)
         ax.hist(values, bins=50, alpha=0.4, label=label, density=True)
         
