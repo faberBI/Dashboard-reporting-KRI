@@ -364,6 +364,23 @@ def analyze_simulation(sim_df, years, forward_prices=None):
             p_low, mean, p95 = yearly_percentiles[year]
             p95_new = limit_or_randomize(p95, target)
             yearly_percentiles[year] = (p_low, mean, p95_new)
+    
+    adjustment_years = [2032, 2033, 2034, 2035]
+    for i, year in enumerate(adjustment_years):
+        if year in yearly_percentiles:
+            p_low, mean, p95 = yearly_percentiles[year]
+            # Controlla anno successivo
+            if i+1 < len(adjustment_years):
+                next_year = adjustment_years[i+1]
+                if next_year in yearly_percentiles:
+                    next_p_low, next_mean, next_p95 = yearly_percentiles[next_year]
+                    current_width = p95 - p_low
+                    next_width = next_p95 - next_p_low
+                    if next_width < current_width:
+                        # Riduzione proporzionale di p_low
+                        reduction = (current_width - next_width) * 0.5
+                        p_low = max(0, p_low - reduction)
+                        yearly_percentiles[year] = (p_low, mean, p95)
 
     # Genera il grafico annuale
     import matplotlib.pyplot as plt
