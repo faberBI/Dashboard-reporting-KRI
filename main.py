@@ -272,7 +272,7 @@ if selected_kri == "⚡ Energy Risk":
         for i, year in enumerate(future_years):
                 # 3,5,7,9... anni di storico
                 #n_years_history = 3 + i*2
-            n_years_history = 1 + i*1
+            n_years_history = 3 + i*1
             end_history = df_excel["Date"].max()
             start_history = end_history - pd.DateOffset(years=n_years_history)
 
@@ -308,7 +308,7 @@ if selected_kri == "⚡ Energy Risk":
                 inv_year_mean = inv_year_mean / inv_year_mean.max()
 
                 # ======== 3) PESATURA COMBINATA ===========
-                weights = recency_score * inv_year_mean
+                weights = 0.9*recency_score +0.1* inv_year_mean
                 weights = np.nan_to_num(weights)
                 prob = weights / weights.sum()
 
