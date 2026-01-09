@@ -304,11 +304,11 @@ if selected_kri == "⚡ Energy Risk":
 
                 # ======== 2) PESATURA PER ANNI CALDI (downweight) ===========
                 year_means = month_sample.groupby(month_sample.index.year).transform("mean")
-                inv_year_mean = 1 / (year_means ** 0.5)
+                inv_year_mean = 1 / (year_means ** 1.01)
                 inv_year_mean = inv_year_mean / inv_year_mean.max()
 
                 # ======== 3) PESATURA COMBINATA ===========
-                weights = 0.5*recency_score + 0.5* inv_year_mean
+                weights = recency_score * inv_year_mean
                 weights = np.nan_to_num(weights)
                 prob = weights / weights.sum()
 
