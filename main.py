@@ -316,8 +316,7 @@ if selected_kri == "⚡ Energy Risk":
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
         # -----------------------------------------------------------
-
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(sim_df, q_hat, years, forward_prices=forward_prices)
+        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(df_sim, q_hat, years, forward_prices=forward_prices)
         st.pyplot(fig)
         
         # -----------------------
