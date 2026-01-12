@@ -299,8 +299,6 @@ if selected_kri == "⚡ Energy Risk":
         alpha = 0.05
         q_hat = np.quantile(conformal_scores, 1 - alpha)
 
-        days_to_simulate = (end_date - start_date_sim).days + 1
-
         S0 = prezzi_storici_df.iloc[-1]
 
         # =========================
