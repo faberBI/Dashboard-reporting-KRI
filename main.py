@@ -357,7 +357,7 @@ if selected_kri == "⚡ Energy Risk":
         predict_arr = np.array(predict_price)
         forward_arr = np.array(forward_price_full)
         # Calcola la media ponderata
-        predict_price = (0.2 * predict_arr + 0.8 * forward_arr).tolist()
+        predict_price = (0.15 * predict_arr + 0.85 * forward_arr).tolist()
         predict_price[5] = predict_arr[5]
 
         # -----------------------
