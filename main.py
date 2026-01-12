@@ -256,82 +256,70 @@ if selected_kri == "⚡ Energy Risk":
 
         # Dati storici
         prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
+        returns = prezzi_storici_df.pct_change().dropna()
 
-        # Clip globale 1%-99%
-        lower_bound = prezzi_storici_df.quantile(0.01)
-        prezzi_storici_df = prezzi_storici_df.clip(lower=lower_bound)
+        # =========================
+        # TRAIN / TEST SPLIT
+        # =========================
+        split_idx = int(len(returns) * 0.7)
 
+        returns_train = returns.iloc[:split_idx]
+        returns_test = returns.iloc[split_idx:]
+
+        prices_train = prezzi_storici_df.loc[returns_train.index]
+        prices_test = prezzi_storici_df.loc[returns_test.index]
+
+        # =========================
+        # FIT GBM SU TRAIN
+        # =========================
+        mu = returns_train.mean()
+        sigma = returns_train.std()
+        dt = 1 / 252
+        n_simulations = n_simulations
+
+        # =========================
+        # CONFORMAL CALIBRATION
+        # =========================
+        conformal_scores = []
+
+        for t in range(1, len(prices_train)):
+            S0_t = prices_train.iloc[t - 1]
+            Z = np.random.normal(0, 1, n_simulations)
+            sims = S0_t * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z)
+
+            p5 = np.percentile(sims, 5)
+            p95 = np.percentile(sims, 95)
+
+            obs = prices_train.iloc[t]
+            score = max(p5 - obs, obs - p95, 0)
+            conformal_scores.append(score)
+
+        conformal_scores = np.array(conformal_scores)
+
+        alpha = 0.05
+        q_hat = np.quantile(conformal_scores, 1 - alpha)
+
+        days_to_simulate = (end_date - start_date_sim).days + 1
+
+        S0 = prezzi_storici_df.iloc[-1]
+
+        # =========================
+        # SIMULAZIONE GBM FORWARD
+        # =========================
         simulated_prices = np.zeros((n_simulations, days_to_simulate))
+        simulated_prices[:, 0] = S0
+        for t in range(1, days_to_simulate):
+            Z = np.random.normal(0, 1, n_simulations)
+            simulated_prices[:, t] = (simulated_prices[:, t - 1* np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z))
 
-        # Date future
-        future_dates = pd.date_range(start=df_excel["Date"].max() + pd.Timedelta(days=1),
-                                     periods=days_to_simulate, freq="D")
-        future_years = sorted(future_dates.year.unique())
-        start_day = future_dates[0]
-
-        for i, year in enumerate(future_years):
-                # 3,5,7,9... anni di storico
-                #n_years_history = 3 + i*2
-            n_years_history = 3 + i*1
-            end_history = df_excel["Date"].max()
-            start_history = end_history - pd.DateOffset(years=n_years_history)
-
-            # ------------ FILTRO FINESTRA STORICA ----------------
-            mask = (prezzi_storici_df.index > start_history) & \
-                   (prezzi_storici_df.index <= end_history)
-
-            sample_series = prezzi_storici_df[mask]
-
-            if sample_series.empty:
-                raise ValueError(f"Nessun dato storico disponibile per la finestra {n_years_history} anni.")
-
-            # Numero di giorni da simulare per questo anno
-            year_dates = future_dates[future_dates.year == year]
-            n_days = len(year_dates)
-
-            for j, sim_date in enumerate(year_dates):
-                # -------------- PRESERVA LA STAGIONALITÀ ---------------
-                month_now = sim_date.month
-                month_sample = sample_series[sample_series.index.month == month_now]
-
-                if month_sample.empty:
-                    raise ValueError(f"Nessun dato disponibile per il mese {month_now} nella finestra storica")
-
-                # ======== 1) PESATURA PER RECENCY ===========
-                recency_score = (month_sample.index.to_julian_date() -
-                                 month_sample.index.to_julian_date().min())
-                recency_score = recency_score / recency_score.max()  # scala 0-1
-
-                # ======== 2) PESATURA PER ANNI CALDI (downweight) ===========
-                year_means = month_sample.groupby(month_sample.index.year).transform("mean")
-                inv_year_mean = 1 / (year_means ** 1)
-                inv_year_mean = inv_year_mean / inv_year_mean.max()
-
-                # ======== 3) PESATURA COMBINATA ===========
-                weights = recency_score * inv_year_mean
-                weights = np.nan_to_num(weights)
-                prob = weights / weights.sum()
-
-                # ======== 4) SAMPLING CON PROBABILITÀ ===========
-                sampled_value = np.random.choice(month_sample.values, size=n_simulations, replace=True, p=prob)
-
-                idx = (sim_date - start_day).days
-                simulated_prices[:, idx] = sampled_value
-
-        # Creazione DataFrame finale
-        simulated_df = pd.DataFrame(
-            simulated_prices.T,
-            index=future_dates,
-            columns=[f"Simulazione {i+1}" for i in range(n_simulations)]
-        )
+        future_dates = pd.date_range(start=start_date_sim,periods=days_to_simulate,freq="D")
         df_sim = pd.DataFrame(simulated_prices.T, index=future_dates)
-        df_sim["Year"] = df_sim.index.year     
-        
+
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
         # -----------------------------------------------------------
 
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(simulated_df, unique_years, forward_prices=forward_price)
+        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(sim_df, q_hat, years, forward_prices=forward_prices)
         st.pyplot(fig)
         
         # -----------------------
