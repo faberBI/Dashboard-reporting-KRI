@@ -310,8 +310,8 @@ if selected_kri == "⚡ Energy Risk":
         simulated_prices[:, 0] = S0
         for t in range(1, days_to_simulate):
             Z = np.random.normal(0, 1, n_simulations)
-            simulated_prices[:, t] = (simulated_prices[:, t - 1* np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z))
-
+            simulated_prices[:, t] = simulated_prices[:, t - 1] * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z)
+        
         future_dates = pd.date_range(start=start_date_sim,periods=days_to_simulate,freq="D")
         df_sim = pd.DataFrame(simulated_prices.T, index=future_dates)
 
