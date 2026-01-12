@@ -357,7 +357,7 @@ if selected_kri == "⚡ Energy Risk":
         predict_arr = np.array(predict_price)
         forward_arr = np.array(forward_price_full)
         # Calcola la media ponderata
-        predict_price = (0.4 * predict_arr + 0.6 * forward_arr).tolist()
+        predict_price = (0.2 * predict_arr + 0.8 * forward_arr).tolist()
         predict_price[5] = predict_arr[5]
 
         # -----------------------
@@ -617,16 +617,7 @@ if selected_kri == "⚡ Energy Risk":
                 written = True
             if "energy_df" in st.session_state and not st.session_state.energy_df.empty:
                 st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
-                written = True            
-            if "percentili_mese" in st.session_state:
-                percentili_df = pd.DataFrame.from_dict(
-                    st.session_state.percentili_mese,
-                    orient='index',
-                    columns=['5%', '50%', '95%']
-                )
-                percentili_df.index.name = 'Anno-Mese'
-                percentili_df.to_excel(writer, sheet_name='Percentili mese', index=True)
-            
+                written = True                        
             if "media_mensile" in st.session_state:
                 media_df = pd.DataFrame.from_dict(
                     st.session_state.media_mensile,
