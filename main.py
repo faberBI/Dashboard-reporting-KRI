@@ -618,14 +618,6 @@ if selected_kri == "⚡ Energy Risk":
             if "energy_df" in st.session_state and not st.session_state.energy_df.empty:
                 st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
                 written = True                        
-            if "media_mensile" in st.session_state:
-                media_df = pd.DataFrame.from_dict(
-                    st.session_state.media_mensile,
-                    orient='index',
-                    columns=['Media']
-                )
-                media_df.index.name = 'Anno-Mese'
-                media_df.to_excel(writer, sheet_name='Media mensile PUN', index=True)
             if not written:
                 pd.DataFrame({"Info": ["Nessun dato disponibile"]}).to_excel(writer, sheet_name="Empty", index=False)
     
