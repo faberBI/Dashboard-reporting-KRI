@@ -204,13 +204,10 @@ if selected_kri == "⚡ Energy Risk":
     random.seed(42)
     
     n_simulations = st.number_input("Numero di simulazioni", min_value=1000, max_value=1000_000, value=10_000, step=1000)
-    #da cancellare
-    end_date = st.date_input("Data finale simulazione",value = pd.to_datetime("2028-12-31") , min_value= pd.to_datetime("2025-12-31"), max_value= pd.to_datetime("2046-12-31"))
-    #end_date = st.date_input("Data finale simulazione",value = pd.to_datetime("2028-12-31") , min_value= pd.Timestamp.today().date(), max_value= pd.to_datetime("2046-12-31"))
+    end_date = st.date_input("Data finale simulazione",value = pd.to_datetime("2028-12-31") , min_value= pd.Timestamp.today().date(), max_value= pd.to_datetime("2046-12-31"))
     
     start_date = st.date_input("Dati aggiornati al", pd.Timestamp.today().date())
-    #start_date_sim = pd.Timestamp.today().normalize()
-    start_date_sim = pd.to_datetime("2025-05-01")
+    start_date_sim = pd.Timestamp.today().normalize()
 
     days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date_sim)).days
     future_dates = pd.date_range(start=start_date_sim, periods=days_to_simulate, freq='D')
