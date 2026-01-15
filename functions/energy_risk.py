@@ -330,22 +330,23 @@ def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="di
 
 def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     """
-    Calcola percentili e medie mensili e annuali dai dati simulati.
-    Applica correzione conformal (q_hat) anche sui percentili mensili.
-    
+    Analizza simulazioni giornaliere con correzione conformal.
+    Applica q_hat calcolato sui giorni anche su percentili mensili e annuali.
+
     Args:
         sim_df (pd.DataFrame): dataframe simulazioni, colonne = simulazioni
         q_hat (float): correzione conformal (giornaliera)
-        years (list[int]): anni da considerare
+        years (list[int]): anni da considerare per l'analisi annuale
         forward_prices (pd.Series, optional): prezzi forward per media mista
-    
+
     Returns:
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig
+        monthly_percentiles (pd.DataFrame)
+        monthly_means (pd.Series)
+        yearly_percentiles (dict)
+        yearly_means (dict)
     """
 
-    # =========================
     # Colonne simulazioni
-    # =========================
     sim_cols = sim_df.columns.difference(
         ["Year", "YearMonth", "P5", "P50", "P95", "Mean", "P5_conformal", "P95_conformal"]
     )
@@ -355,10 +356,10 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     # =========================
     # Percentili giornalieri conformal
     # =========================
-    df["P5_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 5) - q_hat*2, axis=1)
+    df["P5_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 5) - q_hat, axis=1)
     df["P50"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 50), axis=1)
     df["Mean"] = df[sim_cols].mean(axis=1)
-    df["P95_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 95) + q_hat*2.85, axis=1)
+    df["P95_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 95) + q_hat, axis=1)
 
     # =========================
     # Aggiungi colonne Year e YearMonth
@@ -367,54 +368,47 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     df["YearMonth"] = df.index.to_period("M")
 
     # =========================
-    # Distribuzioni mensili
+    # Distribuzioni mensili (flattened)
     # =========================
     monthly_distributions = {
         period: df.loc[df["YearMonth"] == period, sim_cols].values.flatten()
         for period in df["YearMonth"].unique()
     }
 
-    # Percentili mensili conformal
     monthly_percentiles = (
         df.groupby("YearMonth")[sim_cols]
         .apply(lambda x: pd.Series({
-            "P5": np.percentile(x.values, 5) - q_hat*2,
+            "P5": np.percentile(x.values, 5) - q_hat,   # applico q_hat anche su mensile
             "P50": np.percentile(x.values, 50),
-            "P95": np.percentile(x.values, 95) + q_hat*2.85
+            "P95": np.percentile(x.values, 97) + q_hat
         }))
     )
     monthly_percentiles.index = monthly_percentiles.index.to_timestamp()
 
-    # Medie mensili
-    monthly_means = (
-        df.groupby("YearMonth")[sim_cols].mean().mean(axis=1)
-    )
+    monthly_means = df.groupby("YearMonth")[sim_cols].mean().mean(axis=1)
     monthly_means.index = monthly_means.index.to_timestamp()
 
     # =========================
-    # Distribuzioni annuali
+    # Distribuzioni annuali (flattened)
     # =========================
     yearly_distributions = {
         year: df.loc[df["Year"] == year, sim_cols].values.flatten()
         for year in df["Year"].unique()
     }
 
-    # Percentili annuali
     yearly_percentiles = {
         year: (
-            np.percentile(yearly_distributions[year], 5) - q_hat*2,
+            np.percentile(yearly_distributions[year], 5) - q_hat,  # applico q_hat anche su annuale
             np.percentile(yearly_distributions[year], 50),
-            np.percentile(yearly_distributions[year], 95) + q_hat*2.85
+            np.percentile(yearly_distributions[year], 97) + q_hat
         )
         for year in yearly_distributions
     }
 
-    # Medie annuali
     yearly_means = {
         year: yearly_distributions[year].mean()
         for year in yearly_distributions
     }
-
     # =========================
     # Grafico annuale
     # =========================
@@ -444,6 +438,8 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     plt.tight_layout()
 
     return monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig
+
+
 
 
 
