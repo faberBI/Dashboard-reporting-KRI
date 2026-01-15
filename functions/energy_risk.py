@@ -358,7 +358,7 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     df["P5_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 5) - q_hat*2, axis=1)
     df["P50"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 50), axis=1)
     df["Mean"] = df[sim_cols].mean(axis=1)
-    df["P95_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 95) + q_hat*3, axis=1)
+    df["P95_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 95) + q_hat*2.85, axis=1)
 
     # =========================
     # Aggiungi colonne Year e YearMonth
@@ -380,7 +380,7 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
         .apply(lambda x: pd.Series({
             "P5": np.percentile(x.values, 5) - q_hat*2,
             "P50": np.percentile(x.values, 50),
-            "P95": np.percentile(x.values, 95) + q_hat*3
+            "P95": np.percentile(x.values, 95) + q_hat*2.85
         }))
     )
     monthly_percentiles.index = monthly_percentiles.index.to_timestamp()
@@ -404,7 +404,7 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
         year: (
             np.percentile(yearly_distributions[year], 5) - q_hat*2,
             np.percentile(yearly_distributions[year], 50),
-            np.percentile(yearly_distributions[year], 95) + q_hat*3
+            np.percentile(yearly_distributions[year], 95) + q_hat*2.85
         )
         for year in yearly_distributions
     }
