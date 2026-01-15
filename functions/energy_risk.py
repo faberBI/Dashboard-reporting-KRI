@@ -328,6 +328,8 @@ def plot_and_save_distribution(sim_df, years=[2025, 2026, 2027], output_file="di
     return monthly_percentiles, monthly_means, yearly_percentiles, yearly_means
 
 
+import matplotlib.pyplot as plt
+
 def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     """
     Analizza simulazioni giornaliere con correzione conformal.
@@ -344,6 +346,7 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
         monthly_means (pd.Series)
         yearly_percentiles (dict)
         yearly_means (dict)
+        fig (matplotlib.figure.Figure)
     """
 
     # Colonne simulazioni
@@ -378,9 +381,9 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     monthly_percentiles = (
         df.groupby("YearMonth")[sim_cols]
         .apply(lambda x: pd.Series({
-            "P5": np.percentile(x.values, 5) - q_hat,   # applico q_hat anche su mensile
+            "P5": np.percentile(x.values, 10) - q_hat,   # applico q_hat anche su mensile
             "P50": np.percentile(x.values, 50),
-            "P95": np.percentile(x.values, 95) + q_hat
+            "P95": np.percentile(x.values, 90) + q_hat
         }))
     )
     monthly_percentiles.index = monthly_percentiles.index.to_timestamp()
@@ -396,19 +399,23 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
         for year in df["Year"].unique()
     }
 
-    yearly_percentiles = {
-        year: (
-            np.percentile(yearly_distributions[year], 5) - q_hat,  # applico q_hat anche su annuale
-            np.percentile(yearly_distributions[year], 50),
-            np.percentile(yearly_distributions[year], 95) + q_hat
-        )
-        for year in yearly_distributions
-    }
+    yearly_percentiles = {}
+    yearly_means = {}
 
-    yearly_means = {
-        year: yearly_distributions[year].mean()
-        for year in yearly_distributions
-    }
+    for year, values in yearly_distributions.items():
+        p5 = np.percentile(values, 10) - q_hat
+        p50 = np.percentile(values, 50)
+        p95 = np.percentile(values, 90) + q_hat
+
+        # =========================
+        # Controllo P5 minimo
+        # =========================
+        if p5 < 21:
+            p5 = 21
+
+        yearly_percentiles[year] = (p5, p50, p95)
+        yearly_means[year] = values.mean()
+
     # =========================
     # Grafico annuale
     # =========================
@@ -438,9 +445,6 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     plt.tight_layout()
 
     return monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig
-
-
-
 
 
 
