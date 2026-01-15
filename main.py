@@ -318,7 +318,7 @@ if selected_kri == "⚡ Energy Risk":
         # =========================
         df_sim["P5_conformal"] = df_sim.apply(lambda x: np.percentile(x.values, 5) - q_hat, axis=1)
         df_sim["P50"] = df_sim.apply(lambda x: np.percentile(x.values, 50), axis=1)
-        df_sim["P95_conformal"] = df_sim.apply(lambda x: np.percentile(x.values, 97) + q_hat, axis=1)
+        df_sim["P95_conformal"] = df_sim.apply(lambda x: np.percentile(x.values, 95) + q_hat, axis=1)
 
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
