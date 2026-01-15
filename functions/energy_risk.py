@@ -355,10 +355,10 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     # =========================
     # Percentili giornalieri conformal
     # =========================
-    df["P5_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 5) - q_hat, axis=1)
+    df["P5_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 5) - q_hat*2, axis=1)
     df["P50"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 50), axis=1)
     df["Mean"] = df[sim_cols].mean(axis=1)
-    df["P95_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 95) + q_hat, axis=1)
+    df["P95_conformal"] = df[sim_cols].apply(lambda x: np.percentile(x.values, 95) + q_hat*3, axis=1)
 
     # =========================
     # Aggiungi colonne Year e YearMonth
