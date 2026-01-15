@@ -378,7 +378,7 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     monthly_percentiles = (
         df.groupby("YearMonth")[sim_cols]
         .apply(lambda x: pd.Series({
-            "P5": np.percentile(x.values, 5) - q_hat*3,
+            "P5": np.percentile(x.values, 5) - q_hat*2,
             "P50": np.percentile(x.values, 50),
             "P95": np.percentile(x.values, 95) + q_hat*3
         }))
@@ -402,7 +402,7 @@ def analyze_simulation(sim_df, q_hat, years, forward_prices=None):
     # Percentili annuali
     yearly_percentiles = {
         year: (
-            np.percentile(yearly_distributions[year], 5) - q_hat*3,
+            np.percentile(yearly_distributions[year], 5) - q_hat*2,
             np.percentile(yearly_distributions[year], 50),
             np.percentile(yearly_distributions[year], 95) + q_hat*3
         )
