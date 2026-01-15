@@ -299,10 +299,7 @@ if selected_kri == "⚡ Energy Risk":
         q_hat = np.quantile(conformal_scores, 1 - alpha)
         
         print(f"q_hat giornaliero calcolato sugli ultimi {years_for_calib} anni: {q_hat:.4f}")
-        
-        # =========================
-        # SIMULAZIONE GIORNALIERA FINO AL 31-12-2030
-        # =========================     
+         
         S0 = prezzi_storici_df.iloc[-1]  # ultimo prezzo storico
         simulated_prices = np.zeros((n_simulations, days_to_simulate))
         simulated_prices[:, 0] = S0
