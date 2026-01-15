@@ -257,62 +257,69 @@ if selected_kri == "⚡ Energy Risk":
 
         # Dati storici
         prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
+        # Calcolo dei ritorni giornalieri
         returns = prezzi_storici_df.pct_change().dropna()
+        
+        # =========================
+        # TRAIN / CALIB SPLIT (ultimi 3 anni per calibrazione)
+        # =========================
+        years_for_calib = 3
+        last_date = prezzi_storici_df.index.max()
+        calib_start_date = last_date - pd.DateOffset(years=years_for_calib)
+        
+        train_df = prezzi_storici_df[prezzi_storici_df.index < calib_start_date]
+        calib_df = prezzi_storici_df[prezzi_storici_df.index >= calib_start_date]
+        
+        # =========================
+        # STIMA PARAMETRI GBM SUL TRAIN
+        # =========================
+        mu = train_df.pct_change().dropna().mean()
+        sigma = train_df.pct_change().dropna().std()
+        dt = 1/252
 
         # =========================
-        # TRAIN / TEST SPLIT
-        # =========================
-        split_idx = int(len(returns) * 0.7)
-
-        returns_train = returns.iloc[:split_idx]
-        returns_test = returns.iloc[split_idx:]
-
-        prices_train = prezzi_storici_df.loc[returns_train.index]
-        prices_test = prezzi_storici_df.loc[returns_test.index]
-
-        # =========================
-        # FIT GBM SU TRAIN
-        # =========================
-        mu = returns_train.mean()
-        sigma = returns_train.std()
-        dt = 1 / 252
-        n_simulations = n_simulations
-
-        # =========================
-        # CONFORMAL CALIBRATION
+        # CALIBRAZIONE CONFORMAL SUI 3 ANNI
         # =========================
         conformal_scores = []
-
-        for t in range(1, len(prices_train)):
-            S0_t = prices_train.iloc[t - 1]
+        
+        for t in range(1, len(calib_df)):
+            S0_t = calib_df.iloc[t - 1]
             Z = np.random.normal(0, 1, n_simulations)
             sims = S0_t * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z)
-
+        
             p5 = np.percentile(sims, 5)
-            p95 = np.percentile(sims, 95)
-
-            obs = prices_train.iloc[t]
+            p95 = np.percentile(sims, 97)
+        
+            obs = calib_df.iloc[t]
             score = max(p5 - obs, obs - p95, 0)
             conformal_scores.append(score)
-
+        
         conformal_scores = np.array(conformal_scores)
-
         alpha = 0.05
         q_hat = np.quantile(conformal_scores, 1 - alpha)
-
-        S0 = prezzi_storici_df.iloc[-1]
-
+        
+        print(f"q_hat giornaliero calcolato sugli ultimi {years_for_calib} anni: {q_hat:.4f}")
+        
         # =========================
-        # SIMULAZIONE GBM FORWARD
-        # =========================
+        # SIMULAZIONE GIORNALIERA FINO AL 31-12-2030
+        # =========================     
+        S0 = prezzi_storici_df.iloc[-1]  # ultimo prezzo storico
         simulated_prices = np.zeros((n_simulations, days_to_simulate))
         simulated_prices[:, 0] = S0
+        
         for t in range(1, days_to_simulate):
             Z = np.random.normal(0, 1, n_simulations)
             simulated_prices[:, t] = simulated_prices[:, t - 1] * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z)
         
-        future_dates = pd.date_range(start=start_date_sim,periods=days_to_simulate,freq="D")
+        future_dates = pd.date_range(start=prezzi_storici_df.index[-1] + pd.Timedelta(days=1), end=forecast_end_date, freq="D")
         df_sim = pd.DataFrame(simulated_prices.T, index=future_dates)
+        
+        # =========================
+        # CALCOLO PERCENTILI GIORNALIERI CONFORMAL
+        # =========================
+        df_sim["P5_conformal"] = df_sim.apply(lambda x: np.percentile(x.values, 5) - q_hat, axis=1)
+        df_sim["P50"] = df_sim.apply(lambda x: np.percentile(x.values, 50), axis=1)
+        df_sim["P95_conformal"] = df_sim.apply(lambda x: np.percentile(x.values, 97) + q_hat, axis=1)
 
         # -----------------------------------------------------------
         # ANALISI MENSILE E ANNUALE
