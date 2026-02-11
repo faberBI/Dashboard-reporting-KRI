@@ -27,11 +27,11 @@ from statsmodels.tsa.seasonal import STL
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, mean_absolute_percentage_error
 import yfinance as yf
-
+import pmdarima as pm
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
-from functions.energy_risk import (historical_VaR, run_heston, analyze_simulation, compute_downside_upperside_risk, var_ebitda_risk, get_monthly_and_yearly_distribution)
+from functions.energy_risk import (get_return, apply_cholesky, forecast_monthly_prices_optimized, get_garch, simulate_prices, compute_VaR, plot_pun_forecast_vs_volatility, plot_monthly_VaR)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
@@ -94,13 +94,17 @@ def get_kri_dataframe(selected_kri, uploaded_file):
     if df is None:
         if selected_kri == "⚡ Energy Risk":
             df = pd.DataFrame({
-                "Anno": [2025, 2026, 2027],
-                "Fabbisogno": [1548, 1557, 1373],
-                "Covered": [1408.6, 933.9, 619],
-                "Solar": [0, 203, 422],
-                "Forward Price": [115.99, 106.85, 94.00],
-                "Budget Price": [115, 121, 120]
-            })
+            "Anno": [2026]*12,
+            "Month": ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"],
+            "Fabbisogno": [115.818215, 104.882526, 117.1127113, 116.1287501, 124.1428433, 139.1228606,
+                    147.6280344, 146.0052504, 128.9177564, 120.0082437, 108.5472334, 104.6362729],
+            "PPA Erg": [40, 34, 38, 35, 37, 32, 33, 33, 33, 34, 34, 36],
+            "Forward": [72.19178082, 65.20547945, 72.19178082, 69.8630137, 72.19178082, 69.8630137,
+                72.19178082, 72.19178082, 69.8630137, 72.19178082, 69.8630137, 72.19178082],
+            "Solar": [0.197, 0.197, 0.937, 0.937, 0.937, 9.347, 10.57, 11.812, 17.128, 18.37, 19.612, 28.571],
+            "Prezzo Forward": [119.84, 116.34, 102.89, 90.84, 87.9, 93.51, 103.61, 103.61, 103.61, 108.17, 108.17, 108.17],
+            "Prezzo Budget": [132.8, 132.7, 115.2, 98.2, 99, 108.7, 116.9, 110.4, 121.7, 124.6, 129.7, 130.4]
+        })
         elif selected_kri == "🌪️ Natural Event Risk":
             df = pd.DataFrame({
                 "id": [1, 2],
@@ -129,38 +133,32 @@ st.dataframe(df.head())
 # -----------------------
 # Logica specifica KRI
 # -----------------------
-if selected_kri == "⚡ Energy Risk":
-    st.subheader("📌 Parametri di simulazione Energy Risk")
-
-    # Parametri input manuale
-    def df_to_str(df, col_name, default):
-        if col_name in df.columns:
-            values = df[col_name].dropna().tolist()
-            if len(values) > 0:
-                return ",".join(map(str, values))
-        return default
-
-    fabbisogno = st.text_input("Fabbisogno (MWh)", df_to_str(df, "Fabbisogno", "1548,1557,1373"))
-    covered = st.text_input("Covered (MWh)", df_to_str(df, "Covered", "1408.6,933.9,619"))
-    solar = st.text_input("Solar (MWh)", df_to_str(df, "Solar", "0,203,422"))
-    forward_price = st.text_input("Forward Price (€)", df_to_str(df, "Forward Price", "115.99,106.85,94.00"))
-    budget_price = st.text_input("Budget Price (€)", df_to_str(df, "Budget Price", "115,121,120"))
-    
+if selected_kri == "⚡ Energy Risk": 
     st.subheader("💰 Inserisci o modifica EBITDA per anno")
     # Verifica che il DataFrame non sia vuoto
     if df.empty:
         st.warning("⚠️ Nessun dato disponibile nel DataFrame!")
     else:
         # Se la colonna Ebitda non esiste, la aggiunge con un valore predefinito
-        if "Ebitda" not in df.columns:
-            df["Ebitda"] = [1_900_000_000] * len(df)
+        agg_dict = {
+            "Fabbisogno": "sum",
+            "PPA Erg": "sum",
+            "Forward": "sum",
+            "Solar": "sum",
+            "Prezzo Forward": "mean",
+            "Prezzo Budget": "mean"}
+
+        # Group by per anno
+        df_grouped = df.groupby("Anno").agg(agg_dict).reset_index()
+        if "Ebitda" not in df_grouped.columns:
+            df_grouped["Ebitda"] = 1_900_000_000
 
         # Dizionario per i valori inseriti
         ebitda_inputs = {}
 
         # Crea un campo numerico per ogni anno
         for i, row in df.iterrows():
-            anno = int(row["Anno"]) if "Anno" in df.columns else (2025 + i)
+            anno = int(row["Anno"]) if "Anno" in df_grouped.columns else (2025 + i)
             default_value = float(row["Ebitda"])
 
             ebitda_inputs[anno] = st.number_input(
@@ -172,26 +170,11 @@ if selected_kri == "⚡ Energy Risk":
             )
 
     # Aggiorna la colonna Ebitda con i valori inseriti
-        df["Ebitda"] = [ebitda_inputs[anno] for anno in df["Anno"]]
+        df_grouped["Ebitda"] = [ebitda_inputs[anno] for anno in df_grouped["Anno"]]
 
     # Mostra il DataFrame aggiornato
-        st.dataframe(df.style.format({"Ebitda": "€{:,.0f}"}))
-    
-    # Parsing input
-    try:
-        fabbisogno = [float(x) for x in fabbisogno.split(",")]
-        covered = [float(x) for x in covered.split(",")]
-        solar = [float(x) for x in solar.split(",")]
-        forward_price = [float(x) for x in forward_price.split(",")]
-        budget_price = [float(x) for x in budget_price.split(",")]
-        #ebitda = [float(x) for x in ebitda.split(",")]
-    except Exception as e:
-        st.error(f"❌ Errore nei parametri: {e}")
-        st.stop()
-
-    if not (len(fabbisogno) == len(covered) == len(solar) == len(forward_price) == len(budget_price)):
-        st.error("⚠️ Tutti i parametri devono avere lo stesso numero di valori per anno.")
-        st.stop()
+        st.dataframe(df)
+        st.dataframe(df_grouped.style.format({"Ebitda": "€{:,.0f}"}))
 
     st.success("✅ Parametri validi, pronti per la simulazione!")
 
@@ -204,14 +187,11 @@ if selected_kri == "⚡ Energy Risk":
     random.seed(42)
     
     n_simulations = st.number_input("Numero di simulazioni", min_value=1000, max_value=1000_000, value=10_000, step=1000)
-    end_date = st.date_input("Data finale simulazione",value = pd.to_datetime("2028-12-31") , min_value= pd.Timestamp.today().date(), max_value= pd.to_datetime("2046-12-31"))
+    n_year = len(df['Anno'].unique())
+    st.metric(label="Numero di anni da simulare", value=n_year)
     
     start_date = st.date_input("Dati aggiornati al", pd.Timestamp.today().date())
     start_date_sim = pd.Timestamp.today().normalize()
-
-    days_to_simulate = (pd.to_datetime(end_date) - pd.to_datetime(start_date_sim)).days
-    future_dates = pd.date_range(start=start_date_sim, periods=days_to_simulate, freq='D')
-    unique_years = sorted(future_dates.year.unique().tolist())
 
     # -----------------------------------------------------------
     # PULSANTE SIMULAZIONE
@@ -224,7 +204,7 @@ if selected_kri == "⚡ Energy Risk":
         # ---------------------------------------
         # LETTURA FILE EXCEL
         # ---------------------------------------
-        data_path = "Data/Pun 10_04_2025.xlsx"
+        data_path = "Data/Pun_ts_price.xlsx"
         df_excel = None
     
         if os.path.exists(data_path):
@@ -244,9 +224,6 @@ if selected_kri == "⚡ Energy Risk":
     
         # Preprocessing
         df_excel["Date"] = pd.to_datetime(df_excel["Date"])
-        df_excel["Log_Returns"] = np.log(df_excel["GMEPIT24 Index"] / df_excel["GMEPIT24 Index"].shift(1))
-        df_excel = df_excel.dropna(subset=["Log_Returns"])
-    
         st.session_state.energy_df = df_excel
     
         if df_excel.empty:
@@ -254,385 +231,40 @@ if selected_kri == "⚡ Energy Risk":
             st.stop()
 
         np.random.seed(42)
-
-        # Dati storici
-        prezzi_storici_df = df_excel.set_index("Date")["GMEPIT24 Index"]
-        # Calcolo dei ritorni giornalieri
-        returns = prezzi_storici_df.pct_change().dropna()
-        
-        # =========================
-        # TRAIN / CALIB SPLIT (ultimi 3 anni per calibrazione)
-        # =========================
-        years_for_calib = 3
-        last_date = prezzi_storici_df.index.max()
-        calib_start_date = last_date - pd.DateOffset(years=years_for_calib)
-        
-        train_df = prezzi_storici_df[prezzi_storici_df.index < calib_start_date]
-        calib_df = prezzi_storici_df[prezzi_storici_df.index >= calib_start_date]
-        
-        # =========================
-        # STIMA PARAMETRI GBM SUL TRAIN
-        # =========================
-        mu = train_df.pct_change().dropna().mean()
-        sigma = train_df.pct_change().dropna().std()
-        dt = 1/252
-
-        # =========================
-        # CALIBRAZIONE CONFORMAL SUI 3 ANNI
-        # =========================
-        conformal_scores = []
-        
-        for t in range(1, len(calib_df)):
-            S0_t = calib_df.iloc[t - 1]
-            Z = np.random.normal(0, 1, n_simulations)
-            sims = S0_t * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z)
-        
-            p5 = np.percentile(sims, 5)
-            p95 = np.percentile(sims, 97)
-        
-            obs = calib_df.iloc[t]
-            score = max(p5 - obs, obs - p95, 0)
-            conformal_scores.append(score)
-        
-        conformal_scores = np.array(conformal_scores)
-        alpha = 0.05
-        q_hat = np.quantile(conformal_scores, 1 - alpha)
-        
-        print(f"q_hat giornaliero calcolato sugli ultimi {years_for_calib} anni: {q_hat:.4f}")
-         
-        S0 = prezzi_storici_df.iloc[-1]  # ultimo prezzo storico
-        simulated_prices = np.zeros((n_simulations, days_to_simulate))
-        simulated_prices[:, 0] = S0
-        
-        for t in range(1, days_to_simulate):
-            Z = np.random.normal(0, 1, n_simulations)
-            simulated_prices[:, t] = simulated_prices[:, t - 1] * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z)
-        
-        df_sim = pd.DataFrame(simulated_prices.T, index=future_dates)
-        
-        # =========================
-        # CALCOLO PERCENTILI GIORNALIERI CONFORMAL
-        # =========================
-        df_sim["P5_conformal"] = df_sim.apply(lambda x: np.percentile(x.values, 5) - q_hat, axis=1)
-        df_sim["P50"] = df_sim.apply(lambda x: np.percentile(x.values, 50), axis=1)
-        df_sim["P95_conformal"] = df_sim.apply(lambda x: np.percentile(x.values, 95) + q_hat, axis=1)
-
-        # -----------------------------------------------------------
-        # ANALISI MENSILE E ANNUALE
-        # -----------------------------------------------------------
-        monthly_percentiles, monthly_means, yearly_percentiles, yearly_means, fig = analyze_simulation(df_sim, q_hat, unique_years, forward_prices=forward_price)
-        st.pyplot(fig)
-        
-        # -----------------------
-        # Forecast + storico
-        # -----------------------
-        forecast_price = pd.DataFrame.from_dict(yearly_percentiles, orient='index', columns=['5%', '50%', '95%'])
-        st.markdown("### 📊 Forecast Output")
-        st.info("Questi sono i valori previsionali basati sui percentili annuali.")
-        def format_euro(x): return f"€ {x:.2f}" if pd.notnull(x) else ""
-        st.dataframe(forecast_price.style.format({col: format_euro for col in forecast_price.columns}).background_gradient(cmap='Greens', low=0.1, high=0.4))
-
-        anni_prezzi = [2020, 2021, 2022, 2023, 2024] + unique_years
-        anni_prezzi = [int(y) for y in anni_prezzi]
-
-        df_filtered = df_excel
-        historical_price = df_filtered.groupby(df_filtered['Date'].dt.year)['GMEPIT24 Index'].mean().tail(6).values.tolist()
-        df_historical = pd.DataFrame({"Historical Price": historical_price, "Year": anni_prezzi[:len(historical_price)]})
-        df_hist_styled = df_historical.style.format({"Historical Price": format_euro}).background_gradient(cmap='Greens', low=0.1, high=0.4)
-        st.session_state.df_historical = df_historical
-        st.dataframe(df_hist_styled)
-        
-        forward_price_full = forward_price.copy()
-          
-        predict_price = list(yearly_means.values())
-        
-        p95 = forecast_price['95%'].values.tolist()
-        p5 = forecast_price['5%'].values.tolist()
-
-        budget_price_full = [0]*(len(anni_prezzi)-len(budget_price)) + budget_price
-
-        # Allinea lunghezze
-        historical_price = historical_price + [0]*(len(anni_prezzi)-len(historical_price))
-        predict_price = [0]*(len(anni_prezzi)-len(predict_price)) + predict_price
-        p95 = [0]*(len(anni_prezzi)-len(p95)) + p95
-        p5 = [0]*(len(anni_prezzi)-len(p5)) + p5
-        forward_price_full = [0]*(len(anni_prezzi)-len(forward_price_full)) + forward_price_full
-        # AGGIUNTA
-        predict_arr = np.array(predict_price)
-        forward_arr = np.array(forward_price_full)
-        # Calcola la media ponderata
-        predict_price = (0.15 * predict_arr + 0.85 * forward_arr).tolist()
-        predict_price[5] = predict_arr[5]
-
-        # -----------------------
-        # Calcolo Open Position e Risk
-        # -----------------------
-        
-        df_risk, df_open, df_prezzi, df_target_policy, fig = compute_downside_upperside_risk(
-            anni=df["Anno"].tolist(),
-            fabbisogno=fabbisogno,
-            covered=covered,
-            solar=solar,
-            anni_prezzi=anni_prezzi,
-            media_pun=historical_price,
-            predictive=predict_price,
-            p95=p95,
-            p5=p5,
-            frwd=forward_price_full,
-            budget=budget_price_full,
-            observation_period=start_date_sim.strftime("%d/%m/%Y")
-        )
-        #st.markdown("### ⚠️ Open position ")
-        df_open['Open Position Value (€)'] = df_open['Open Position'].values * budget_price* 1000
-        df_open['Open Position Value No Solar (€)'] = df_open['Open Position (no solar)'].values * budget_price* 1000
-        #st.dataframe(df_open)
-        
-        st.pyplot(fig)
-        st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
-        st.info("Valori di rischio calcolati in base alle differenze tra percentili, budget e open position.")
-
-        # Copia del DataFrame per styling
-        df_styled = df_risk.style
-        
-        # Colonne da escludere dalla formattazione in milioni
-        exclude_cols = ["Year", "Anno", "year", "anno"]
-        
-        # Colonne da formattare in milioni di euro
-        cols_to_format = [c for c in df_risk.columns if c not in exclude_cols]
-        
-        # Applica rosso tenue alle colonne "Downside"
-        downside_cols = [c for c in df_risk.columns if c.startswith("Downside")]
-        if downside_cols:
-            df_styled = df_styled.background_gradient(
-                cmap='Reds', low=0.1, high=0.4, subset=downside_cols
-            )
-        
-        # Applica verde tenue alle colonne "Upside"
-        upside_cols = [c for c in df_risk.columns if c.startswith("Upside")]
-        if upside_cols:
-            df_styled = df_styled.background_gradient(
-                cmap='Greens', low=0.1, high=0.4, subset=upside_cols
-            )
-        
-        # Funzione di formattazione in milioni di euro
-        def format_mln_euro(x):
-            return f"€ {x/1e6:,.2f} Mln" if pd.notnull(x) else ""
-        
-        # Applica la formattazione a tutte le colonne selezionate in **un unico passaggio**
-        format_dict = {col: format_mln_euro for col in cols_to_format}
-        df_styled = df_styled.format(format_dict)
-        
-        # Visualizza su Streamlit
-        st.dataframe(df_styled)
-
-        st.markdown("### ⚠️ Target Policy")
-        st.info("Valori % di copertura del fabbisogno.")
-        st.dataframe(df_target_policy)
-
-
-        anni_comuni = set(df_risk['Year']).intersection(df_open['Anno'])
-        df_risk = df_risk[df_risk['Year'].isin(anni_comuni)].reset_index(drop=True)
-
-        
-        fig_var = var_ebitda_risk(
-        periodo_di_analisi= start_date.strftime("as of %d/%m/%Y"),
-        df_risk=df_risk,
-        df_open=df_open,
-        df_ebitda=df,
-        font_path="utils/TIMSans-Medium.ttf"
-            )
-        st.pyplot(fig_var, dpi=160)
-
-        
-        # Salvataggio in session_state
-        st.session_state.update({
-            "df_risk": df_risk,
-            "df_open": df_open,
-            "df_prezzi": df_prezzi,
-            "df_target_policy": df_target_policy,
-            "historical_price": historical_price,
-            "predict_price": predict_price,
-            "p95": p95,
-            "p5": p5,
-            "forward_price_full": forward_price_full,
-            "budget_price_full": budget_price_full,
-            "covered": covered,
-            "fabbisogno": fabbisogno,
-            "solar": solar,
-            "unique_years": unique_years,
-            "anni_prezzi": anni_prezzi,
-            "start_date_sim": start_date_sim,
-            "df_ebitda": df[["Anno", "Ebitda"]],
-            "percentili_mese": monthly_percentiles, 
-            "media_mensile": monthly_means
-        })
-
-    # -----------------------
-    # Riacquisti Energia
-    # -----------------------
-    if "df_open" in st.session_state:
-        st.subheader("📌 Acquisto energia aggiuntiva per anno")
-    
-        if "extra_purchase" not in st.session_state:
-            st.session_state.extra_purchase = {anno: 0.0 for anno in st.session_state.unique_years}
-    
-        for anno in st.session_state.unique_years:
-            qta = st.number_input(
-                f"Anno {anno} - MWh da acquistare",
-                min_value=0.0,
-                value=st.session_state.extra_purchase.get(anno, 0.0),
-                step=10.0,
-                key=f"extra_{anno}"
-            )
-            st.session_state.extra_purchase[anno] = qta
-    
-        if st.button("🔄 Ricalcola Open Position con riacquisti", key="recalc_btn"):
-            covered_adjusted = [c + st.session_state.extra_purchase[a] for c, a in zip(st.session_state.covered, st.session_state.unique_years)]
-    
-            df_risk_new, df_open_new, df_prezzi_new, df_target_policy_new, fig = compute_downside_upperside_risk(
-                anni=st.session_state.unique_years,
-                fabbisogno=st.session_state.fabbisogno,
-                covered=covered_adjusted,
-                solar=st.session_state.solar,
-                anni_prezzi=st.session_state.anni_prezzi,
-                media_pun=st.session_state.historical_price,
-                predictive=st.session_state.predict_price,
-                p95=st.session_state.p95,
-                p5=st.session_state.p5,
-                frwd=st.session_state.forward_price_full,
-                budget=st.session_state.budget_price_full,
-                observation_period=st.session_state.start_date_sim
-            )
-    
-            # ✅ Mantiene sia le versioni vecchie che le nuove
-            st.session_state.df_open_new = df_open_new
-            st.session_state.df_risk_new = df_risk_new
-            st.session_state.df_prezzi_new = df_prezzi_new
-            st.session_state.df_target_policy_new = df_target_policy_new
-
-    
-            st.subheader("📋 Tabella Open Position (aggiornata)")
-            st.dataframe(df_open_new)
-
-            st.markdown("### ⚠️ Analisi Rischio (Downside / Upside)")
-
-            # Copia del DataFrame per styling
-            df_styled_new = df_risk_new.style
-        
-            # Colonne da escludere dalla formattazione in milioni
-            exclude_cols = ["Year", "Anno", "year", "anno"]
-        
-            # Colonne da formattare in milioni di euro
-            cols_to_format = [c for c in df_risk_new.columns if c not in exclude_cols]
-        
-            # Applica rosso tenue alle colonne "Downside"
-            downside_cols = [c for c in df_risk_new.columns if c.startswith("Downside")]
-            if downside_cols:
-                df_styled_new = df_styled_new.background_gradient(
-                    cmap='Reds', low=0.1, high=0.4, subset=downside_cols
-                )
-        
-            # Applica verde tenue alle colonne "Upside"
-            upside_cols = [c for c in df_risk_new.columns if c.startswith("Upside")]
-            if upside_cols:
-                df_styled_new = df_styled_new.background_gradient(
-                    cmap='Greens', low=0.1, high=0.4, subset=upside_cols
-                )
-        
-            # Funzione di formattazione in milioni di euro
-            def format_mln_euro(x):
-                return f"€ {x/1e6:,.2f} Mln" if pd.notnull(x) else ""
-        
-            # Applica la formattazione a tutte le colonne selezionate in **un unico passaggio**
-            format_dict = {col: format_mln_euro for col in cols_to_format}
-            df_styled_new = df_styled_new.format(format_dict)
-        
-            # Visualizza su Streamlit
-            st.dataframe(df_styled_new)
-
-
-            st.markdown("### ⚠️ Target Policy Aggiornato")
-            st.info("Valori % di copertura del fabbisogno.")
-            st.dataframe(df_target_policy_new)
-
-            # --- Profit/Loss ---
-            df_gain_loss = pd.DataFrame({
-                "Anno": st.session_state.unique_years,
-                "MWh Acquistati": [st.session_state.extra_purchase[a] for a in st.session_state.unique_years],
-                "Prezzo Forward (€)": st.session_state.forward_price_full[-len(st.session_state.unique_years):],
-                "Prezzo Budget (€)": st.session_state.budget_price_full[-len(st.session_state.unique_years):]
-            })
-            df_gain_loss["Δ Prezzo (Budget - Forward)"] = (
-                df_gain_loss["Prezzo Budget (€)"] - df_gain_loss["Prezzo Forward (€)"]
-            )
-            df_gain_loss["Profit/Loss (€)"] = (
-                df_gain_loss["MWh Acquistati"] * 1000 * df_gain_loss["Δ Prezzo (Budget - Forward)"]
-            )
-    
-            df_gain_loss["Profit/Loss (€)"] = df_gain_loss["Profit/Loss (€)"].apply(lambda x: f"€ {x:,.0f}")
-            df_gain_loss["Δ Prezzo (Budget - Forward)"] = df_gain_loss["Δ Prezzo (Budget - Forward)"].apply(lambda x: f"€ {x:,.2f}")
-    
-            st.session_state.df_gain_loss = df_gain_loss
-    
-            st.subheader("💰 Analisi Guadagno/Perdita Riacquisto")
-            st.dataframe(df_gain_loss)
-            st.success("✅ Open Position e Analisi Riacquisto aggiornate con successo!")
-    
-        # -----------------------
-        # 💾 Esportazione in Excel
-        # -----------------------
+        last_5y, monthly_std, monthly_price = get_return(pun_file_url)
+        L = apply_cholesky(last_5y)
+        PUN_monthly_forecast = forecast_monthly_prices_optimized(last_5y, n_years=1)
+        st.subheader("📈 Prezzo PUN e Volatilità")
+        monthly_sigma, rolling_std = get_garch(last_5y)
+        plot_pun_forecast_vs_volatility(last_5y, PUN_monthly_forecast, monthly_sigma, rolling_std)
+        st.subheader("📈 Forecast Hybrid Model")
+        PUN_paths, shocks = simulate_prices(PUN_monthly_forecast, monthly_price['avg_price'].values,
+                                        monthly_sigma, monthly_std, L, n_sims=100_000)
+        VaR_95_monthly = np.percentile(PUN_paths, 95, axis=0)
+        df_var = compute_VaR(df_var, VaR_95_monthly)
+        st.dataframe(df_var
+                    )
+        st.subheader("📈 Grafico VaR mensile")
+        plot_monthly_VaR(VaR_95_monthly, start_year=2026)
+   
+        # Esportazione Excel
         buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            written = False
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            last_5y.to_excel(writer, sheet_name="last_5y", index=False)
+            monthly_std.to_excel(writer, sheet_name="monthly_std", index=False)
+            monthly_price.to_excel(writer, sheet_name="monthly_price", index=False)
+            pd.DataFrame(PUN_monthly_forecast, columns=['PUN_forecast']).to_excel(writer, sheet_name="PUN_forecast", index=False)
+            pd.DataFrame(monthly_sigma, columns=['monthly_sigma']).to_excel(writer, sheet_name="monthly_sigma", index=False)
+            pd.DataFrame(PUN_paths).to_excel(writer, sheet_name="PUN_paths", index=False)
+            df_var.to_excel(writer, sheet_name="dati_var", index=False)
+            pd.DataFrame(VaR_95_monthly, columns=['VaR_95']).to_excel(writer, sheet_name="VaR_95_monthly", index=False)
+            pd.DataFrame(shocks).to_excel(writer, sheet_name="shocks", index=False)
+        buffer.seek(0)
     
-            # --- Versioni ORIGINALI ---
-            if "df_open" in st.session_state and not st.session_state.df_open.empty:
-                st.session_state.df_open.to_excel(writer, sheet_name='Open Position (orig)', index=False)
-                written = True
-            if "df_risk" in st.session_state and not st.session_state.df_risk.empty:
-                st.session_state.df_risk.to_excel(writer, sheet_name='Analisi Rischio (orig)', index=False)
-                written = True
-            if "df_target_policy" in locals() and not df_target_policy.empty:
-                df_target_policy.to_excel(writer, sheet_name='Target Policy (orig)', index=False)
-                written = True
-    
-            # --- Versioni NUOVE (dopo riacquisto) ---
-            if "df_open_new" in st.session_state and not st.session_state.df_open_new.empty:
-                st.session_state.df_open_new.to_excel(writer, sheet_name='Open Position (new)', index=False)
-                written = True
-            if "df_risk_new" in st.session_state and not st.session_state.df_risk_new.empty:
-                st.session_state.df_risk_new.to_excel(writer, sheet_name='Analisi Rischio (new)', index=False)
-                written = True
-            if "df_target_policy_new" in st.session_state and not st.session_state.df_target_policy_new.empty:
-                st.session_state.df_target_policy_new.to_excel(writer, sheet_name='Target Policy (new)', index=False)
-                written = True
-    
-            # --- Profit/Loss ---
-            if "df_gain_loss" in st.session_state and not st.session_state.df_gain_loss.empty:
-                st.session_state.df_gain_loss.to_excel(writer, sheet_name='Riacquisto Profit-Loss', index=False)
-                written = True
-    
-            # --- Serie storiche e prezzi ---
-            if "df_prezzi" in locals() and not df_prezzi.empty:
-                df_prezzi.to_excel(writer, sheet_name='Prezzi PUN', index=False)
-                written = True
-            if "df_historical" in st.session_state and not st.session_state.df_historical.empty:
-                st.session_state.df_historical.to_excel(writer, sheet_name='Historical Price', index=False)
-                written = True
-            if "energy_df" in st.session_state and not st.session_state.energy_df.empty:
-                st.session_state.energy_df.to_excel(writer, sheet_name='Serie PUN', index=False)
-                written = True                        
-            if not written:
-                pd.DataFrame({"Info": ["Nessun dato disponibile"]}).to_excel(writer, sheet_name="Empty", index=False)
-    
-            buffer.seek(0)
-    
-        st.download_button(
-            label="💾 Scarica tutti i dati del Energy Risk in Excel ",
-            data=buffer,
-            file_name="KRI_Energy_Risk.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        st.download_button("💾 Scarica tutti i dati in Excel", data=buffer,
+                           file_name="Energy_Risk_VaR.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        
 # -----------------------
 # 🌪️ Natural Event Risk
 # -----------------------
