@@ -143,12 +143,6 @@ def plot_monthly_VaR(VaR_95_monthly, start_year=2026):
     VaR_95_monthly : array o lista di valori VaR per ogni mese (lunghezza = n_years*12)
     start_year     : anno di partenza del forecast (es. 2026)
     """
-
-    import matplotlib.pyplot as plt
-    import pandas as pd
-    import numpy as np
-    import streamlit as st
-
     n_months = len(VaR_95_monthly)
     n_years = n_months // 12
 
