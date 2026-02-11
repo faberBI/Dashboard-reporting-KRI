@@ -157,7 +157,7 @@ if selected_kri == "⚡ Energy Risk":
         ebitda_inputs = {}
 
         # Crea un campo numerico per ogni anno
-        for i, row in df.iterrows():
+        for i, row in df_grouped.iterrows():
             anno = int(row["Anno"]) if "Anno" in df_grouped.columns else (2025 + i)
             default_value = float(row["Ebitda"])
 
