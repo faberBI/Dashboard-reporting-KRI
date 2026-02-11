@@ -6,20 +6,33 @@ from arch import arch_model
 import pmdarima as pm
 import io
 import pickle
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 @st.cache_resource
-def load_arima_model():
-    with open("Data/pun_arima_model.pkl", "rb") as f:
-        model = pickle.load(f)
-    return model
-    
-def forecast_monthly_prices_from_saved_model(n_years=1):
-    model = load_arima_model()
-    
+def fit_sarimax_model(series):
+    """
+    Fit SARIMAX usando parametri fissi derivati da auto_arima.
+    """
+    model = SARIMAX(
+        series,
+        order=(4,0,1),
+        seasonal_order=(2,1,0,12),
+        enforce_stationarity=False,
+        enforce_invertibility=False
+    )
+    results = model.fit(disp=False)
+    return results
+
+def forecast_monthly_prices(series, n_years=1):
+    """
+    Serie storica mensile -> forecast per n_years * 12 mesi
+    """
+    model_fit = fit_sarimax_model(series)
     forecast_periods = n_years * 12
-    PUN_monthly_forecast = model.predict(n_periods=forecast_periods)
-    
-    return PUN_monthly_forecast
+    forecast = model_fit.forecast(steps=forecast_periods)
+    return forecast
+
+
     
 def get_return(path, year=2015):
     hist_pun = pd.read_excel(path)
