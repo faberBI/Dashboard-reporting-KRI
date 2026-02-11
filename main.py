@@ -31,7 +31,7 @@ import pmdarima as pm
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
-from functions.energy_risk import (get_return, apply_cholesky, forecast_monthly_prices_optimized, get_garch, simulate_prices, compute_VaR, plot_pun_forecast_vs_volatility, plot_monthly_VaR)
+from functions.energy_risk import (get_return, apply_cholesky, load_arima_model, forecast_monthly_prices_from_saved_model, get_garch, simulate_prices, compute_VaR, plot_pun_forecast_vs_volatility, plot_monthly_VaR)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
@@ -234,7 +234,7 @@ if selected_kri == "⚡ Energy Risk":
         last_5y, monthly_std, monthly_price = get_return(data_path)
         st.success("✅ Statistiche calcolate!")
         L = apply_cholesky(last_5y)
-        PUN_monthly_forecast = forecast_monthly_prices_optimized(last_5y, n_years=n_year)
+        PUN_monthly_forecast = forecast_monthly_prices_from_saved_model(n_years=n_year)
         st.success("✅ Modello ibrido allenato!")
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std = get_garch(last_5y)
