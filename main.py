@@ -233,7 +233,7 @@ if selected_kri == "⚡ Energy Risk":
         np.random.seed(42)
         last_5y, monthly_std, monthly_price = get_return(data_path)
         L = apply_cholesky(last_5y)
-        PUN_monthly_forecast = forecast_monthly_prices_optimized(last_5y, n_years=1)
+        PUN_monthly_forecast = forecast_monthly_prices_optimized(last_5y, n_years=n_year)
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std = get_garch(last_5y)
         plot_pun_forecast_vs_volatility(last_5y, PUN_monthly_forecast, monthly_sigma, rolling_std)
@@ -241,9 +241,8 @@ if selected_kri == "⚡ Energy Risk":
         PUN_paths, shocks = simulate_prices(PUN_monthly_forecast, monthly_price['avg_price'].values,
                                         monthly_sigma, monthly_std, L, n_sims=n_simulations)
         VaR_95_monthly = np.percentile(PUN_paths, 95, axis=0)
-        df_var = compute_VaR(df_var, VaR_95_monthly)
-        st.dataframe(df_var
-                    )
+        dati_fibercop = compute_VaR(df, VaR_95_monthly)
+        st.dataframe(dati_fibercop)
         st.subheader("📈 Grafico VaR mensile")
         plot_monthly_VaR(VaR_95_monthly, start_year=2026)
    
@@ -256,7 +255,7 @@ if selected_kri == "⚡ Energy Risk":
             pd.DataFrame(PUN_monthly_forecast, columns=['PUN_forecast']).to_excel(writer, sheet_name="PUN_forecast", index=False)
             pd.DataFrame(monthly_sigma, columns=['monthly_sigma']).to_excel(writer, sheet_name="monthly_sigma", index=False)
             pd.DataFrame(PUN_paths).to_excel(writer, sheet_name="PUN_paths", index=False)
-            df_var.to_excel(writer, sheet_name="dati_var", index=False)
+            dati_fibercop.to_excel(writer, sheet_name="dati_var", index=False)
             pd.DataFrame(VaR_95_monthly, columns=['VaR_95']).to_excel(writer, sheet_name="VaR_95_monthly", index=False)
             pd.DataFrame(shocks).to_excel(writer, sheet_name="shocks", index=False)
         buffer.seek(0)
