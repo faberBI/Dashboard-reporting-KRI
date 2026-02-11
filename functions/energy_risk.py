@@ -5,7 +5,22 @@ import matplotlib.pyplot as plt
 from arch import arch_model
 import pmdarima as pm
 import io
+import pickle
 
+@st.cache_resource
+def load_arima_model():
+    with open("pun_arima_model.pkl", "rb") as f:
+        model = pickle.load(f)
+    return model
+    
+def forecast_monthly_prices_from_saved_model(n_years=1):
+    model = load_arima_model()
+    
+    forecast_periods = n_years * 12
+    PUN_monthly_forecast = model.predict(n_periods=forecast_periods)
+    
+    return PUN_monthly_forecast
+    
 def get_return(path, year=2015):
     hist_pun = pd.read_excel(path)
     hist_pun["Date"] = pd.to_datetime(hist_pun["Date"])
@@ -31,17 +46,6 @@ def apply_cholesky(last_5y):
     corr = np.fromfunction(lambda i,j: rho_hat ** np.abs(i-j), (12,12))
     L = np.linalg.cholesky(corr)
     return L
-
-def forecast_monthly_prices_optimized(last_5y, n_years=1):
-    monthly_means = last_5y.groupby(['Year', 'Month'])['GMEPIT24 Index'].mean().reset_index()
-    monthly_means['Date'] = pd.to_datetime(monthly_means[['Year','Month']].assign(DAY=1))
-    monthly_means = monthly_means.sort_values('Date')
-    series = monthly_means.set_index('Date')['GMEPIT24 Index']
-    
-    model = pm.auto_arima(series, seasonal=True, m=12, D=1, stepwise=True, suppress_warnings=True, error_action='ignore')
-    forecast_periods = n_years * 12
-    PUN_monthly_forecast = model.predict(n_periods=forecast_periods)
-    return PUN_monthly_forecast
 
 def get_garch(last_5y, rolling_window=12):
     monthly_means = last_5y.groupby(['Year', 'Month'])['GMEPIT24 Index'].mean().reset_index()
