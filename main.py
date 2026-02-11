@@ -239,7 +239,7 @@ if selected_kri == "⚡ Energy Risk":
         plot_pun_forecast_vs_volatility(last_5y, PUN_monthly_forecast, monthly_sigma, rolling_std)
         st.subheader("📈 Forecast Hybrid Model")
         PUN_paths, shocks = simulate_prices(PUN_monthly_forecast, monthly_price['avg_price'].values,
-                                        monthly_sigma, monthly_std, L, n_sims=100_000)
+                                        monthly_sigma, monthly_std, L, n_sims=n_simulations)
         VaR_95_monthly = np.percentile(PUN_paths, 95, axis=0)
         df_var = compute_VaR(df_var, VaR_95_monthly)
         st.dataframe(df_var
