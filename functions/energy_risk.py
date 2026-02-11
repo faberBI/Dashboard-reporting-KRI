@@ -9,7 +9,7 @@ import pickle
 
 @st.cache_resource
 def load_arima_model():
-    with open("pun_arima_model.pkl", "rb") as f:
+    with open("Data/pun_arima_model.pkl", "rb") as f:
         model = pickle.load(f)
     return model
     
