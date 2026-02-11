@@ -231,7 +231,7 @@ if selected_kri == "⚡ Energy Risk":
             st.stop()
 
         np.random.seed(42)
-        last_5y, monthly_std, monthly_price = get_return(pun_file_url)
+        last_5y, monthly_std, monthly_price = get_return(data_path)
         L = apply_cholesky(last_5y)
         PUN_monthly_forecast = forecast_monthly_prices_optimized(last_5y, n_years=1)
         st.subheader("📈 Prezzo PUN e Volatilità")
