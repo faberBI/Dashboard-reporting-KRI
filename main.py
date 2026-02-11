@@ -234,7 +234,11 @@ if selected_kri == "⚡ Energy Risk":
         last_5y, monthly_std, monthly_price = get_return(data_path)
         st.success("✅ Statistiche calcolate!")
         L = apply_cholesky(last_5y)
-        PUN_monthly_forecast = forecast_monthly_prices(last_5y, n_years=n_year)
+        hist_pun = pd.read_excel(data_path)
+        hist_pun["log_return"] = np.log(hist_pun["GMEPIT24 Index"] / hist_pun["GMEPIT24 Index"].shift(1))
+        hist_pun["Month"] = hist_pun["Date"].dt.month
+        series = hist_pun[hist_pun['Year']>year]
+        PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
         st.success("✅ Modello ibrido allenato!")
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std = get_garch(last_5y)
