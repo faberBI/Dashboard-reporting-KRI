@@ -326,7 +326,7 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
     df_plot = df.melt(
         id_vars=month_col,
         value_vars=[
-            "Copertura_base",
+            "Copertura",
             "Hedge_addizionale_MWh",
             "Scoperto_finale"
         ],
@@ -336,7 +336,7 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
 
     color_scale = alt.Scale(
         domain=[
-            "Copertura_base",
+            "Copertura",
             "Hedge_addizionale_MWh",
             "Scoperto_finale"
         ],
