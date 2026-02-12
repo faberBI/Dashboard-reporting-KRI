@@ -402,6 +402,13 @@ def plot_cvar_reduction_over_iterations(log):
 # =========================
 # FUNZIONE CVaR WRAPPER
 # =========================
-def CVaR(h):
-    """Wrapper per compute_CVaR sicuro: restituisce sempre uno scalare."""
-    return float(compute_CVaR(hedge_vector=h, df=df, PUN_paths=PUN_paths, VaR_level=95))
+def CVaR(h, df_local, PUN_paths_local):
+    """
+    Calcola il CVaR usando un hedge vector h e il dataframe df_local.
+    """
+    return float(compute_CVaR(
+        hedge_vector=h,
+        df=df_local,
+        PUN_paths=PUN_paths_local,
+        VaR_level=95
+    ))
