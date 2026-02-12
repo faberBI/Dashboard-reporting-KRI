@@ -294,8 +294,8 @@ if selected_kri == "⚡ Energy Risk":
         st.subheader("📈 Hedging Optimization Model")
         df = dati_fibercop.copy()
         df["Fabbisogno"] *= 1000
-        df["Copertura_base"] = df['PPA Erg']+df['Forward']+ df['Solar']
-        df["Copertura_base"] *= 1000
+        df["Copertura"] = df['PPA Erg']+df['Forward']+ df['Solar']
+        df["Copertura"] *= 1000
         df["Scoperto_base"] = df['scoperto_w_solar']
         df["Scoperto_base"] *= 1000
         CVaR_limit = df_grouped["Ebitda"] * risk_appetite
@@ -338,9 +338,7 @@ if selected_kri == "⚡ Energy Risk":
         iteration = 0
         log = []
             
-        st.subheader("📈 Hedging Optimization Model")
-        st.write("⏳ Simulazione in corso...")
-            
+        st.subheader("📈 Hedging Optimization Model")            
         while CVaR_current > CVaR_limit:
             iteration += 1
             best_month = None
