@@ -241,6 +241,10 @@ def plot_energy_stack_with_var(df):
 
     return fig
 
+import matplotlib.pyplot as plt
+import numpy as np
+import streamlit as st
+
 def plot_var_bars(dati_fibercop):
     """
     Grafico a barre mensile del Value at Risk con e senza Solar.
@@ -261,21 +265,21 @@ def plot_var_bars(dati_fibercop):
     fig, ax = plt.subplots(figsize=(14,6))
     
     # Barre Var con Solar
-    ax.bar(
+    bars1 = ax.bar(
         x - width/2,
         dati_fibercop['Var_monthly_95_w_solar'],
         width=width,
-        label='Var con Solar',
+        label='VaR with Solar',
         color='green',
         alpha=0.7
     )
     
     # Barre Var senza Solar
-    ax.bar(
+    bars2 = ax.bar(
         x + width/2,
         dati_fibercop['Var_monthly_95_w/o_solar'],
         width=width,
-        label='Var senza Solar',
+        label='VaR w/o Solar',
         color='red',
         alpha=0.7
     )
@@ -283,12 +287,31 @@ def plot_var_bars(dati_fibercop):
     # Label e titolo
     ax.set_xticks(x)
     ax.set_xticklabels(dati_fibercop['Anno-Mese'], rotation=45, ha='right')
-    ax.set_ylabel("Value at Risk (€)")
+    ax.set_ylabel("Value@Risk (€)")
     ax.set_xlabel("Anno-Mese")
-    ax.set_title("Value @ Risk Monthly w & w/o Solar")
+    ax.set_title("Monthly VaR w & w/o senza Solar")
     ax.grid(axis='y', linestyle='--', alpha=0.4)
     ax.legend()
     
+    # Aggiunge i valori sopra le barre (formattati in €)
+    for bar in bars1:
+        height = bar.get_height()
+        ax.annotate(f'€{height:,.0f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0,3),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=8)
+    
+    for bar in bars2:
+        height = bar.get_height()
+        ax.annotate(f'€{height:,.0f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0,3),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=8)
+    
     plt.tight_layout()
+    
+    # Se Streamlit
     st.pyplot(fig, use_container_width=True)
 
