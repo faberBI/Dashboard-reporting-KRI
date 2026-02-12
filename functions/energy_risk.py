@@ -58,7 +58,7 @@ def apply_cholesky(last_5y):
     rho_hat = np.mean([corr_matrix.iloc[i, i+1] for i in range(11)])
     corr = np.fromfunction(lambda i,j: rho_hat ** np.abs(i-j), (12,12))
     L = np.linalg.cholesky(corr)
-    return L
+    return L, rho_hat
 
 def get_garch(last_5y, rolling_window=12):
     monthly_means = last_5y.groupby(['Year', 'Month'])['GMEPIT24 Index'].mean().reset_index()
@@ -303,4 +303,94 @@ def plot_var_bars(dati_fibercop):
     
     # Se Streamlit
     st.pyplot(fig, use_container_width=True)
+
+
+def compute_CVaR(hedge_vector):
+    exposed = df["scoperto_w_solar"].values - hedge_vector
+    losses = np.sum(
+        exposed * np.maximum(PUN_paths - df["PUN Budget"].values, 0),
+        axis=1
+    )
+    VaR = np.percentile(losses, 95)
+    return losses[losses >= VaR].mean()
+
+def plot_monthly_coverage_stack(df, month_col="Month"):
+    """
+    Grafico stacked: copertura base + hedge addizionale + scoperto finale
+    """
+    df_plot = df.melt(
+        id_vars=month_col,
+        value_vars=[
+            "Copertura_base",
+            "Hedge_addizionale_MWh",
+            "Scoperto_finale"
+        ],
+        var_name="Tipo",
+        value_name="MWh"
+    )
+
+    color_scale = alt.Scale(
+        domain=[
+            "Copertura_base",
+            "Hedge_addizionale_MWh",
+            "Scoperto_finale"
+        ],
+        range=["#4CAF50", "#2196F3", "#E53935"]
+    )
+
+    chart = (
+        alt.Chart(df_plot)
+        .mark_bar()
+        .encode(
+            x=alt.X(f"{month_col}:N", title="Mese"),
+            y=alt.Y("sum(MWh):Q", title="Energia (MWh)"),
+            color=alt.Color("Tipo:N", scale=color_scale, legend=alt.Legend(title="")),
+            tooltip=["Tipo:N", "sum(MWh):Q"]
+        )
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+def plot_monthly_additional_hedge(df, month_col="Month"):
+    """
+    Grafico a barre: hedge addizionale mensile
+    """
+    chart = (
+        alt.Chart(df)
+        .mark_bar(color="#2196F3")
+        .encode(
+            x=alt.X(f"{month_col}:N", title="Mese"),
+            y=alt.Y("Hedge_addizionale_MWh:Q", title="Hedge addizionale (MWh)"),
+            tooltip=["Hedge_addizionale_MWh:Q"]
+        )
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+def plot_cvar_reduction_over_iterations(log):
+    """
+    Andamento CVaR durante l'ottimizzazione greedy
+    """
+    if not log:
+        st.warning("Nessuna iterazione di ottimizzazione disponibile.")
+        return
+
+    log_df = pd.DataFrame(log)
+
+    chart = (
+        alt.Chart(log_df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("iter:Q", title="Iterazione"),
+            y=alt.Y("CVaR_euro:Q", title="CVaR (€)"),
+            tooltip=[
+                "iter:Q",
+                "mese:N",
+                "CVaR_euro:Q",
+                "copertura_annua_pct:Q"
+            ]
+        )
+    )
+
+    st.altair_chart(chart, use_container_width=True)
 
