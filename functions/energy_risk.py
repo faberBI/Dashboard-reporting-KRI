@@ -399,3 +399,9 @@ def plot_cvar_reduction_over_iterations(log):
 
     st.altair_chart(chart, use_container_width=True)
 
+# =========================
+# FUNZIONE CVaR WRAPPER
+# =========================
+def CVaR(h):
+    """Wrapper per compute_CVaR sicuro: restituisce sempre uno scalare."""
+    return float(compute_CVaR(hedge_vector=h, df=dati_fibercop, PUN_paths=PUN_paths, VaR_level=95))
