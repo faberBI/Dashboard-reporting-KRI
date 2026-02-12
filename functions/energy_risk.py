@@ -319,9 +319,6 @@ def compute_CVaR(hedge_vector, df, PUN_paths, VaR_level=95):
     CVaR = losses[losses >= VaR].mean()
     return CVaR
 
-import matplotlib.pyplot as plt
-import streamlit as st
-import pandas as pd
 
 def plot_monthly_coverage_stack(df, month_col="Month"):
     df = df.copy()
@@ -332,28 +329,51 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
         st.error(f"Colonna '{month_col}' non trovata! Colonne disponibili: {df.columns.tolist()}")
         return
 
-    # Selezione solo colonne numeriche (escludiamo testo e date)
-    numeric_cols = df.select_dtypes(include='number').columns.tolist()
+    # Colonne disponibili per il grafico
+    coverage_cols = ["Copertura", "hedge_addizionale_MWh", "scoperto_finale"]
+    available_cols = [col for col in coverage_cols if col in df.columns]
 
-    # Melt
+    if not available_cols:
+        st.error("Nessuna colonna di coverage disponibile nel DataFrame.")
+        return
+
+    # Selezione colonne tramite multiselect
+    selected_cols = st.multiselect(
+        "Seleziona le componenti da visualizzare nel grafico:",
+        options=available_cols,
+        default=available_cols  # di default tutte
+    )
+
+    if not selected_cols:
+        st.warning("Seleziona almeno una colonna da visualizzare.")
+        return
+
+    # Melt dei dati selezionati
     df_plot = df.melt(
         id_vars=month_col,
-        value_vars=numeric_cols,
+        value_vars=selected_cols,
         var_name="Tipo",
         value_name="MWh"
     )
 
     # Pivot per stacked bar
-    df_plot_pivot = df_plot.pivot_table(index=month_col, columns="Tipo", values="MWh", fill_value=0)
+    df_plot_pivot = df_plot.pivot_table(
+        index=month_col,
+        columns="Tipo",
+        values="MWh",
+        fill_value=0
+    )
 
-    # Plot
+    # Creazione figura
     fig, ax = plt.subplots(figsize=(12, 6))
     df_plot_pivot.plot(kind="bar", stacked=True, ax=ax)
     ax.set_xlabel(month_col)
     ax.set_ylabel("MWh")
-    ax.set_title("Copertura Mensile")
+    ax.set_title("Monthly Coverage")
     plt.xticks(rotation=45)
     plt.tight_layout()
+
+    # Mostra su Streamlit
     st.pyplot(fig)
 
 def plot_monthly_additional_hedge(df, month_col="Month"):
