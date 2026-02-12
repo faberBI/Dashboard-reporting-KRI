@@ -28,6 +28,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, mean_absolute_percentage_error
 import yfinance as yf
 import pmdarima as pm
+import matplotlib.pyplot as plt
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
