@@ -31,7 +31,7 @@ import pmdarima as pm
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
-from functions.energy_risk import (get_return, apply_cholesky, fit_sarimax_model, forecast_monthly_prices, get_garch, simulate_prices, compute_VaR, plot_pun_forecast_vs_volatility,plot_energy_stack_with_var,  plot_monthly_VaR)
+from functions.energy_risk import (get_return, apply_cholesky, fit_sarimax_model, forecast_monthly_prices, get_garch, simulate_prices, compute_VaR, plot_volatility ,plot_energy_stack_with_var,  plot_monthly_VaR)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
@@ -239,13 +239,21 @@ if selected_kri == "⚡ Energy Risk":
         hist_pun["Month"] = hist_pun["Date"].dt.month
         hist_filter = hist_pun[hist_pun['Year']>2015]
         series = hist_filter.set_index('Date')['GMEPIT24 Index'].astype(float).dropna()
-        st.dataframe(series)
+        fig, ax = plt.subplots(figsize=(12, 5))
+        ax.plot(series.index, series.values, linewidth=2)
+        ax.set_title("Serie Storica PUN mensile", fontsize=13)
+        ax.set_xlabel("Data")
+        ax.set_ylabel("Prezzo")
+        ax.grid(True, linestyle="--", alpha=0.4)
+        plt.tight_layout()
+        st.pyplot(fig, use_container_width=True)
+
         PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
         st.success("✅ Modello ibrido allenato!")
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std = get_garch(last_5y)
         st.success("✅ Volatilità stimata!")
-        plot_pun_forecast_vs_volatility(last_5y, PUN_monthly_forecast, monthly_sigma, rolling_std)
+        plot_volatility_only(rolling_std, monthly_sigma)
         st.subheader("📈 Forecast Hybrid Model")
         PUN_paths, shocks = simulate_prices(PUN_monthly_forecast, monthly_price['avg_price'].values,
                                         monthly_sigma, monthly_std, L, n_sims=n_simulations)
