@@ -329,7 +329,7 @@ if selected_kri == "⚡ Energy Risk":
             hedge = np.minimum(hedge, max_hedge_mensile)
             residuo = max_copertura_totale - (coperto_attuale + hedge.sum())
         
-        CVaR_current = compute_CVaR(hedge)
+        CVaR_current = compute_CVaR(hedge_vector=hedge, df=df, PUN_paths=PUN_paths, VaR_level=95)
         iteration = 0
         log = []
         
@@ -351,7 +351,7 @@ if selected_kri == "⚡ Energy Risk":
         
                 copertura_annua = (coperto_attuale + hedge_test.sum()) / total_fabbisogno
                 if copertura_annua <= alpha:
-                    CVaR_test[m] = compute_CVaR(hedge_test)
+                    CVaR_test[m] = compute_CVaR(hedge_vector=hedge_test, df=df, PUN_paths=PUN_paths, VaR_level=95)
         
             delta_CVaR = CVaR_current - CVaR_test
             efficiency = delta_CVaR / (step * df["hedge_cost"].values)
