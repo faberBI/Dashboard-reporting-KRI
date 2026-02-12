@@ -266,7 +266,6 @@ if selected_kri == "⚡ Energy Risk":
         fig = plot_energy_stack_with_var(dati_fibercop)
         st.pyplot(fig, use_container_width=True)
         fig_plot_var = plot_var_bars(dati_fibercop)
-        st.pyplot(fig_plot_var, use_container_width=True)
         st.metric( label="Yearly Value@Risk with Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w_solar'].sum(), 0):,.0f}")
         st.metric(label="Yearly Value@Risk w/o Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w/o_solar'].sum(), 0):,.0f}")
 
