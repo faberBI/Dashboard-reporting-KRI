@@ -404,10 +404,10 @@ if selected_kri == "⚡ Energy Risk":
         st.subheader("📊 Grafici")
             
         # 1️⃣ Copertura mensile stacked: base + hedge + scoperto
-        plot_monthly_coverage_stack(df, month_col="mese")
+        plot_monthly_coverage_stack(df, month_col="Month")
             
         # 2️⃣ Hedge addizionale per mese
-        plot_monthly_additional_hedge(df, month_col="mese")
+        plot_monthly_additional_hedge(df, month_col="Month")
             
         # 3️⃣ Andamento CVaR durante le iterazioni
         plot_cvar_reduction_over_iterations(log)
