@@ -387,7 +387,8 @@ if selected_kri == "⚡ Energy Risk":
             })
             
             st.write(f"Iter {iteration}: CVaR={CVaR_current:,.0f}€, Copertura annua={copertura_annua_pct:.2f}%")
-            log = pd.DataFrame(log)
+            
+        log = pd.DataFrame(log)
             
         # =========================
         # OUTPUT FINALE
