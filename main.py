@@ -294,22 +294,22 @@ if selected_kri == "⚡ Energy Risk":
         st.subheader("📈 Hedging Optimization Model")
         df = dati_fibercop.copy()
         df["Fabbisogno"] *= 1000
-        df["Copertura"] = df['PPA Erg']+df['Forward']+ df['Solar']
-        df["Copertura"] *= 1000
-        df["Scoperto_base"] = df['scoperto_w_solar']
-        df["Scoperto_base"] *= 1000
-        CVaR_limit = df_grouped["Ebitda"] * risk_appetite
+        df["Copertura"] = (df['PPA Erg'] + df['Forward'] + df['Solar']) * 1000
+        df["Scoperto_base"] = df['scoperto_w_solar'] * 1000
         
-        # fixed for algorithm optimization
+        # CVaR limit (prendo il primo anno come riferimento)
+        CVaR_limit = ebitda_inputs[list(ebitda_inputs.keys())[0]] * risk_appetite
+        
+        # Hedge cost mensile
         df["hedge_cost"] = df["Prezzo Forward"] - df["Prezzo Budget"]
+        
+        # Inizializzazione hedge
         hedge = np.zeros(12, dtype=float)
         total_fabbisogno = df["Fabbisogno"].sum()
         coperto_attuale = df["Copertura"].sum()
         max_copertura_totale = total_fabbisogno * alpha
         
         max_needed = max(max_copertura_totale - coperto_attuale, 0)
-        
-        # Distribuzione proporzionale iniziale
         weights = df["scoperto_w_solar"].values / df["scoperto_w_solar"].sum()
         hedge += max_needed * weights
         
@@ -330,7 +330,7 @@ if selected_kri == "⚡ Energy Risk":
             residuo = max_copertura_totale - (df["Copertura"].sum() + hedge.sum())
             
         hedge = hedge.astype(float)
-        CVaR_current = CVaR(hedge)
+        CVaR_current = CVaR(hedge, df, PUN_paths)
             
         # =========================
         # OTTIMIZZAZIONE GREEDY
@@ -338,7 +338,6 @@ if selected_kri == "⚡ Energy Risk":
         iteration = 0
         log = []
             
-        st.subheader("📈 Hedging Optimization Model")            
         while CVaR_current > CVaR_limit:
             iteration += 1
             best_month = None
@@ -357,7 +356,7 @@ if selected_kri == "⚡ Energy Risk":
                 copertura_annua = (df["Copertura"].sum() + hedge_test.sum()) / total_fabbisogno
                 if copertura_annua > alpha:
                     continue
-                CVaR_new = CVaR(hedge_test)
+                CVaR_new = CVaR(hedge_test, df, PUN_paths)
                 risk_reduction = CVaR_current - CVaR_new
                 cost_eur = step * df.loc[m, "hedge_cost"]
                 if cost_eur <= 0:
@@ -372,7 +371,7 @@ if selected_kri == "⚡ Energy Risk":
                 break
             
             hedge[best_month] += step
-            CVaR_current = CVaR(hedge)
+            CVaR_current = CVaR(hedge, df, PUN_paths)
             
             hedge_tot = hedge.sum()
             cvar_pct = CVaR_current / ebitda_inputs[list(ebitda_inputs.keys())[0]] * 100
@@ -403,27 +402,13 @@ if selected_kri == "⚡ Energy Risk":
         st.metric("Costo hedge totale (€)", f"€ {total_hedge_cost:,.0f}")
         st.metric("Copertura annua totale (%)", f"{copertura_annua_pct:.2f}%")
         st.subheader("📊 Grafici")
-        
+            
         # 1️⃣ Copertura mensile stacked: base + hedge + scoperto
-        plot_monthly_coverage_stack(
-            df=df.rename(columns={
-                "coperto_base": "Copertura_base",
-                "hedge_addizionale_MWh": "Hedge_addizionale_MWh",
-                "scoperto_finale": "Scoperto_finale",
-                "mese": "Month"
-            }),
-            month_col="Month"
-        )
-        
+        plot_monthly_coverage_stack(df, month_col="mese")
+            
         # 2️⃣ Hedge addizionale per mese
-        plot_monthly_additional_hedge(
-            df=df.rename(columns={
-                "hedge_addizionale_MWh": "Hedge_addizionale_MWh",
-                "mese": "Month"
-            }),
-            month_col="Month"
-        )
-        
+        plot_monthly_additional_hedge(df, month_col="mese")
+            
         # 3️⃣ Andamento CVaR durante le iterazioni
         plot_cvar_reduction_over_iterations(log)
         
