@@ -101,6 +101,8 @@ def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_st
     return PUN_paths, shocks
 
 def compute_VaR(df_var, VaR_95_monthly):
+    df_var['scoperto_w_solar'] = np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward'] +	df_var['Solar']), 0)
+    df_var['scoperto_w/o_solar'] = np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']), 0)
     df_var['Price_95perc'] = VaR_95_monthly
     df_var['Var_monthly_95_w_solar'] = (df_var['Price_95perc'] - df_var['Prezzo Budget']) * np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward'] + df_var['Solar']),0) *1000
     df_var['Var_monthly_95_w/o_solar'] = (df_var['Price_95perc'] - df_var['Prezzo Budget']) * np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']),0) *1000
@@ -239,4 +241,54 @@ def plot_energy_stack_with_var(df):
 
     return fig
 
+def plot_var_bars(dati_fibercop):
+    """
+    Grafico a barre mensile del Value at Risk con e senza Solar.
+    
+    Parametri:
+        dati_fibercop : pd.DataFrame
+            Deve contenere almeno le colonne:
+            - 'Month', 'Year', 'Var_monthly_95_w_solar', 'Var_monthly_95_w/o_solar'
+    """
+    # Creazione colonna "Anno-Mese" per l'asse X
+    dati_fibercop['Anno-Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
+    
+    # Posizione delle barre
+    x = np.arange(len(dati_fibercop))
+    width = 0.4  # larghezza barre
+    
+    # Figura
+    fig, ax = plt.subplots(figsize=(14,6))
+    
+    # Barre Var con Solar
+    ax.bar(
+        x - width/2,
+        dati_fibercop['Var_monthly_95_w_solar'],
+        width=width,
+        label='Var con Solar',
+        color='green',
+        alpha=0.7
+    )
+    
+    # Barre Var senza Solar
+    ax.bar(
+        x + width/2,
+        dati_fibercop['Var_monthly_95_w/o_solar'],
+        width=width,
+        label='Var senza Solar',
+        color='red',
+        alpha=0.7
+    )
+    
+    # Label e titolo
+    ax.set_xticks(x)
+    ax.set_xticklabels(dati_fibercop['Anno-Mese'], rotation=45, ha='right')
+    ax.set_ylabel("Value at Risk (€)")
+    ax.set_xlabel("Anno-Mese")
+    ax.set_title("Value @ Risk Monthly w & w/o Solar")
+    ax.grid(axis='y', linestyle='--', alpha=0.4)
+    ax.legend()
+    
+    plt.tight_layout()
+    st.pyplot(fig, use_container_width=True)
 
