@@ -320,38 +320,35 @@ def compute_CVaR(hedge_vector, df, PUN_paths, VaR_level=95):
     return CVaR
 
 def plot_monthly_coverage_stack(df, month_col="Month"):
-    # Pulizia nomi colonne
+    # Copia del dataframe
     df = df.copy()
+    
+    # Rimuove solo spazi dai nomi delle colonne
     df.columns = df.columns.str.strip()
-    df.columns = df.columns.str.capitalize()
 
-    # Controllo colonna mese
-    month_col_clean = month_col.strip().capitalize()
-    if month_col_clean not in df.columns:
+    # Controlla che la colonna month_col esista
+    if month_col not in df.columns:
         st.error(f"Colonna '{month_col}' non trovata! Colonne disponibili: {df.columns.tolist()}")
         return
 
-    # Selezione colonne da melt
-    value_vars = [col for col in df.columns if col not in [month_col_clean]]
-    if not value_vars:
-        st.warning("Non ci sono colonne da trasformare in melt!")
-        return
+    # Colonne da trasformare in melt: tutte tranne month_col
+    value_vars = [col for col in df.columns if col != month_col]
 
-    # Melt
+    # Melt dei dati
     df_plot = df.melt(
-        id_vars=month_col_clean,
+        id_vars=month_col,
         value_vars=value_vars,
         var_name="Tipo",
         value_name="MWh"
     )
 
     # Pivot per stacked bar
-    df_plot_pivot = df_plot.pivot_table(index=month_col_clean, columns="Tipo", values="MWh", fill_value=0)
+    df_plot_pivot = df_plot.pivot_table(index=month_col, columns="Tipo", values="MWh", fill_value=0)
 
     # Creazione figura
     fig, ax = plt.subplots(figsize=(12, 6))
     df_plot_pivot.plot(kind="bar", stacked=True, ax=ax)
-    ax.set_xlabel(month_col_clean)
+    ax.set_xlabel(month_col)
     ax.set_ylabel("MWh")
     ax.set_title("Copertura Mensile")
     plt.xticks(rotation=45)
