@@ -252,9 +252,9 @@ if selected_kri == "⚡ Energy Risk":
         PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
         st.success("✅ Modello ibrido allenato!")
         st.subheader("📈 Prezzo PUN e Volatilità")
-        monthly_sigma, rolling_std = get_garch(last_5y)
+        monthly_sigma, rolling_std, sigma_t = get_garch(last_5y)
         st.success("✅ Volatilità stimata!")
-        plot_volatility(rolling_std, monthly_sigma)
+        plot_volatility(rolling_std, sigma_t)
         st.subheader("📈 Forecast Hybrid Model")
         PUN_paths, shocks = simulate_prices(PUN_monthly_forecast, monthly_price['avg_price'].values,
                                         monthly_sigma, monthly_std, L, n_sims=n_simulations)
@@ -266,7 +266,9 @@ if selected_kri == "⚡ Energy Risk":
         plot_monthly_VaR(VaR_95_monthly, start_year=2026)
         fig = plot_energy_stack_with_var(dati_fibercop)
         st.pyplot(fig, use_container_width=True)
-   
+        st.metric(label="Yearly Value@Risk with Solar", value=dati_fibercop['Var_monthly_95_w_solar'].sum())
+        st.metric(label="Yearly Value@Risk w/o Solar", value=dati_fibercop['Var_monthly_95_w/o_solar'].sum())
+        
         # Esportazione Excel
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
