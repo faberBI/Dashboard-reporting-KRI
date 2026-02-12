@@ -241,18 +241,8 @@ def plot_energy_stack_with_var(df):
 
     return fig
 
-import matplotlib.pyplot as plt
-import numpy as np
-import streamlit as st
 
 def plot_var_bars(dati_fibercop):
-    """
-    Grafico a barre mensile del Value at Risk con e senza Solar.
-    
-    Parametri:
-        dati_fibercop : pd.DataFrame
-            Deve contenere almeno le colonne:
-            - 'Month', 'Year', 'Var_monthly_95_w_solar', 'Var_monthly_95_w/o_solar'
     """
     # Creazione colonna "Anno-Mese" per l'asse X
     dati_fibercop['Anno-Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
