@@ -407,11 +407,18 @@ def plot_cvar_reduction_over_iterations(log):
     """
     Andamento CVaR durante l'ottimizzazione greedy
     """
-    if not log:
+    # Se log è lista o DataFrame
+    if log is None or len(log) == 0:
         st.warning("Nessuna iterazione di ottimizzazione disponibile.")
         return
 
-    log_df = pd.DataFrame(log)
+    # Trasforma in DataFrame se non lo è già
+    if not isinstance(log, pd.DataFrame):
+        log_df = pd.DataFrame(log)
+    else:
+        log_df = log
+
+    import altair as alt
 
     chart = (
         alt.Chart(log_df)
