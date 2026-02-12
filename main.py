@@ -234,7 +234,6 @@ if selected_kri == "⚡ Energy Risk":
         np.random.seed(42)
         last_5y, monthly_std, monthly_price = get_return(data_path)
         st.success("✅ Statistiche calcolate!")
-        st.dataframe(monthly_price)
         L = apply_cholesky(last_5y)
         hist_pun = pd.read_excel(data_path)
         hist_pun["log_return"] = np.log(hist_pun["GMEPIT24 Index"] / hist_pun["GMEPIT24 Index"].shift(1))
@@ -252,7 +251,6 @@ if selected_kri == "⚡ Energy Risk":
 
         PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
         st.success("✅ Modello ibrido allenato!")
-        st.dataframe(PUN_monthly_forecast)
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std, sigma_t = get_garch(last_5y)
         st.success("✅ Volatilità stimata!")
@@ -268,16 +266,15 @@ if selected_kri == "⚡ Energy Risk":
         plot_monthly_VaR(VaR_95_monthly, start_year=2026)
         fig = plot_energy_stack_with_var(dati_fibercop)
         st.pyplot(fig, use_container_width=True)
-        st.metric(label="Yearly Value@Risk with Solar", value=dati_fibercop['Var_monthly_95_w_solar'].sum())
-        st.metric(label="Yearly Value@Risk w/o Solar", value=dati_fibercop['Var_monthly_95_w/o_solar'].sum())
-        
+        st.metric( label="Yearly Value@Risk with Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w_solar'].sum(), 0):,.0f}")
+        st.metric(label="Yearly Value@Risk w/o Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w/o_solar'].sum(), 0):,.0f}")
         # Esportazione Excel
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             last_5y.to_excel(writer, sheet_name="last_5y", index=False)
             monthly_std.to_excel(writer, sheet_name="monthly_std", index=False)
             monthly_price.to_excel(writer, sheet_name="monthly_price", index=False)
-            pd.DataFrame(PUN_monthly_forecast, columns=['PUN_forecast']).to_excel(writer, sheet_name="PUN_forecast", index=False)
+            pd.DataFrame(PUN_monthly_forecast).to_excel(writer, sheet_name="PUN_forecast", index=False)
             pd.DataFrame(monthly_sigma, columns=['monthly_sigma']).to_excel(writer, sheet_name="monthly_sigma", index=False)
             pd.DataFrame(PUN_paths).to_excel(writer, sheet_name="PUN_paths", index=False)
             dati_fibercop.to_excel(writer, sheet_name="dati_var", index=False)
