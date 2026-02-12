@@ -77,7 +77,7 @@ def get_garch(last_5y, rolling_window=12):
     sigma_df['Month'] = sigma_df['Date'].dt.month
     monthly_sigma = sigma_df.groupby('Month')['sigma'].mean().values
     
-    return monthly_sigma, rolling_std
+    return monthly_sigma, rolling_std, sigma_t
 
 def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_std, L, n_sims=100_000, seed=42):
     np.random.seed(seed)
@@ -105,44 +105,39 @@ def compute_VaR(df_var, VaR_95_monthly):
     df_var['Var_monthly_95_w/o_solar'] = (df_var['Price_95perc'] - df_var['Prezzo Budget']) * np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']),0) *1000
     return df_var
 
-def plot_volatility(rolling_std, monthly_sigma):
+def plot_volatility(rolling_std, sigma_t):
     """
     Grafico volatilità:
     - Rolling std mensile dei log-return
     - Volatilità condizionale GARCH (mensile)
     """
 
+    # Crea figura e asse
     fig, ax = plt.subplots(figsize=(14, 6))
 
-    # ===== ROLLING STD (mensile) =====
-    rolling_std_monthly = rolling_std.resample('M').mean()
-
-    ax.plot(
-        rolling_std_monthly.index,
-        rolling_std_monthly.values,
-        label='Rolling std log-return',
-        linestyle=':',
+    # ===== PLOT LINEE =====
+    rolling_std.plot(
+        ax=ax, 
+        label='Rolling std log-return', 
+        linestyle=':', 
         linewidth=2
     )
 
-    # ===== VOLATILITÀ GARCH =====
-    months = np.arange(1, len(monthly_sigma) + 1)
-
-    ax.bar(
-        months,
-        monthly_sigma,
-        width=0.6,
-        alpha=0.4,
-        label='Volatilità condizionale GARCH'
+    sigma_t.plot(
+        ax=ax, 
+        label='Volatilità condizionale GARCH', 
+        linestyle='--', 
+        linewidth=2
     )
 
-    ax.set_xlabel("Tempo / Mese")
+    # ===== CUSTOMIZZAZIONE =====
+    ax.set_title("Volatilità stimata")
     ax.set_ylabel("Volatilità")
-    ax.set_title("Volatilità stimata: Rolling Std vs GARCH")
+    ax.set_xlabel("Data")
     ax.grid(True, linestyle='--', alpha=0.4)
     ax.legend()
 
-    plt.tight_layout()
+    # ===== STREAMLIT =====
     st.pyplot(fig, use_container_width=True)
 
 def plot_monthly_VaR(VaR_95_monthly, start_year=2026):
