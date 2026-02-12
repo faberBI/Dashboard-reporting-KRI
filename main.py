@@ -294,7 +294,7 @@ if selected_kri == "⚡ Energy Risk":
         st.subheader("📈 Hedging Optimization Model")
         df = dati_fibercop.copy()
         df["Fabbisogno"] *= 1000
-        df["Copertura_base"] = df['PPA Erg']+df['Forward']+['Solar']
+        df["Copertura_base"] = df['PPA Erg']+df['Forward']+ df['Solar']
         df["Copertura_base"] *= 1000
         df["Scoperto_base"] = df['scoperto_w_solar']
         df["Scoperto_base"] *= 1000
