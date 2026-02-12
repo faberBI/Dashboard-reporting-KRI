@@ -105,53 +105,45 @@ def compute_VaR(df_var, VaR_95_monthly):
     df_var['Var_monthly_95_w/o_solar'] = (df_var['Price_95perc'] - df_var['Prezzo Budget']) * np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']),0) *1000
     return df_var
 
-def plot_pun_forecast_vs_volatility(last_5y, PUN_monthly_forecast, monthly_sigma, rolling_std):
+def plot_volatility(rolling_std, monthly_sigma):
     """
-    Grafico combinato:
-    - PUN storico vs PUN forecastato
-    - Volatilità stimata GARCH e rolling std
+    Grafico volatilità:
+    - Rolling std mensile dei log-return
+    - Volatilità condizionale GARCH (mensile)
     """
-    # Serie mensile media storica
-    monthly_means = last_5y.groupby(['Year', 'Month'])['GMEPIT24 Index'].mean().reset_index()
-    monthly_means['Date'] = pd.to_datetime(monthly_means[['Year','Month']].assign(DAY=1))
-    monthly_means = monthly_means.sort_values('Date')
-    
-    # Date forecast
-    n_forecast_months = len(PUN_monthly_forecast)
-    last_date = monthly_means['Date'].max()
-    forecast_dates = pd.date_range(start=last_date + pd.offsets.MonthBegin(1), periods=n_forecast_months, freq='MS')
-    
-    # Plot
-    fig, ax1 = plt.subplots(figsize=(14,6))
-    
-    # PUN storico
-    ax1.plot(monthly_means['Date'], monthly_means['GMEPIT24 Index'], label='PUN storico', color='blue', linewidth=2)
-    
-    # PUN forecast
-    ax1.plot(forecast_dates, PUN_monthly_forecast, label='PUN forecast', color='orange', linestyle='--', linewidth=2)
-    
-    ax1.set_xlabel("Data")
-    ax1.set_ylabel("Prezzo PUN (€)")
-    ax1.grid(True, linestyle='--', alpha=0.4)
-    ax1.legend(loc='upper left')
-    
-    # Volatilità sul secondo asse
-    ax2 = ax1.twinx()
-    
-    # Rolling std (mensile)
+
+    fig, ax = plt.subplots(figsize=(14, 6))
+
+    # ===== ROLLING STD (mensile) =====
     rolling_std_monthly = rolling_std.resample('M').mean()
-    ax2.plot(rolling_std_monthly.index, rolling_std_monthly.values, label='Rolling std log-return', color='green', linestyle=':')
-    
-    # Volatilità GARCH (mensile)
-    months = np.arange(1,13)
-    ax2.bar(months - 0.2, monthly_sigma, width=0.4, alpha=0.4, label='Volatilità condizionale GARCH', color='red')
-    
-    ax2.set_ylabel("Volatilità")
-    ax2.legend(loc='upper right')
-    
-    plt.title("Prezzo PUN storico vs forecast e volatilità stimata")
+
+    ax.plot(
+        rolling_std_monthly.index,
+        rolling_std_monthly.values,
+        label='Rolling std log-return',
+        linestyle=':',
+        linewidth=2
+    )
+
+    # ===== VOLATILITÀ GARCH =====
+    months = np.arange(1, len(monthly_sigma) + 1)
+
+    ax.bar(
+        months,
+        monthly_sigma,
+        width=0.6,
+        alpha=0.4,
+        label='Volatilità condizionale GARCH'
+    )
+
+    ax.set_xlabel("Tempo / Mese")
+    ax.set_ylabel("Volatilità")
+    ax.set_title("Volatilità stimata: Rolling Std vs GARCH")
+    ax.grid(True, linestyle='--', alpha=0.4)
+    ax.legend()
+
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(fig, use_container_width=True)
 
 def plot_monthly_VaR(VaR_95_monthly, start_year=2026):
     """
