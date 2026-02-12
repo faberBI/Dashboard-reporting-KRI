@@ -243,7 +243,6 @@ def plot_energy_stack_with_var(df):
 
 
 def plot_var_bars(dati_fibercop):
-    """
     # Creazione colonna "Anno-Mese" per l'asse X
     dati_fibercop['Anno-Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
     
