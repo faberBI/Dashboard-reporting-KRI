@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
-from functions.energy_risk import (get_garch, get_return, apply_cholesky, fit_sarimax_model, forecast_monthly_prices, simulate_prices, compute_VaR, plot_volatility ,plot_energy_stack_with_var,  plot_monthly_VaR)
+from functions.energy_risk import (plot_var_bars, get_garch, get_return, apply_cholesky, fit_sarimax_model, forecast_monthly_prices, simulate_prices, compute_VaR, plot_volatility ,plot_energy_stack_with_var,  plot_monthly_VaR)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
@@ -261,13 +261,18 @@ if selected_kri == "⚡ Energy Risk":
         VaR_95_monthly = np.percentile(PUN_paths, 95, axis=0)
         st.success("✅ VaR calcolato!")
         dati_fibercop = compute_VaR(df, VaR_95_monthly)
+        dati_fibercop['Anno_Mese'] = dati_fibercop['Year'].astype(str) + "-" + dati_fibercop['Month']
         st.dataframe(dati_fibercop)
         st.subheader("📈 Grafico VaR mensile")
         plot_monthly_VaR(VaR_95_monthly, start_year=2026)
         fig = plot_energy_stack_with_var(dati_fibercop)
         st.pyplot(fig, use_container_width=True)
+        fig_plot_var = plot_var_bars(dati_fibercop)
+        st.pyplot(fig_plot_var, use_container_width=True)
         st.metric( label="Yearly Value@Risk with Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w_solar'].sum(), 0):,.0f}")
         st.metric(label="Yearly Value@Risk w/o Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w/o_solar'].sum(), 0):,.0f}")
+
+        
         # Esportazione Excel
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
