@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
-from functions.energy_risk import (get_return, apply_cholesky, fit_sarimax_model, forecast_monthly_prices, get_garch, simulate_prices, compute_VaR, plot_volatility ,plot_energy_stack_with_var,  plot_monthly_VaR)
+from functions.energy_risk import (get_garch, get_return, apply_cholesky, fit_sarimax_model, forecast_monthly_prices, simulate_prices, compute_VaR, plot_volatility ,plot_energy_stack_with_var,  plot_monthly_VaR)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
