@@ -387,6 +387,7 @@ if selected_kri == "⚡ Energy Risk":
             })
             
             st.write(f"Iter {iteration}: CVaR={CVaR_current:,.0f}€, Copertura annua={copertura_annua_pct:.2f}%")
+            log = pd.DataFrame(log)
             
         # =========================
         # OUTPUT FINALE
@@ -426,6 +427,7 @@ if selected_kri == "⚡ Energy Risk":
             pd.DataFrame(VaR_95_monthly, columns=['VaR_95']).to_excel(writer, sheet_name="VaR_95_monthly", index=False)
             pd.DataFrame(shocks).to_excel(writer, sheet_name="shocks", index=False)
             pd.DataFrame(df).to_excel(writer, sheet_name="Hedging", index=False)
+            log.to_excel(writer, sheet_name="Iteration_Algo", index=False)
         buffer.seek(0)
     
         st.download_button("💾 Scarica tutti i dati in Excel", data=buffer,
