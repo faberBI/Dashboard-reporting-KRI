@@ -319,25 +319,26 @@ def compute_CVaR(hedge_vector, df, PUN_paths, VaR_level=95):
     CVaR = losses[losses >= VaR].mean()
     return CVaR
 
+import matplotlib.pyplot as plt
+import streamlit as st
+import pandas as pd
+
 def plot_monthly_coverage_stack(df, month_col="Month"):
-    # Copia del dataframe
     df = df.copy()
-    
-    # Rimuove solo spazi dai nomi delle colonne
     df.columns = df.columns.str.strip()
 
-    # Controlla che la colonna month_col esista
+    # Controllo colonna mese
     if month_col not in df.columns:
         st.error(f"Colonna '{month_col}' non trovata! Colonne disponibili: {df.columns.tolist()}")
         return
 
-    # Colonne da trasformare in melt: tutte tranne month_col
-    value_vars = [col for col in df.columns if col != month_col]
+    # Selezione solo colonne numeriche (escludiamo testo e date)
+    numeric_cols = df.select_dtypes(include='number').columns.tolist()
 
-    # Melt dei dati
+    # Melt
     df_plot = df.melt(
         id_vars=month_col,
-        value_vars=value_vars,
+        value_vars=numeric_cols,
         var_name="Tipo",
         value_name="MWh"
     )
@@ -345,7 +346,7 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
     # Pivot per stacked bar
     df_plot_pivot = df_plot.pivot_table(index=month_col, columns="Tipo", values="MWh", fill_value=0)
 
-    # Creazione figura
+    # Plot
     fig, ax = plt.subplots(figsize=(12, 6))
     df_plot_pivot.plot(kind="bar", stacked=True, ax=ax)
     ax.set_xlabel(month_col)
@@ -353,8 +354,6 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
     ax.set_title("Copertura Mensile")
     plt.xticks(rotation=45)
     plt.tight_layout()
-
-    # Mostra su Streamlit
     st.pyplot(fig)
 
 def plot_monthly_additional_hedge(df, month_col="Month"):
