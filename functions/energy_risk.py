@@ -278,7 +278,7 @@ def plot_var_bars(dati_fibercop):
     ax.set_xticklabels(dati_fibercop['Anno-Mese'], rotation=45, ha='right')
     ax.set_ylabel("Value@Risk (€)")
     ax.set_xlabel("Anno-Mese")
-    ax.set_title("Monthly VaR w & w/o senza Solar")
+    ax.set_title("Monthly VaR w & w/o Solar")
     ax.grid(axis='y', linestyle='--', alpha=0.4)
     ax.legend()
     
