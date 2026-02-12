@@ -7,6 +7,7 @@ import pmdarima as pm
 import io
 import pickle
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+import altair as alt
 
 @st.cache_resource
 def fit_sarimax_model(series):
@@ -329,6 +330,13 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
         st.error(f"Colonna '{month_col}' non trovata! Colonne disponibili: {df.columns.tolist()}")
         return
 
+    # Ordine dei mesi italiani
+    mesi_italiani = ["gen", "feb", "mar", "apr", "mag", "giu",
+                     "lug", "ago", "set", "ott", "nov", "dic"]
+    
+    # Trasforma in categoria ordinata
+    df[month_col] = pd.Categorical(df[month_col], categories=mesi_italiani, ordered=True)
+
     # Colonne disponibili per il grafico
     coverage_cols = ["Copertura", "hedge_addizionale_MWh", "scoperto_finale"]
     available_cols = [col for col in coverage_cols if col in df.columns]
@@ -363,6 +371,9 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
         values="MWh",
         fill_value=0
     )
+
+    # Ordinamento esplicito dei mesi
+    df_plot_pivot = df_plot_pivot.reindex(mesi_italiani)
 
     # Creazione figura
     fig, ax = plt.subplots(figsize=(12, 6))
