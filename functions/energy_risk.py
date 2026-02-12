@@ -305,14 +305,19 @@ def plot_var_bars(dati_fibercop):
     st.pyplot(fig, use_container_width=True)
 
 
-def compute_CVaR(hedge_vector):
+def compute_CVaR(hedge_vector, df, PUN_paths, VaR_level=95):
+    hedge_vector = np.asarray(hedge_vector).flatten()
     exposed = df["scoperto_w_solar"].values - hedge_vector
+    exposed = np.maximum(exposed, 0)
     losses = np.sum(
-        exposed * np.maximum(PUN_paths - df["PUN Budget"].values, 0),
-        axis=1
-    )
-    VaR = np.percentile(losses, 95)
-    return losses[losses >= VaR].mean()
+        exposed * np.maximum(
+            PUN_paths - df["Prezzo Budget"].values,
+            0
+        ),
+        axis=1)
+    VaR = np.percentile(losses, VaR_level)
+    CVaR = losses[losses >= VaR].mean()
+    return CVaR
 
 def plot_monthly_coverage_stack(df, month_col="Month"):
     """
