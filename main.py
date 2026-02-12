@@ -183,8 +183,6 @@ if selected_kri == "⚡ Energy Risk":
     # Parametri simulazione
     # -----------------------
     import random
-
-    np.random.seed(42)
     random.seed(42)
     
     n_simulations = st.number_input("Numero di simulazioni", min_value=1000, max_value=1000_000, value=10_000, step=1000)
@@ -259,9 +257,9 @@ if selected_kri == "⚡ Energy Risk":
         PUN_paths, shocks = simulate_prices(PUN_monthly_forecast, monthly_price['avg_price'].values,
                                         monthly_sigma, monthly_std, L, n_sims=n_simulations)
         VaR_95_monthly = np.percentile(PUN_paths, 95, axis=0)
-        st.success("✅ VaR calcolato!")
+        st.success("✅ VaR al 95 percentile calcolato!")
         dati_fibercop = compute_VaR(df, VaR_95_monthly)
-        dati_fibercop['Anno_Mese'] = dati_fibercop['Year'].astype(str) + "-" + dati_fibercop['Month']
+        dati_fibercop['Anno_Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
         st.dataframe(dati_fibercop)
         st.subheader("📈 Grafico VaR mensile")
         plot_monthly_VaR(VaR_95_monthly, start_year=2026)
