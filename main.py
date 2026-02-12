@@ -204,7 +204,7 @@ if selected_kri == "⚡ Energy Risk":
     n_simulations = st.number_input("Numero di simulazioni", min_value=1000, max_value=1000_000, value=10_000, step=1000)
     risk_appetite = st.number_input("Risk appetite - Max loss in % of EBIDA", min_value=0.005, max_value=0.2, value=0.01, step=0.001)
     step = st.number_input("MWh to buy each step of Optmization", min_value= 1000, max_value=10000, value=5000, step=1000)
-    alpha = st.number_input("% minima di copertura del fabbisogno", min_value= 0.5, max_value=1, value=0.85, step=0.05)
+    alpha = st.number_input("% minima di copertura del fabbisogno", min_value= 0.5, max_value=1.0, value=0.85, step=0.05)
     
     n_year = len(df['Anno'].unique())
     st.metric(label="Numero di anni da simulare", value=n_year)
