@@ -376,7 +376,9 @@ if selected_kri == "⚡ Energy Risk":
             hedge_tot = hedge.sum()
             cvar_pct = CVaR_current / ebitda_inputs[list(ebitda_inputs.keys())[0]] * 100
             copertura_annua_pct = (df["Copertura"].sum() + hedge_tot) / total_fabbisogno * 100
-            
+            st.write("Iteration:", iteration)
+            st.write("admissible:", admissible)
+            st.write("best_month:", best_month)
             log.append({
                 "iter": iteration,
                 "mese": df.loc[best_month, "mese"],
@@ -389,7 +391,6 @@ if selected_kri == "⚡ Energy Risk":
             st.write(f"Iter {iteration}: CVaR={CVaR_current:,.0f}€, Copertura annua={copertura_annua_pct:.2f}%")
             
         log = pd.DataFrame(log)
-        st.dataframe(log)
             
         # =========================
         # OUTPUT FINALE
