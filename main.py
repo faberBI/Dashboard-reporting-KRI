@@ -43,7 +43,11 @@ from functions.energy_risk import (
     plot_volatility,
     plot_monthly_VaR,
     plot_energy_stack_with_var,
-    plot_var_bars
+    plot_var_bars,
+    compute_CVaR,
+    plot_monthly_coverage_stack,
+    plot_monthly_additional_hedge,
+    plot_cvar_reduction_over_iterations
 )
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
@@ -198,6 +202,10 @@ if selected_kri == "⚡ Energy Risk":
     random.seed(42)
     
     n_simulations = st.number_input("Numero di simulazioni", min_value=1000, max_value=1000_000, value=10_000, step=1000)
+    risk_appetite = st.number_input("Risk appetite - Max loss in % of EBIDA", min_value=0.005, max_value=0.2, value=0.01, step=0.001)
+    step = st.number_input("MWh to buy each step of Optmization", min_value= 1000, max_value=10000, value=5000, step=1000)
+    alpha = st.number_input("% minima di copertura del fabbisogno", min_value= 0.5, max_value=1, value=0.85, step=0.05)
+    
     n_year = len(df['Anno'].unique())
     st.metric(label="Numero di anni da simulare", value=n_year)
     
@@ -244,7 +252,7 @@ if selected_kri == "⚡ Energy Risk":
         np.random.seed(42)
         last_5y, monthly_std, monthly_price = get_return(data_path)
         st.success("✅ Statistiche calcolate!")
-        L = apply_cholesky(last_5y)
+        L, rho_hat = apply_cholesky(last_5y)
         hist_pun = pd.read_excel(data_path)
         hist_pun["log_return"] = np.log(hist_pun["GMEPIT24 Index"] / hist_pun["GMEPIT24 Index"].shift(1))
         hist_pun["Month"] = hist_pun["Date"].dt.month
@@ -283,6 +291,116 @@ if selected_kri == "⚡ Energy Risk":
         st.metric( label="Yearly Value@Risk with Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w_solar'].sum(), 0):,.0f}")
         st.metric(label="Yearly Value@Risk w/o Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w/o_solar'].sum(), 0):,.0f}")
 
+        st.subheader("📈 Hedging Optimization Model")
+        df = dati_fibercop.copy()
+        df["Fabbisogno"] *= 1000
+        df["Copertura_base"] = df['PPA Erg']+df['Forward']+['Solar']
+        df["Copertura_base"] *= 1000
+        df["Scoperto_base"] = df['scoperto_w_solar']
+        df["Scoperto_base"] *= 1000
+        CVaR_limit = df_grouped["Ebitda"] * risk_appetite
+        
+        # fixed for algorithm optimization
+        df["hedge_cost"] = df["Prezzo Forward"] - df["Prezzo Budget"]
+        hedge = np.zeros(12, dtype=float)
+        
+        total_fabbisogno = df["Fabbisogno"].sum()
+        max_copertura_totale = total_fabbisogno * alpha
+        coperto_attuale = df["Copertura_base"].sum()
+        
+        max_needed = max(max_copertura_totale - coperto_attuale, 0)
+        
+        weights = df["Scoperto_base"].values / df["Scoperto_base"].sum()
+        hedge += max_needed * weights
+        
+        max_hedge_mensile = df["Fabbisogno"].values * 0.85 - df["Copertura_base"].values
+        hedge = np.minimum(hedge, max_hedge_mensile)
+        
+        # saturazione residua
+        residuo = max_copertura_totale - (coperto_attuale + hedge.sum())
+        
+        while residuo > 0:
+            spazio = np.maximum(max_hedge_mensile - hedge, 0)
+            if spazio.sum() == 0:
+                break
+            
+            incremento = residuo * spazio / spazio.sum()
+            hedge += incremento
+            hedge = np.minimum(hedge, max_hedge_mensile)
+            residuo = max_copertura_totale - (coperto_attuale + hedge.sum())
+        
+        CVaR_current = compute_CVaR(hedge)
+        iteration = 0
+        log = []
+        
+        while CVaR_current > CVaR_limit:
+            iteration += 1
+        
+            spazio = max_hedge_mensile - hedge
+            admissible = (spazio >= step) & (df["hedge_cost"].values > 0)
+        
+            if not admissible.any():
+                st.warning("⚠️ Nessun ulteriore miglioramento possibile.")
+                break
+            
+            CVaR_test = np.full(12, np.nan)
+        
+            for m in np.where(admissible)[0]:
+                hedge_test = hedge.copy()
+                hedge_test[m] += step
+        
+                copertura_annua = (coperto_attuale + hedge_test.sum()) / total_fabbisogno
+                if copertura_annua <= alpha:
+                    CVaR_test[m] = compute_CVaR(hedge_test)
+        
+            delta_CVaR = CVaR_current - CVaR_test
+            efficiency = delta_CVaR / (step * df["hedge_cost"].values)
+        
+            best_month = np.nanargmax(efficiency)
+        
+            if not np.isfinite(efficiency[best_month]) or efficiency[best_month] <= 0:
+                break
+            
+            hedge[best_month] += step
+            CVaR_current = CVaR_test[best_month]
+        
+            hedge_tot = hedge.sum()
+        
+            log.append({
+                "Iterazione": iteration,
+                "Mese": df.loc[best_month, "Month"],
+                "Hedge_tot_MWh": hedge_tot,
+                "CVaR_€": CVaR_current,
+                "CVaR_%_EBITDA": CVaR_current / EBITDA * 100,
+                "Copertura_annua_%": (coperto_attuale + hedge_tot) / total_fabbisogno * 100
+            })
+        
+        df["Hedge_addizionale_MWh"] = hedge
+        df["Copertura_totale"] = df["Copertura_base"] + hedge
+        df["Scoperto_finale"] = df["Fabbisogno"] - df["Copertura_totale"]
+        
+        total_hedge_cost = np.sum(hedge * df["hedge_cost"].values)
+        copertura_annua_pct = df["Copertura_totale"].sum() / total_fabbisogno * 100
+        
+        st.metric("CVaR finale (€)", f"{CVaR_current:,.0f}")
+        st.metric("CVaR / EBITDA (%)", f"{CVaR_current / EBITDA * 100:.2f}%")
+        st.metric("Costo hedge totale (€)", f"{total_hedge_cost:,.0f}")
+        st.metric("Copertura annua (%)", f"{copertura_annua_pct:.2f}%")
+        
+        st.subheader("📊 Dettaglio mensile hedge")
+        st.dataframe(
+            df[[
+                "Month", "Fabbisogno", "Copertura_base",
+                "Hedge_addizionale_MWh", "Copertura_totale",
+                "Scoperto_finale", "hedge_cost"
+            ]]
+        )
+        st.subheader("📊 Copertura energetica mensile")
+        plot_monthly_coverage_stack(df)
+        st.subheader("📈 Hedge addizionale mensile")
+        plot_monthly_additional_hedge(df)
+        st.subheader("💰 Riduzione del rischio (CVaR) per iterazione")
+        plot_cvar_reduction_over_iterations(log)
         
         # Esportazione Excel
         buffer = io.BytesIO()
@@ -296,6 +414,7 @@ if selected_kri == "⚡ Energy Risk":
             dati_fibercop.to_excel(writer, sheet_name="dati_var", index=False)
             pd.DataFrame(VaR_95_monthly, columns=['VaR_95']).to_excel(writer, sheet_name="VaR_95_monthly", index=False)
             pd.DataFrame(shocks).to_excel(writer, sheet_name="shocks", index=False)
+            pd.DataFrame(df).to_excel(writer, sheet_name="Hedging", index=False)
         buffer.seek(0)
     
         st.download_button("💾 Scarica tutti i dati in Excel", data=buffer,
