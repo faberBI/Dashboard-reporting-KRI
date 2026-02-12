@@ -254,7 +254,7 @@ if selected_kri == "⚡ Energy Risk":
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std = get_garch(last_5y)
         st.success("✅ Volatilità stimata!")
-        plot_volatility_only(rolling_std, monthly_sigma)
+        plot_volatility(rolling_std, monthly_sigma)
         st.subheader("📈 Forecast Hybrid Model")
         PUN_paths, shocks = simulate_prices(PUN_monthly_forecast, monthly_price['avg_price'].values,
                                         monthly_sigma, monthly_std, L, n_sims=n_simulations)
