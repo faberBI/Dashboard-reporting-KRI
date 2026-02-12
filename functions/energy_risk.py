@@ -320,41 +320,45 @@ def compute_CVaR(hedge_vector, df, PUN_paths, VaR_level=95):
     return CVaR
 
 def plot_monthly_coverage_stack(df, month_col="Month"):
-    """
-    Grafico stacked: copertura base + hedge addizionale + scoperto finale
-    """
+    # Pulizia nomi colonne
+    df = df.copy()
+    df.columns = df.columns.str.strip()
+    df.columns = df.columns.str.capitalize()
+
+    # Controllo colonna mese
+    month_col_clean = month_col.strip().capitalize()
+    if month_col_clean not in df.columns:
+        st.error(f"Colonna '{month_col}' non trovata! Colonne disponibili: {df.columns.tolist()}")
+        return
+
+    # Selezione colonne da melt
+    value_vars = [col for col in df.columns if col not in [month_col_clean]]
+    if not value_vars:
+        st.warning("Non ci sono colonne da trasformare in melt!")
+        return
+
+    # Melt
     df_plot = df.melt(
-        id_vars=month_col,
-        value_vars=[
-            "Copertura",
-            "Hedge_addizionale_MWh",
-            "Scoperto_finale"
-        ],
+        id_vars=month_col_clean,
+        value_vars=value_vars,
         var_name="Tipo",
         value_name="MWh"
     )
 
-    color_scale = alt.Scale(
-        domain=[
-            "Copertura",
-            "Hedge_addizionale_MWh",
-            "Scoperto_finale"
-        ],
-        range=["#4CAF50", "#2196F3", "#E53935"]
-    )
+    # Pivot per stacked bar
+    df_plot_pivot = df_plot.pivot_table(index=month_col_clean, columns="Tipo", values="MWh", fill_value=0)
 
-    chart = (
-        alt.Chart(df_plot)
-        .mark_bar()
-        .encode(
-            x=alt.X(f"{month_col}:N", title="Mese"),
-            y=alt.Y("sum(MWh):Q", title="Energia (MWh)"),
-            color=alt.Color("Tipo:N", scale=color_scale, legend=alt.Legend(title="")),
-            tooltip=["Tipo:N", "sum(MWh):Q"]
-        )
-    )
+    # Creazione figura
+    fig, ax = plt.subplots(figsize=(12, 6))
+    df_plot_pivot.plot(kind="bar", stacked=True, ax=ax)
+    ax.set_xlabel(month_col_clean)
+    ax.set_ylabel("MWh")
+    ax.set_title("Copertura Mensile")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
 
-    st.altair_chart(chart, use_container_width=True)
+    # Mostra su Streamlit
+    st.pyplot(fig)
 
 def plot_monthly_additional_hedge(df, month_col="Month"):
     """
