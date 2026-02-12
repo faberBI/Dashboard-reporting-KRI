@@ -255,6 +255,8 @@ if selected_kri == "⚡ Energy Risk":
         st.dataframe(dati_fibercop)
         st.subheader("📈 Grafico VaR mensile")
         plot_monthly_VaR(VaR_95_monthly, start_year=2026)
+        fig = plot_energy_stack_with_var(dati_fibercop)
+        st.pyplot(fig, use_container_width=True)
    
         # Esportazione Excel
         buffer = io.BytesIO()
