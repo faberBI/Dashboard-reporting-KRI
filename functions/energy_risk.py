@@ -189,3 +189,66 @@ def plot_monthly_VaR(VaR_95_monthly, start_year=2026):
     st.pyplot(fig)
 
 
+def plot_energy_stack_with_var(df):
+    months = df['Month']
+
+    # Volumi
+    fabbisogno = df['Fabbisogno']
+    ppa = df['PPA Erg']
+    forward = df['Forward']
+    solar = df['Solar']
+
+    # Prezzo
+    price_var = df['Var_monthly_95_w_solar'] / 1000
+
+    fig, ax1 = plt.subplots(figsize=(14, 6))
+
+    # ===== ASSE SINISTRO: ENERGIA =====
+    ax1.stackplot(
+        months,
+        ppa,
+        forward,
+        solar,
+        labels=['PPA Erg', 'Forward', 'Solar'],
+        colors=['#001f6b', '#5b9bff', '#66d17a'],
+        alpha=0.95
+    )
+
+    ax1.plot(
+        months,
+        fabbisogno,
+        color='black',
+        linestyle='--',
+        linewidth=2.5,
+        label='Fabbisogno'
+    )
+
+    ax1.set_ylabel("Energia (MWh)")
+    ax1.set_xlabel("Mese")
+    ax1.grid(True, linestyle='--', alpha=0.4)
+
+    # ===== ASSE DESTRO: PREZZO =====
+    ax2 = ax1.twinx()
+    ax2.plot(
+        months,
+        price_var,
+        color='crimson',
+        linewidth=3,
+        label='VaR €'
+    )
+
+    ax2.set_ylabel("VaR € (k€)", color='crimson')
+    ax2.tick_params(axis='y', labelcolor='crimson')
+    ax2.set_ylim(0, None)
+
+    # ===== LEGENDA =====
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+
+    plt.title("Copertura Energetica e VaR (95%) €", fontsize=14)
+    plt.tight_layout()
+
+    return fig
+
+
