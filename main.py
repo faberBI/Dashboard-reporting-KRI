@@ -48,7 +48,8 @@ from functions.energy_risk import (
     plot_monthly_coverage_stack,
     plot_monthly_additional_hedge,
     plot_cvar_reduction_over_iterations,
-    CVaR)
+    CVaR,
+    plot_hedging_dashboard)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
@@ -406,16 +407,13 @@ if selected_kri == "⚡ Energy Risk":
         st.metric("Costo hedge totale (€)", f"€ {total_hedge_cost:,.0f}")
         st.metric("Copertura annua totale (%)", f"{copertura_annua_pct:.2f}%")
         st.subheader("📊 Grafici")
-            
         # 1️⃣ Copertura mensile stacked: base + hedge + scoperto
         plot_monthly_coverage_stack(df, month_col="Month")
-            
-        # 2️⃣ Hedge addizionale per mese
-        plot_monthly_additional_hedge(df, month_col="Month")
-            
-        # 3️⃣ Andamento CVaR durante le iterazioni
-        plot_cvar_reduction_over_iterations(log)
-        
+        fig_cost, fig_hedge, fig_cov = plot_hedging_dashboard(df)
+        st.plotly_chart(fig_cost, use_container_width=True)
+        st.plotly_chart(fig_hedge, use_container_width=True)
+        st.plotly_chart(fig_cov, use_container_width=True)
+                  
         
         # Esportazione Excel
         buffer = io.BytesIO()
