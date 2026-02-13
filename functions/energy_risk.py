@@ -8,6 +8,7 @@ import io
 import pickle
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import altair as alt
+import plotly.graph_objects as go
 
 @st.cache_resource
 def fit_sarimax_model(series):
@@ -450,3 +451,110 @@ def CVaR(h, df_local, PUN_paths_local):
         PUN_paths=PUN_paths_local,
         VaR_level=95
     ))
+
+
+def plot_hedging_dashboard(df, month_col="Anno-Mese"):
+    df = df.copy()
+
+    # =========================
+    # GRAFICO 1: COSTO HEDGING
+    # =========================
+    fig_cost = go.Figure()
+    fig_cost.add_trace(
+        go.Scatter(
+            x=df[month_col],
+            y=df["hedge_cost"],
+            mode="lines+markers",
+            name="Hedge cost (€/MWh)",
+            line=dict(color="black", width=2),
+            marker=dict(size=7)
+        )
+    )
+
+    fig_cost.update_layout(
+        title="Costo hedging (€/MWh)",
+        xaxis_title="Anno-Mese",
+        yaxis_title="€/MWh",
+        template="plotly_white",
+        height=350
+    )
+
+    # =========================
+    # GRAFICO 2: HEDGE ADDIZIONALE
+    # =========================
+    fig_hedge = go.Figure()
+    fig_hedge.add_trace(
+        go.Bar(
+            x=df[month_col],
+            y=df["hedge_addizionale_MWh"],
+            name="Hedge addizionale (MWh)",
+            marker_color="#ff7f0e"
+        )
+    )
+
+    fig_hedge.update_layout(
+        title="Hedge addizionale per mese (acquisti / de-hedging)",
+        xaxis_title="Anno-Mese",
+        yaxis_title="MWh",
+        template="plotly_white",
+        height=350
+    )
+
+    # =========================
+    # GRAFICO 3: COPERTURA VS FABBISOGNO
+    # =========================
+    fig_cov = go.Figure()
+
+    # Barre PRE
+    fig_cov.add_bar(
+        x=df[month_col],
+        y=df["Copertura"],
+        name="Copertura PRE",
+        marker_color="#1f77b4"
+    )
+
+    fig_cov.add_bar(
+        x=df[month_col],
+        y=df["Scoperto_base"],
+        name="Scoperto PRE",
+        marker_color="#d62728"
+    )
+
+    # Barre POST
+    fig_cov.add_bar(
+        x=df[month_col],
+        y=df["coperto_totale"],
+        name="Copertura POST",
+        marker_color="#2ca02c"
+    )
+
+    fig_cov.add_bar(
+        x=df[month_col],
+        y=df["scoperto_finale"],
+        name="Scoperto POST",
+        marker_color="#9467bd"
+    )
+
+    # Linea fabbisogno
+    fig_cov.add_trace(
+        go.Scatter(
+            x=df[month_col],
+            y=df["Fabbisogno"],
+            name="Fabbisogno",
+            mode="lines+markers",
+            line=dict(color="black", width=3),
+            marker=dict(size=6)
+        )
+    )
+
+    fig_cov.update_layout(
+        title="Copertura e scoperto PRE / POST vs Fabbisogno",
+        barmode="group",
+        xaxis_title="Anno-Mese",
+        yaxis_title="Energia (MWh)",
+        template="plotly_white",
+        height=500
+    )
+
+    return fig_cost, fig_hedge, fig_cov
+
