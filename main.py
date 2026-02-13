@@ -299,47 +299,64 @@ if selected_kri == "⚡ Energy Risk":
         df["Scoperto_base"] = df['scoperto_w_solar'] * 1000
         
         # CVaR limit (prendo il primo anno come riferimento)
-        CVaR_limit = ebitda_inputs[list(ebitda_inputs.keys())[0]] * risk_appetite
+        CVaR_limit = {year: ebitda_inputs[year] * risk_appetite for year in df['Anno'].unique()}
+
         
         # Hedge cost mensile
         df["hedge_cost"] = df["Prezzo Forward"] - df["Prezzo Budget"]
         
         # Inizializzazione hedge
-        hedge = np.zeros(12, dtype=float)
-        total_fabbisogno = df["Fabbisogno"].sum()
-        coperto_attuale = df["Copertura"].sum()
-        max_copertura_totale = total_fabbisogno * alpha
-        
-        max_needed = max(max_copertura_totale - coperto_attuale, 0)
-        weights = df["scoperto_w_solar"].values / df["scoperto_w_solar"].sum()
-        hedge += max_needed * weights
-        
+        n_months = len(df)
+        hedge = np.zeros(n_months, dtype=float)
+        for year in df['Anno'].unique():
+            mask = df['Anno'] == year
+            total_fabbisogno_year = df.loc[mask, 'Fabbisogno'].sum()
+            coperto_attuale_year = df.loc[mask, 'Copertura'].sum()
+            max_copertura_totale_year = total_fabbisogno_year * alpha
+            max_needed = max(max_copertura_totale_year - coperto_attuale_year, 0)
+
+            # pesi proporzionali allo scoperto
+            weights = df.loc[mask, "scoperto_w_solar"].values
+            if weights.sum() > 0:
+                weights = weights / weights.sum()
+                hedge[mask] += max_needed * weights
+               
         # Limite mensile
         max_hedge_mensile = df["Fabbisogno"].values * 0.85 - df["Copertura"].values
         hedge = np.minimum(hedge, max_hedge_mensile)
         
-        # Saturazione residuo
-        residuo = max_copertura_totale - (df["Copertura"].sum() + hedge.sum())
-        while residuo > 0:
-            spazio = max_hedge_mensile - hedge
-            spazio[spazio < 0] = 0
-            if spazio.sum() <= 0:
-                break
-            incremento = residuo * (spazio / spazio.sum())
-            hedge += incremento
-            hedge = np.minimum(hedge, max_hedge_mensile)
-            residuo = max_copertura_totale - (df["Copertura"].sum() + hedge.sum())
-            
+        # Saturazione residuo anno per anno
+        for year in df['Anno'].unique():
+            mask = df['Anno'] == year
+            residuo = (df.loc[mask, 'Fabbisogno'].sum() * alpha) - (df.loc[mask, 'Copertura'].sum() + hedge[mask].sum())
+
+            while residuo > 0:
+                spazio = max_hedge_mensile[mask] - hedge[mask]
+                spazio[spazio < 0] = 0
+                if spazio.sum() <= 0:
+                    break
+                incremento = residuo * (spazio / spazio.sum())
+                hedge[mask] += incremento
+                hedge[mask] = np.minimum(hedge[mask], max_hedge_mensile[mask])
+                residuo = (df.loc[mask, 'Fabbisogno'].sum() * alpha) - (df.loc[mask, 'Copertura'].sum() + hedge[mask].sum())
+
+        # Converto hedge in float
         hedge = hedge.astype(float)
+
+        # Calcolo CVaR iniziale (puoi anche fare anno per anno se vuoi)
         CVaR_current = CVaR(hedge, df, PUN_paths)
-            
+
+        # MODIFICATO! 
         # =========================
-        # OTTIMIZZAZIONE GREEDY
+        # OTTIMIZZAZIONE GREEDY MULTI-ANNO
         # =========================
         iteration = 0
         log = []
-            
-        while CVaR_current > CVaR_limit:
+        
+        # totale fabbisogno per tutti gli anni (per metriche aggregate)
+        total_fabbisogno = df["Fabbisogno"].sum()
+        
+        while True:
             iteration += 1
             best_month = None
             best_efficiency = 0
@@ -354,62 +371,76 @@ if selected_kri == "⚡ Energy Risk":
             for m in np.where(admissible)[0]:
                 hedge_test = hedge.copy()
                 hedge_test[m] += step
-                copertura_annua = (df["Copertura"].sum() + hedge_test.sum()) / total_fabbisogno
+        
+                # anno del mese corrente
+                anno_m = df.loc[m, "Anno"]
+                mask_year = df['Anno'] == anno_m
+        
+                # copertura annua per quell'anno
+                copertura_annua = (df.loc[mask_year, 'Copertura'].sum() + hedge_test[mask_year].sum()) / df.loc[mask_year, 'Fabbisogno'].sum()
                 if copertura_annua > alpha:
                     continue
+                
+                # calcolo CVaR nuovo
                 CVaR_new = CVaR(hedge_test, df, PUN_paths)
                 risk_reduction = CVaR_current - CVaR_new
                 cost_eur = step * df.loc[m, "hedge_cost"]
                 if cost_eur <= 0:
                     continue
+                
+                # efficienza rischio/costo
                 efficiency = risk_reduction / cost_eur
                 if efficiency > best_efficiency:
                     best_efficiency = efficiency
                     best_month = m
-                
+        
             if best_month is None:
                 st.warning("⚠️ Nessun ulteriore miglioramento possibile.")
                 break
             
+            # aggiorna hedge
             hedge[best_month] += step
             CVaR_current = CVaR(hedge, df, PUN_paths)
-            
+        
+            # log iterazione
             hedge_tot = hedge.sum()
-            cvar_pct = CVaR_current / ebitda_inputs[list(ebitda_inputs.keys())[0]] * 100
-            copertura_annua_pct = (df["Copertura"].sum() + hedge_tot) / total_fabbisogno * 100
-            st.write("Iteration:", iteration)
-            st.write("admissible:", admissible)
-            st.write("best_month:", best_month)
+            anno_best = df.loc[best_month, "Anno"]
+            cvar_pct = CVaR_current / ebitda_inputs[anno_best] * 100
+            copertura_annua_pct = (df["Coperto"] + hedge).sum() / total_fabbisogno * 100
+        
             log.append({
                 "iter": iteration,
                 "mese": df.loc[best_month, "mese"],
+                "anno": anno_best,
                 "hedge_tot_MWh": hedge_tot,
                 "CVaR_euro": CVaR_current,
                 "CVaR_pct_EBITDA": cvar_pct,
                 "copertura_annua_pct": copertura_annua_pct
             })
-            
+        
             st.write(f"Iter {iteration}: CVaR={CVaR_current:,.0f}€, Copertura annua={copertura_annua_pct:.2f}%")
-            
+        
         log = pd.DataFrame(log)
-            
+        
         # =========================
-        # OUTPUT FINALE
+        # OUTPUT FINALE MULTI-ANNO
         # =========================
         df["hedge_addizionale_MWh"] = hedge
         df["coperto_totale"] = df["Copertura"] + hedge
         df["scoperto_finale"] = df["Fabbisogno"] - df["coperto_totale"]
         total_hedge_cost = np.sum(hedge * df["hedge_cost"].values)
         copertura_annua_pct = df["coperto_totale"].sum() / total_fabbisogno * 100
-            
+        
         st.dataframe(df)
         st.metric("CVaR finale (€)", f"€ {CVaR_current:,.0f}")
         st.metric("Costo hedge totale (€)", f"€ {total_hedge_cost:,.0f}")
         st.metric("Copertura annua totale (%)", f"{copertura_annua_pct:.2f}%")
+
         st.subheader("📊 Grafici")
-        # 1️⃣ Copertura mensile stacked: base + hedge + scoperto
-        plot_monthly_coverage_stack(df, month_col="Month")
-        fig_cost, fig_hedge, fig_cov = plot_hedging_dashboard(df)
+        if 'Month' in df.columns:
+            df['Anno-Mese'] = df['Anno'].astype(str) + "-" + df['Month'].astype(str)
+        plot_monthly_coverage_stack(df, month_col="Anno-Mese")
+        fig_cost, fig_hedge, fig_cov = plot_hedging_dashboard(df, month_col="Anno-Mese")
         st.plotly_chart(fig_cost, use_container_width=True)
         st.plotly_chart(fig_hedge, use_container_width=True)
         st.plotly_chart(fig_cov, use_container_width=True)
