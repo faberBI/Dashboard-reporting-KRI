@@ -326,38 +326,50 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # Controllo colonna mese
     if month_col not in df.columns:
         st.error(f"Colonna '{month_col}' non trovata! Colonne disponibili: {df.columns.tolist()}")
         return
 
-    # Ordine dei mesi italiani
+    # =========================
+    # ORDINAMENTO ASSE X
+    # =========================
     mesi_italiani = ["gen", "feb", "mar", "apr", "mag", "giu",
                      "lug", "ago", "set", "ott", "nov", "dic"]
-    
-    # Trasforma in categoria ordinata
-    df[month_col] = pd.Categorical(df[month_col], categories=mesi_italiani, ordered=True)
 
-    # Colonne disponibili per il grafico
+    if month_col == "Month":
+        # caso mono-anno classico
+        df[month_col] = pd.Categorical(
+            df[month_col],
+            categories=mesi_italiani,
+            ordered=True
+        )
+    else:
+        # caso multi-anno (Anno-Mese)
+        df = df.sort_values(month_col)
+
+    # =========================
+    # COLONNE DI COVERAGE
+    # =========================
     coverage_cols = ["Copertura", "hedge_addizionale_MWh", "scoperto_finale"]
-    available_cols = [col for col in coverage_cols if col in df.columns]
+    available_cols = [c for c in coverage_cols if c in df.columns]
 
     if not available_cols:
         st.error("Nessuna colonna di coverage disponibile nel DataFrame.")
         return
 
-    # Selezione colonne tramite multiselect
     selected_cols = st.multiselect(
         "Seleziona le componenti da visualizzare nel grafico:",
         options=available_cols,
-        default=available_cols  # di default tutte
+        default=available_cols
     )
 
     if not selected_cols:
         st.warning("Seleziona almeno una colonna da visualizzare.")
         return
 
-    # Melt dei dati selezionati
+    # =========================
+    # PREPARAZIONE DATI
+    # =========================
     df_plot = df.melt(
         id_vars=month_col,
         value_vars=selected_cols,
@@ -365,7 +377,8 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
         value_name="MWh"
     )
 
-    # Pivot per stacked bar
+    df_plot["MWh"] = pd.to_numeric(df_plot["MWh"], errors="coerce").fillna(0)
+
     df_plot_pivot = df_plot.pivot_table(
         index=month_col,
         columns="Tipo",
@@ -373,20 +386,20 @@ def plot_monthly_coverage_stack(df, month_col="Month"):
         fill_value=0
     )
 
-    # Ordinamento esplicito dei mesi
-    df_plot_pivot = df_plot_pivot.reindex(mesi_italiani)
-
-    # Creazione figura
+    # =========================
+    # PLOT
+    # =========================
     fig, ax = plt.subplots(figsize=(12, 6))
     df_plot_pivot.plot(kind="bar", stacked=True, ax=ax)
+
     ax.set_xlabel(month_col)
     ax.set_ylabel("MWh")
-    ax.set_title("Monthly Coverage")
+    ax.set_title("Monthly Coverage (PRE / POST)")
     plt.xticks(rotation=45)
     plt.tight_layout()
 
-    # Mostra su Streamlit
     st.pyplot(fig)
+
 
 def plot_monthly_additional_hedge(df, month_col="Month"):
     """
