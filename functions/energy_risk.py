@@ -109,6 +109,7 @@ def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_st
     return PUN_paths, shocks
 
 def compute_VaR(df_var, VaR_95_monthly, cut_month, hid_month):
+    
     VaR_95_2026 = VaR_95_monthly[:cut_month] 
     df_var['scoperto_w_solar'] = np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward'] +	df_var['Solar']), 0)
     df_var['scoperto_w/o_solar'] = np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']), 0)
@@ -172,7 +173,7 @@ def plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026):
         "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
     ]
 
-    labels = [f"{months_names[d.month-1]} {d.year}" for d in dates]
+    labels = [f"{months_names[d.month-1]} {d.year}" for d in dates[:cut_month]]
     VaR_95_2026 = VaR_95_monthly[:cut_month] 
 
     # Creazione figura
