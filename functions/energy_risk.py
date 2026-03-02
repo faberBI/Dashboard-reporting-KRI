@@ -159,23 +159,28 @@ def plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026):
     Grafico VaR 95% mensile su più anni.
 
     VaR_95_monthly : array o lista di valori VaR per ogni mese (lunghezza = n_years*12)
+    cut_month      : numero di mesi da tagliare dall'inizio (forecast parte dopo questi mesi)
     start_year     : anno di partenza del forecast (es. 2026)
     """
     n_months = len(VaR_95_monthly)
     n_years = n_months // 12
 
-    # Creiamo le date mese/anno
+    # Genero tutte le date partendo da gennaio dello start_year
     dates = pd.date_range(start=f"{start_year}-01-01", periods=n_months, freq='MS')
+
+    # Taglio i primi 'cut_month' mesi
+    dates = dates[cut_month:]
+    VaR_95_2026 = VaR_95_monthly[cut_month:]
 
     # Nomi mesi in italiano
     months_names = [
         "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
         "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
     ]
-
     labels = [f"{months_names[d.month-1]} {d.year}" for d in dates]
-    labels = labels[cut_month:]
-    VaR_95_2026 = VaR_95_monthly[:cut_month] 
+
+    # Controllo debug lunghezza
+    assert len(labels) == len(VaR_95_2026), f"Mismatch: {len(labels)} vs {len(VaR_95_2026)}"
 
     # Creazione figura
     fig, ax = plt.subplots(figsize=(12,6))
@@ -187,7 +192,6 @@ def plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026):
 
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
-
     st.pyplot(fig)
 
 
