@@ -43,13 +43,19 @@ def get_return(path, year=2015):
     hist_pun["Month"] = hist_pun["Date"].dt.month
     hist_pun["log_return"] = np.log(hist_pun["GMEPIT24 Index"] / hist_pun["GMEPIT24 Index"].shift(1))
     last_5y = hist_pun[hist_pun['Year'] > year]
-    
     monthly_std = last_5y.groupby("Month")["log_return"].std().reset_index(name="std_log_return")
     monthly_std['std_log_return_montly'] = monthly_std['std_log_return'] * np.sqrt(21)
-    
     monthly_price = last_5y.groupby("Month")["GMEPIT24 Index"].mean().reset_index(name="avg_price")
-    
-    return last_5y, monthly_std, monthly_price
+    monthly_price_year = (
+        last_5y
+        .set_index("Date")["GMEPIT24 Index"]
+        .resample("MS")          # Month Start frequency
+        .mean()
+        .dropna()
+        .reset_index()
+        .rename(columns={"GMEPIT24 Index": "avg_price"})
+    )
+    return last_5y, monthly_std, monthly_price, monthly_price_year
 
 def apply_cholesky(last_5y):
     monthly_lr = last_5y.groupby(last_5y["Date"].dt.to_period("M"))["log_return"].sum().to_frame("log_return")
