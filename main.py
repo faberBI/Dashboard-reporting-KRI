@@ -286,6 +286,9 @@ if selected_kri == "⚡ Energy Risk":
         last_month = series.index[-1]
         cut_month = 12 - last_month.month
         hid_month = 12 - cut_month
+
+        st.write('mesi rimanenti', cut_month)
+        st.write('mesi da nascondere', hid_month)
         
         dati_fibercop = compute_VaR(df, VaR_95_monthly, cut_month, hid_month)
         dati_fibercop['Anno_Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
