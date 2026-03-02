@@ -282,7 +282,12 @@ if selected_kri == "⚡ Energy Risk":
                                         monthly_sigma, monthly_std, L, n_sims=n_simulations)
         VaR_95_monthly = np.percentile(PUN_paths, 95, axis=0)
         st.success("✅ VaR al 95 percentile calcolato!")
-        dati_fibercop = compute_VaR(df, VaR_95_monthly)
+
+        last_month = series.index[-1]
+        cut_month = 12 - last_month.month
+        hid_month = 12 - cut_month
+        
+        dati_fibercop = compute_VaR(df_var, VaR_95_monthly, cut_month, hid_month)
         dati_fibercop['Anno_Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
         st.dataframe(dati_fibercop.drop(['Anno_Mese'], axis=1))
         st.subheader("📈 Grafico VaR mensile")
