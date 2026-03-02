@@ -153,7 +153,7 @@ def plot_volatility(rolling_std, sigma_t):
     # ===== STREAMLIT =====
     st.pyplot(fig, use_container_width=True)
 
-def plot_monthly_VaR(VaR_95_monthly, start_year=2026):
+def plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026):
     """
     Grafico VaR 95% mensile su più anni.
 
@@ -173,11 +173,11 @@ def plot_monthly_VaR(VaR_95_monthly, start_year=2026):
     ]
 
     labels = [f"{months_names[d.month-1]} {d.year}" for d in dates]
+    VaR_95_2026 = VaR_95_monthly[:cut_month] 
 
     # Creazione figura
     fig, ax = plt.subplots(figsize=(12,6))
-
-    ax.plot(labels, VaR_95_monthly, marker='o', color='crimson', linewidth=2)
+    ax.plot(labels, VaR_95_2026, marker='o', color='crimson', linewidth=2)
 
     ax.set_ylabel("VaR 95% (€/MWh)")
     ax.set_title(f"VaR 95% Mensile - PUN ({n_years} year)")
