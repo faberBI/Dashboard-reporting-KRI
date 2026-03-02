@@ -171,7 +171,7 @@ def plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026):
     dates = pd.date_range(start=f"{start_year}-01-01", periods=n_months, freq='MS')
 
     # Taglio i primi 'cut_month' mesi
-    dates = dates[cut_month:]
+    dates = dates[:cut_month]
 
     # Nomi mesi in italiano
     months_names = [
