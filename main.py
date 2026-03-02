@@ -251,24 +251,25 @@ if selected_kri == "⚡ Energy Risk":
             st.stop()
 
         np.random.seed(42)
-        last_5y, monthly_std, monthly_price = get_return(data_path)
+        last_5y, monthly_std, monthly_price, monthly_price_year = get_return(data_path)
         st.success("✅ Statistiche calcolate!")
         L, rho_hat = apply_cholesky(last_5y)
         hist_pun = pd.read_excel(data_path)
         hist_pun["log_return"] = np.log(hist_pun["GMEPIT24 Index"] / hist_pun["GMEPIT24 Index"].shift(1))
         hist_pun["Month"] = hist_pun["Date"].dt.month
         hist_filter = hist_pun[hist_pun['Year']>2015]
+        
         series = hist_filter.set_index('Date')['GMEPIT24 Index'].astype(float).dropna()
         fig, ax = plt.subplots(figsize=(12, 5))
         ax.plot(series.index, series.values, linewidth=2)
-        ax.set_title("Serie Storica PUN mensile", fontsize=13)
+        ax.set_title("Serie Storica PUN giornaliera", fontsize=13)
         ax.set_xlabel("Data")
         ax.set_ylabel("Prezzo")
         ax.grid(True, linestyle="--", alpha=0.4)
         plt.tight_layout()
         st.pyplot(fig, use_container_width=True)
 
-        PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
+        PUN_monthly_forecast = forecast_monthly_prices(monthly_price_year, n_years=n_year)
         st.success("✅ Modello ibrido allenato!")
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std, sigma_t = get_garch(last_5y)
