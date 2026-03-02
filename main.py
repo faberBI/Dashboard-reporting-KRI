@@ -287,7 +287,7 @@ if selected_kri == "⚡ Energy Risk":
         cut_month = 12 - last_month.month
         hid_month = 12 - cut_month
         
-        dati_fibercop = compute_VaR(df_var, VaR_95_monthly, cut_month, hid_month)
+        dati_fibercop = compute_VaR(df, VaR_95_monthly, cut_month, hid_month)
         dati_fibercop['Anno_Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
         st.dataframe(dati_fibercop.drop(['Anno_Mese'], axis=1))
         st.subheader("📈 Grafico VaR mensile")
