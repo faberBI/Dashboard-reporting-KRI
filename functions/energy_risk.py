@@ -108,12 +108,14 @@ def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_st
     PUN_paths = np.hstack(all_years)
     return PUN_paths, shocks
 
-def compute_VaR(df_var, VaR_95_monthly):
+def compute_VaR(df_var, VaR_95_monthly, cut_month, hid_month):
+    VaR_95_2026 = VaR_95_monthly[:hid_month] 
     df_var['scoperto_w_solar'] = np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward'] +	df_var['Solar']), 0)
     df_var['scoperto_w/o_solar'] = np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']), 0)
-    df_var['Price_95perc'] = VaR_95_monthly
+    df_var['Price_95perc'] = np.concatenate([ [np.nan]*cut_month, VaR_95_2026 ])
     df_var['Var_monthly_95_w_solar'] = (df_var['Price_95perc'] - df_var['Prezzo Budget']) * np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward'] + df_var['Solar']),0) *1000
     df_var['Var_monthly_95_w/o_solar'] = (df_var['Price_95perc'] - df_var['Prezzo Budget']) * np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']),0) *1000
+    
     return df_var
 
 def plot_volatility(rolling_std, sigma_t):
