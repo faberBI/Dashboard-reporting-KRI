@@ -163,15 +163,15 @@ def plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026):
     start_year     : anno di partenza del forecast (es. 2026)
     """
 
+    # Prendo solo i mesi che servono
     VaR_95_2026 = VaR_95_monthly[cut_month:]
     n_months = len(VaR_95_2026)
     n_years = n_months // 12
 
-    # Genero tutte le date partendo da gennaio dello start_year
-    dates = pd.date_range(start=f"{start_year}-01-01", periods=n_months, freq='MS')
-
-    # Taglio i primi 'cut_month' mesi
-    dates = dates[:cut_month]
+    # Genero le date corrispondenti agli stessi mesi
+    # Inizio da start_year + cut_month mesi
+    dates = pd.date_range(start=f"{start_year}-01-01", periods=len(VaR_95_monthly), freq='MS')
+    dates = dates[cut_month:]  # taglio solo i primi 'cut_month'
 
     # Nomi mesi in italiano
     months_names = [
@@ -179,6 +179,9 @@ def plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026):
         "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
     ]
     labels = [f"{months_names[d.month-1]} {d.year}" for d in dates]
+
+    # Controllo debug
+    assert len(labels) == len(VaR_95_2026), f"Mismatch: {len(labels)} vs {len(VaR_95_2026)}"
 
     # Creazione figura
     fig, ax = plt.subplots(figsize=(12,6))
