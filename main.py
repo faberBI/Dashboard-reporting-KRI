@@ -271,7 +271,7 @@ if selected_kri == "⚡ Energy Risk":
         st.pyplot(fig, use_container_width=True)
         
         series = monthly_price_year.set_index("Date")["avg_price"]
-        new_start = series.index[-1:]
+        new_start = pd.Timestamp('2026-03-01')
         PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
         new_index = pd.date_range(start=new_start + pd.offsets.MonthBegin(1),periods=len(PUN_monthly_forecast),freq='MS')
         
