@@ -292,7 +292,7 @@ if selected_kri == "⚡ Energy Risk":
 
         last_month = series.index[-1]
         n_months = n_year*12
-        cut_month = n_months - last_month.month
+        cut_month = n_months - (last_month.month-1)
         hid_month = n_months - cut_month
 
         st.write('mesi rimanenti', cut_month)
