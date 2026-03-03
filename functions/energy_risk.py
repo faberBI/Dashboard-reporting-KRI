@@ -39,7 +39,7 @@ def adjust_first_forecast_with_partial_month(forecast, series):
     last_date = series["Date"].max()
     current_period = last_date.to_period("M")
 
-    partial_data = df[
+    partial_data = series[
         series["Date"].dt.to_period("M") == current_period
     ]["GMEPIT24 Index"]
 
