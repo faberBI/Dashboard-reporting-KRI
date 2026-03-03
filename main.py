@@ -273,7 +273,7 @@ if selected_kri == "⚡ Energy Risk":
         series = monthly_price_year.set_index("Date")["avg_price"]
         new_start = pd.Timestamp('2026-03-01')
         PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
-        new_index = pd.date_range(start=new_start + pd.offsets.MonthBegin(1),periods=len(PUN_monthly_forecast),freq='MS')
+        new_index = pd.date_range(start=new_start, periods=len(PUN_monthly_forecast), freq='MS')
         PUN_monthly_forecast.index = new_index
 
         st.write('PUN forecast', PUN_monthly_forecast)
