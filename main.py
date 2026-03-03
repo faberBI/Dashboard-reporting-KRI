@@ -274,6 +274,7 @@ if selected_kri == "⚡ Energy Risk":
         new_start = pd.Timestamp('2026-03-01')
         PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
         new_index = pd.date_range(start=new_start + pd.offsets.MonthBegin(1),periods=len(PUN_monthly_forecast),freq='MS')
+        PUN_monthly_forecast.index = new_index
         
         st.success("✅ Modello ibrido allenato!")
         st.subheader("📈 Prezzo PUN e Volatilità")
