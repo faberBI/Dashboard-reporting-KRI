@@ -109,8 +109,7 @@ def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_st
     np.random.seed(seed)
     vol_h = monthly_sigma * np.array(PUN_monthly)
     vol_m = np.array(monthly_std['std_log_return_montly'].values) * np.array(PUN_monthly)
-    vol_f = (vol_h + vol_m)/2
-    #vol_f = vol_h
+    #vol_f = (vol_h + vol_m)/2
     
     n_total_months = len(PUN_monthly_forecast)
     n_years = n_total_months // 12
@@ -119,7 +118,7 @@ def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_st
     for i in range(n_years):
         P_mean = np.array(PUN_monthly_forecast[i*12:(i+1)*12])
         Z = np.random.normal(size=(n_sims,12))
-        shocks = (Z @ L.T) * vol_f[np.newaxis, :]
+        shocks = (Z @ L.T) * vol_m[np.newaxis, :]
         P_paths = P_mean[np.newaxis, :] + shocks
         all_years.append(P_paths)
     
