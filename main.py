@@ -284,8 +284,9 @@ if selected_kri == "⚡ Energy Risk":
         st.success("✅ VaR al 95 percentile calcolato!")
 
         last_month = series.index[-1]
-        cut_month = 12 - last_month.month
-        hid_month = 12 - cut_month
+        n_months = n_year*12
+        cut_month = n_months - last_month.month
+        hid_month = n_months - cut_month
 
         st.write('mesi rimanenti', cut_month)
         st.write('mesi da nascondere', hid_month)
