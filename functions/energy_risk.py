@@ -34,7 +34,25 @@ def forecast_monthly_prices(series, n_years=1):
     forecast = model_fit.forecast(steps=forecast_periods)
     return forecast
 
+def adjust_first_forecast_with_partial_month(forecast, series):
+    
+    last_date = series["Date"].max()
+    current_period = last_date.to_period("M")
 
+    partial_data = df[
+        series["Date"].dt.to_period("M") == current_period
+    ]["GMEPIT24 Index"]
+
+    partial_mean = partial_data.mean()
+
+    weight = last_date.day / last_date.days_in_month
+
+    forecast.iloc[0] = (
+        (1 - weight) * forecast.iloc[0]
+        + weight * partial_mean
+    )
+
+    return forecast
     
 def get_return(path, year=2015):
     hist_pun = pd.read_excel(path)
