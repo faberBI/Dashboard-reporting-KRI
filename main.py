@@ -271,8 +271,10 @@ if selected_kri == "⚡ Energy Risk":
         st.pyplot(fig, use_container_width=True)
         
         series = monthly_price_year.set_index("Date")["avg_price"]
+        new_start = series.index[-1:]
         PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
-        PUN_monthly_forecast = adjust_first_forecast_with_partial_month(PUN_monthly_forecast, hist_pun)
+        new_index = pd.date_range(start=new_start, periods=len(PUN_monthly_forecast), freq='MS')
+        
         st.success("✅ Modello ibrido allenato!")
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std, sigma_t = get_garch(last_5y)
