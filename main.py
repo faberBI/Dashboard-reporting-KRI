@@ -49,7 +49,8 @@ from functions.energy_risk import (
     plot_monthly_additional_hedge,
     plot_cvar_reduction_over_iterations,
     CVaR,
-    plot_hedging_dashboard)
+    plot_hedging_dashboard,
+    adjust_first_forecast_with_partial_month)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 
@@ -271,6 +272,7 @@ if selected_kri == "⚡ Energy Risk":
         
         series = monthly_price_year.set_index("Date")["avg_price"]
         PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
+        PUN_monthly_forecast = adjust_first_forecast_with_partial_month(PUN_monthly_forecast, hist_pun)
         st.success("✅ Modello ibrido allenato!")
         st.subheader("📈 Prezzo PUN e Volatilità")
         monthly_sigma, rolling_std, sigma_t = get_garch(last_5y)
