@@ -465,7 +465,7 @@ if selected_kri == "⚡ Energy Risk":
         st.plotly_chart(fig_cov, use_container_width=True)
 
         # Monthly adjustment dataset
-        dati_monthly = dati_fibercop[['Fabbisogno','PPA Erg','Forward','Solar', 'scoperto_w_solar', 'scoperto_w/o_solar', 'Var_monthly_95_w_solar', 'Var_monthly_95_w/o_solar']].groupby('Anno').sum()
+        dati_monthly = (dati_fibercop.groupby('Anno')[['Fabbisogno','PPA Erg','Forward','Solar','scoperto_w_solar','scoperto_w/o_solar','Var_monthly_95_w_solar','Var_monthly_95_w/o_solar']]-sum())
         
         # Esportazione Excel
         buffer = io.BytesIO()
