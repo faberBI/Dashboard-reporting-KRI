@@ -463,7 +463,9 @@ if selected_kri == "⚡ Energy Risk":
         st.plotly_chart(fig_cost, use_container_width=True)
         st.plotly_chart(fig_hedge, use_container_width=True)
         st.plotly_chart(fig_cov, use_container_width=True)
-                  
+
+        # Monthly adjustment dataset
+        dati_monthly = dati_fibercop[['Fabbisogno','PPA Erg','Forward','Solar', 'scoperto_w_solar', 'scoperto_w/o_solar', 'Var_monthly_95_w_solar', 'Var_monthly_95_w/o_solar']].groupby('Anno').sum()
         
         # Esportazione Excel
         buffer = io.BytesIO()
@@ -475,6 +477,7 @@ if selected_kri == "⚡ Energy Risk":
             pd.DataFrame(monthly_sigma, columns=['monthly_sigma']).to_excel(writer, sheet_name="monthly_sigma", index=False)
             pd.DataFrame(PUN_paths).to_excel(writer, sheet_name="PUN_paths", index=False)
             dati_fibercop.to_excel(writer, sheet_name="dati_var", index=False)
+            dati_monthly.to_excel(writer, sheet_name = "dati_var_monthly", index = False)
             pd.DataFrame(VaR_95_monthly, columns=['VaR_95']).to_excel(writer, sheet_name="VaR_95_monthly", index=False)
             pd.DataFrame(shocks).to_excel(writer, sheet_name="shocks", index=False)
             pd.DataFrame(df).to_excel(writer, sheet_name="Hedging", index=False)
@@ -482,7 +485,7 @@ if selected_kri == "⚡ Energy Risk":
         buffer.seek(0)
     
         st.download_button("💾 Scarica tutti i dati in Excel", data=buffer,
-                           file_name="Energy_Risk_VaR.xlsx",
+                           file_name=f"Energy_Risk_VaR_{pd.Timestamp.today().date()}.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         
 # -----------------------
