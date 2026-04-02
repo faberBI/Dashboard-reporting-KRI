@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import unicodedata
 import streamlit as st
+import geopandas as gpd
+
 
 def get_kri_bi(df, n_sim=10000):
     # --- DATE E DURATA ---
@@ -248,42 +250,52 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, result_Impatto_Cliente, ri
     st.plotly_chart(fig, use_container_width=True)
 
 
-def plot_kri_map_regioni_interattivo(result_GEO_REG, value_col='WGHI_reg_norm'):
+def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg01012026_g_WGS84.shp', value_col='WGHI_reg_norm'):
     """
-    Mappa interattiva con Plotly per regioni italiane
+    Crea una mappa interattiva dei KRI per regione italiana usando Plotly + GeoPandas.
+    
+    Parametri:
+    - result_GEO_REG: DataFrame con colonne ['Regioni', value_col]
+    - shapefile_path: percorso del file shapefile delle regioni italiane
+    - value_col: nome della colonna da colorare nella mappa (es. 'WGHI_reg_norm' o 'WGHI_ic')
+    
+    Restituisce:
+    - fig: oggetto Plotly per la mappa interattiva
     """
-    # Normalizzazione nomi
+    
+    # --- Carica shapefile regioni italiane ---
+    regioni = gpd.read_file(shapefile_path)
+
+    # --- Normalizzazione nomi per merge ---
     def normalize(text):
         if text is None:
             return None
         return unicodedata.normalize('NFKD', str(text)).encode('ascii', errors='ignore').decode('utf-8').title().strip()
 
-    df = result_GEO_REG.copy()
-    df['Regioni_clean'] = df['Regioni'].apply(normalize)
+    regioni['Regioni_clean'] = regioni['DEN_REG'].apply(normalize)  # DEN_REG è la colonna con i nomi delle regioni nello shapefile
+    result_GEO_REG['Regioni_clean'] = result_GEO_REG['Regioni'].apply(normalize)
 
+    # --- Merge dei dati KRI con geometrie ---
+    gdf = regioni.merge(result_GEO_REG, on='Regioni_clean', how='left')
+
+    # --- Creazione mappa interattiva con Plotly ---
     fig = px.choropleth(
-        df,
-        locations='Regioni_clean',
-        locationmode='country names',  # riconosce le regioni italiane
+        gdf,
+        geojson=gdf.geometry,
+        locations=gdf.index,
         color=value_col,
-        scope="europe",
-        color_continuous_scale="RdYlGn_r",
-        labels={value_col: "KRI Normalizzato"},
         hover_name='Regioni_clean',
-        hover_data={value_col: True}
+        hover_data={value_col: True},
+        color_continuous_scale="RdYlGn_r",
+        title=f"Mappa Interattiva KRI per Regione ({value_col})"
     )
 
-    fig.update_layout(
-        title_text="Mappa Interattiva KRI per Regione",
-        geo=dict(
-            showframe=False,
-            showcoastlines=False,
-            projection_type='mercator',
-            lataxis_range=[35, 47],  # limita a Italia
-            lonaxis_range=[6, 19]
-        )
-    )
+    # --- Adatta la vista ai confini delle regioni ---
+    fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
 
-    fig.show()
+    # --- Visualizzazione in Streamlit ---
+    st.plotly_chart(fig, use_container_width=True)
+
     return fig
 
