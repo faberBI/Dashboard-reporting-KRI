@@ -1150,7 +1150,7 @@ elif selected_kri == "📈 Interest Rate":
         forecast_quarterly = forecast_df.resample("Q").mean()
         # Media ponderata solo sulla colonna 'median'
         forecast_quarterly['median'] = (forecast_quarterly['median'] * 0.5+ plan_rate_series.resample("Q").mean() * 0.5)
-        plan_q = plan_rate_series.resample("Q").mean()
+        plan_q = plan_rate_series.resample("QE").mean()
         forecast_quarterly['lower_adj'] = (forecast_quarterly['lower_adj']*0.85)
     
         return forecast_df, forecast_quarterly
