@@ -129,92 +129,86 @@ def get_kri_bi(df, n_sim=10000):
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=10):
-    
-    sns.set(style="whitegrid")
-
+def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=20):
     # =========================
-    # 📊 1. TOP CAUSE - TFRI
+    # 1️⃣ TOP CAUSE - TFRI
     # =========================
-    plt.figure(figsize=(10, 6))
     top = result.sort_values('TFRI_norm', ascending=False).head(top_n)
-    
-    sns.barplot(data=top, x='TFRI_norm', y='CAUSA', palette='Reds_r')
-    plt.title(f"Top {top_n} Cause per TFRI")
-    plt.xlabel("TFRI")
-    plt.ylabel("Causa")
-    plt.tight_layout()
-    plt.show()
+    fig = px.bar(
+        top,
+        x='TFRI_norm',
+        y='CAUSA',
+        orientation='h',
+        color='TFRI_norm',
+        color_continuous_scale='Reds',
+        title=f"Top {top_n} Cause per TFRI"
+    )
+    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+    st.plotly_chart(fig, use_container_width=True)
 
     # =========================
-    # 📊 2. KRI SIMULATO (P95)
+    # 2️⃣ KRI SIMULATO (P95)
     # =========================
-    plt.figure(figsize=(10, 6))
     top_kri = risultati_df.sort_values('Expected Severe Outage Rate_norm', ascending=False).head(top_n)
-
-    sns.barplot(data=top_kri, x='Expected Severe Outage Rate_norm', y='CAUSA', palette='Blues_r')
-    plt.title(f"Top {top_n} Cause per 'Expected Severe Outage Rate")
-    plt.xlabel("'Expected Severe Outage Rate")
-    plt.ylabel("Causa")
-    plt.tight_layout()
-    plt.show()
+    fig = px.bar(
+        top_kri,
+        x='Expected Severe Outage Rate_norm',
+        y='CAUSA',
+        orientation='h',
+        color='Expected Severe Outage Rate_norm',
+        color_continuous_scale='Blues',
+        title=f"Top {top_n} Cause per 'Expected Severe Outage Rate'"
+    )
+    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+    st.plotly_chart(fig, use_container_width=True)
 
     # =========================
-    # 📊 3. HEATMAP RISCHIO (Freq vs Durata)
+    # 3️⃣ HEATMAP RISCHIO (Freq vs Durata)
     # =========================
-    plt.figure(figsize=(8, 6))
-
-    sns.scatterplot(
-        data=result,
+    fig = px.scatter(
+        result,
         x='freq_rel',
         y='durata_rel',
         size='TFRI_norm',
-        hue='TFRI_norm',
-        palette='coolwarm',
-        sizes=(50, 400)
+        color='TFRI_norm',
+        hover_data=['CAUSA'],
+        color_continuous_scale='RdBu',
+        size_max=40,
+        title="Mappa Rischio: Frequenza vs Durata"
     )
-
-    for i in range(len(result)):
-        plt.text(
-            result['freq_rel'].iloc[i],
-            result['durata_rel'].iloc[i],
-            result['CAUSA'].iloc[i],
-            fontsize=8
-        )
-
-    plt.title("Mappa Rischio: Frequenza vs Durata")
-    plt.xlabel("Frequenza Relativa")
-    plt.ylabel("Durata Relativa")
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.tight_layout()
-    plt.show()
+    st.plotly_chart(fig, use_container_width=True)
 
     # =========================
-    # 📊 4. REGIONI
+    # 4️⃣ REGIONI
     # =========================
-    plt.figure(figsize=(10, 6))
     reg_sorted = result_GEO_REG.sort_values('WGHI_reg_norm', ascending=False).head(top_n)
-
-    sns.barplot(data=reg_sorted, x='WGHI_reg_norm', y='Regioni', palette='Greens_r')
-    plt.title(f"Top {top_n} Regioni per WGHI")
-    plt.xlabel("WGHI")
-    plt.ylabel("Regione")
-    plt.tight_layout()
-    plt.show()
+    fig = px.bar(
+        reg_sorted,
+        x='WGHI_reg_norm',
+        y='Regioni',
+        orientation='h',
+        color='WGHI_reg_norm',
+        color_continuous_scale='Greens',
+        title=f"Top {top_n} Regioni per WGHI"
+    )
+    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+    st.plotly_chart(fig, use_container_width=True)
 
     # =========================
-    # 📊 5. PROVINCE
+    # 5️⃣ PROVINCE
     # =========================
-    plt.figure(figsize=(10, 6))
     prov_sorted = result_GEO_PROV.sort_values('WGHI_prov_norm', ascending=False).head(top_n)
-
-    sns.barplot(data=prov_sorted, x='WGHI_prov_norm', y='AREA (PROVINCIA)', palette='Purples_r')
-    plt.title(f"Top {top_n} Province per WGHI")
-    plt.xlabel("WGHI")
-    plt.ylabel("Provincia")
-    plt.tight_layout()
-    plt.show()
-
+    fig = px.bar(
+        prov_sorted,
+        x='WGHI_prov_norm',
+        y='AREA (PROVINCIA)',
+        orientation='h',
+        color='WGHI_prov_norm',
+        color_continuous_scale='Purples',
+        title=f"Top {top_n} Province per WGHI"
+    )
+    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+    st.plotly_chart(fig, use_container_width=True)
 
 import unicodedata
 import plotly.express as px
