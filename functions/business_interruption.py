@@ -301,43 +301,28 @@ def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg010
 
 def get_gpt_insights_kri(result, result_GEO_REG, result_GEO_PROV, result_Impatto_Cliente, risultati_df, model="gpt-4"):
     """
-    Genera insight automatici sui KRI di Business Interruption usando GPT.
+    Genera insight automatici sui KRI di Business Interruption usando GPT (nuovo SDK).
     """
-    # --- Prepara un riepilogo sintetico da inviare a GPT ---
+    # --- Prepara il riepilogo ---
     summary_text = "Analizza questi indicatori di business interruption e dai insight utili:\n\n"
     
-    # Top 5 cause per TFRI
     top_cause = result.sort_values('TFRI_norm', ascending=False).head(5)
     summary_text += "Top 5 cause per TFRI:\n"
     for _, row in top_cause.iterrows():
         summary_text += f"- {row['CAUSA']}: freq_rel={row['freq_rel']:.2f}, durata_rel={row['durata_rel']:.2f}, TFRI_norm={row['TFRI_norm']:.2f}\n"
     
-    # Top 5 regioni per WGHI
     top_regioni = result_GEO_REG.sort_values('WGHI_reg_norm', ascending=False).head(5)
     summary_text += "\nTop 5 regioni per WGHI:\n"
     for _, row in top_regioni.iterrows():
         summary_text += f"- {row['Regioni']}: freq_rel={row['freq_rel']:.2f}, durata_rel={row['durata_rel']:.2f}, WGHI_reg_norm={row['WGHI_reg_norm']:.2f}\n"
     
-    # Top 5 province
-    top_prov = result_GEO_PROV.sort_values('WGHI_prov_norm', ascending=False).head(5)
-    summary_text += "\nTop 5 province per WGHI:\n"
-    for _, row in top_prov.iterrows():
-        summary_text += f"- {row['AREA (PROVINCIA)']}: freq_rel={row['freq_rel']:.2f}, durata_rel={row['durata_rel']:.2f}, WGHI_prov_norm={row['WGHI_prov_norm']:.2f}\n"
-    
-    # Top 5 impatti clienti
-    top_ic = result_Impatto_Cliente.sort_values('WGHI_ic_norm', ascending=False).head(5)
-    summary_text += "\nTop 5 impatti cliente:\n"
-    for _, row in top_ic.iterrows():
-        summary_text += f"- {row['Impatto Cliente']}: freq_rel={row['freq_rel']:.2f}, durata_rel={row['durata_rel']:.2f}, WGHI_ic_norm={row['WGHI_ic_norm']:.2f}\n"
-    
-    # Top 5 cause per simulazione p95
     top_sim = risultati_df.sort_values('Expected Severe Outage Rate_norm', ascending=False).head(5)
     summary_text += "\nTop 5 cause per Expected Severe Outage Rate (p95 simulato):\n"
     for _, row in top_sim.iterrows():
         summary_text += f"- {row['CAUSA']}: p95={row['p95']:.2f}, mean_sim={row['mean_sim']:.2f}, std_sim={row['std_sim']:.2f}\n"
 
-    # --- Chiamata GPT ---
-    response = openai.ChatCompletion.create(
+    # --- Chiamata aggiornata al nuovo endpoint Chat Completions ---
+    response = openai.chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": "Sei un analista di rischio esperto. Fornisci insight chiari e utili su KRI di Business Interruption."},
@@ -346,6 +331,6 @@ def get_gpt_insights_kri(result, result_GEO_REG, result_GEO_PROV, result_Impatto
         max_tokens=500,
         temperature=0.7
     )
-    
-    return response['choices'][0]['message']['content']
+
+    return response.choices[0].message.content
     
