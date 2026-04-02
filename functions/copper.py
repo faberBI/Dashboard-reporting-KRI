@@ -100,16 +100,17 @@ def monte_carlo_forecast_cp_from_disk(
         end=end_date,
         freq='ME'  # Month End
     )
-    # Pulizia indice
-    future_dates = future_dates[future_dates.notna()]
-    future_dates = future_dates.drop_duplicates()
-    future_dates = future_dates.sort_values()
+
+    future_dates = future_dates[future_dates.notna()].drop_duplicates().sort_values()
     H = len(future_dates)
 
     # -----------------------------
     # Preallocazione array per simulazioni
     # -----------------------------
     series_values = series.dropna().values  # rimuove NaN
+    if len(series_values) < BEST_LAG:
+        raise ValueError(f"La serie è troppo corta per il BEST_LAG={BEST_LAG}")
+
     sim_paths = np.zeros((N_SIM, H))
     current_values = np.tile(series_values[-BEST_LAG:], (N_SIM, 1))  # shape (N_SIM, BEST_LAG)
 
@@ -165,7 +166,7 @@ def monte_carlo_forecast_cp_from_disk(
     cp_upper = forecast_mean + q_hat * sigma
 
     # -----------------------------
-    # DataFrame finale sicuro
+    # DataFrame finale
     # -----------------------------
     final_forecast = pd.DataFrame({
         "Mean_Forecast": (cp_lower + upper_95)/2,
@@ -175,27 +176,35 @@ def monte_carlo_forecast_cp_from_disk(
         "CP_Upper_95": cp_upper
     }, index=future_dates)
 
-    # Garantire indice valido e ordinato
-    final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
+    # -----------------------------
+    # Indice Datetime valido
+    # -----------------------------
+    if not isinstance(final_forecast.index, pd.DatetimeIndex):
+        final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
+
     final_forecast = final_forecast.loc[final_forecast.index.notna()]
     final_forecast = final_forecast[~final_forecast.index.duplicated()]
     final_forecast = final_forecast.sort_index()
 
-    # Resample annuale sicuro
+    # -----------------------------
+    # Fallback se vuoto
+    # -----------------------------
     if final_forecast.empty:
-        df_yearly = pd.DataFrame(columns=final_forecast.columns)
-    else:
-        df_yearly = final_forecast.resample('Y').mean()
+        future_dates = pd.date_range(start=pd.Timestamp.today(), periods=12, freq='M')
+        final_forecast = pd.DataFrame(
+            columns=["Mean_Forecast","GARCH_Lower_95","GARCH_Upper_95","CP_Lower_95","CP_Upper_95"],
+            index=future_dates
+        )
+
+    # -----------------------------
+    # Resample annuale sicuro
+    # -----------------------------
+    df_yearly = final_forecast.resample('Y').mean()
 
     return final_forecast, df_yearly
 
 
 def full_copper_forecast(link_df, price_col='Copper', N_SIM=1000, alpha=0.05, DIST="ged", calibration_size_pct=0.05):
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from catboost import CatBoostRegressor
-    from arch import arch_model
 
     # ================= Preprocessing =================
     df = pd.read_excel(link_df)
