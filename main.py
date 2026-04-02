@@ -863,9 +863,10 @@ elif selected_kri == "💳 Credit risk":
   
 elif selected_kri == "🛑⚡ Business Interruption":  
     if uploaded_file is not None:
+        df = pd.read_excel(uploaded_file)
         with st.spinner("Calcolo KRI e metriche..."):
             # Calcolo KRI e aggregazioni
-            result_TFRI, WGHI_REG, WGHI_PROV, risultati_df = get_kri_bi(uploaded_file)
+            result_TFRI, WGHI_REG, WGHI_PROV, risultati_df = get_kri_bi(df)
     
         st.success("✅ Calcolo completato!")
     
