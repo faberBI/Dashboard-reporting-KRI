@@ -5,7 +5,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
 import unicodedata
-
+import streamlit as st
 
 def get_kri_bi(df, n_sim=10000):
     import pandas as pd
