@@ -1,6 +1,11 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import gamma
+import plotly.express as px
+import matplotlib.pyplot as plt
+import seaborn as sns
+import unicodedata
+
 
 def get_kri_bi(df, n_sim=10000):
     import pandas as pd
@@ -126,9 +131,6 @@ def get_kri_bi(df, n_sim=10000):
     )
 
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=20):
     # =========================
     # 1️⃣ TOP CAUSE - TFRI
@@ -210,9 +212,6 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=20):
     fig.update_layout(yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig, use_container_width=True)
 
-import unicodedata
-import plotly.express as px
-import unicodedata
 
 def plot_kri_map_regioni_interattivo(result_GEO_REG, value_col='WGHI_reg_norm'):
     """
