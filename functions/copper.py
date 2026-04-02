@@ -61,8 +61,16 @@ def plot_var_vs_budget(result_df_annual):
 
 
 
-def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_model.cbm", garch_model_path="utils/garch_model.pkl", params_path="utils/model_params.pkl", N_SIM=1000, alpha=0.05, end_date=None, random_seed=42):
-
+def monte_carlo_forecast_cp_from_disk(
+    series,
+    cat_model_path="utils/catboost_model.cbm",
+    garch_model_path="utils/garch_model.pkl",
+    params_path="utils/model_params.pkl",
+    N_SIM=1000,
+    alpha=0.05,
+    end_date=None,
+    random_seed=42
+):
     np.random.seed(random_seed)
 
     # -----------------------------
@@ -76,12 +84,12 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
 
     with open(params_path, "rb") as f:
         params_loaded = pickle.load(f)
-    
+
     BEST_LAG = params_loaded["BEST_LAG"]
     CALIBRATION_H = params_loaded.get("CALIBRATION_H", 24)
 
     # -----------------------------
-    # Orizzonte in mesi
+    # Orizzonte temporale
     # -----------------------------
     last_date = pd.Timestamp.now().normalize()
     if end_date is None:
@@ -89,8 +97,11 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
     else:
         end_date = pd.to_datetime(end_date)
 
-    future_dates = pd.date_range(start=last_date + pd.offsets.MonthBegin(1),
-                                 end=end_date, freq='ME')
+    future_dates = pd.date_range(
+        start=last_date + pd.offsets.MonthBegin(1),
+        end=end_date,
+        freq='ME'  # Month End
+    )
     H = len(future_dates)
 
     # -----------------------------
@@ -109,6 +120,7 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
             z = np.random.standard_t(df=garch_fit.params["nu"], size=H)
         else:
             z = np.random.standard_normal(H)
+
         for h in range(H):
             lags = path_series.iloc[-BEST_LAG:].values
             X_future = pd.DataFrame([lags], columns=[f"lag_{i+1}" for i in range(BEST_LAG)])
@@ -134,26 +146,39 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
     y_cal = calibration_data["y"].values
     y_cal_pred = cat_model.predict(X_cal)
 
-    # Conformity score normalizzato con GARCH
     garch_cal_fc = garch_fit.forecast(horizon=CALIBRATION_H)
     sigma_cal = np.sqrt(garch_cal_fc.variance.values[-1])
     conformity_scores = np.abs((y_cal - y_cal_pred) / sigma_cal)
     q_hat = np.quantile(conformity_scores, 1 - alpha)
 
-    # Intervalli CP adattivi
     cp_lower = forecast_mean - q_hat * sigma
     cp_upper = forecast_mean + q_hat * sigma
 
+    # -----------------------------
+    # Creazione DataFrame finale
+    # -----------------------------
     final_forecast = pd.DataFrame({
-        "Mean_Forecast": (cp_lower+upper_95)/2,
+        "Mean_Forecast": (cp_lower + upper_95)/2,
         "GARCH_Lower_95": lower_95,
         "GARCH_Upper_95": upper_95,
         "CP_Lower_95": cp_lower,
         "CP_Upper_95": cp_upper
     }, index=future_dates)
 
+    # -----------------------------
+    # Garantire DatetimeIndex sicuro
+    # -----------------------------
+    if not isinstance(final_forecast.index, pd.DatetimeIndex):
+        try:
+            final_forecast.index = pd.to_datetime(final_forecast.index)
+        except Exception as e:
+            raise ValueError(f"Errore nel convertire l'indice in datetime: {e}")
+
+    # -----------------------------
+    # Resample annuale sicuro
+    # -----------------------------
     df_yearly = final_forecast.resample('Y').mean()
-    
+
     return final_forecast, df_yearly
 
 
