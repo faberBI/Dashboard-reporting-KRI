@@ -932,7 +932,8 @@ elif selected_kri == "🛑⚡ Business Interruption":
     
 elif selected_kri == "📈 Interest Rate":
     import matplotlib.pyplot as plt
-    series_dict = {
+    
+    series= {
     # --- Politica monetaria BCE ---
     "euribor_3m": "FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA",
     "deposit_rate": "FM.D.U2.EUR.4F.KR.DFR.LEV",
@@ -1010,9 +1011,10 @@ elif selected_kri == "📈 Interest Rate":
     st.title("Hybrid ML model 📊 Results")
     st.table(results)
     
-    df_ecb = download_ecb_series(series_dict, start = '2021-01-01')
+    df_ecb = download_ecb_series(series, start = '2021-01-01')
     st.dataframe(df_ecb)
     df_yahoo = download_yahoo_series(yahoo_symbols, start = '2021-01-01')
+    st.dataframe(df_yahoo)
     df_all = df_ecb.join(df_yahoo, how="outer")
     df_all = df_all.sort_index().ffill()
     df_dropped = df_all.dropna()
@@ -1035,7 +1037,6 @@ elif selected_kri == "📈 Interest Rate":
         
         st.subheader("📋 Tranche caricate dall’Excel")
         st.dataframe(tranche_df)
-        st.dataframe(df_dropped)
         series = df_dropped["euribor_3m"].values
         last_date = pd.to_datetime(df_dropped.index[-1])
     
