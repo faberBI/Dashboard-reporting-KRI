@@ -888,7 +888,6 @@ elif selected_kri == "🛑⚡ Business Interruption":
         cmap='RdYlGn_r',           # rosso-giallo-verde inverso
         vmin=0, vmax=1             # normalizzazione tra 0 e 1
         ).format({'WGHI_reg_norm': "{:.2f}"})  # due decimali
-        st.subheader("🗺️ Top 10 Regioni per KRI Normalizzato")
         st.dataframe(styled_df, use_container_width=True)
         
         
