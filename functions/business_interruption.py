@@ -130,3 +130,138 @@ def get_kri_bi(df, n_sim=10000):
 
     # =========================
     return result.reset_index(), result_GEO_REG.reset_index(), result_GEO_PROV.reset_index(), risultati_df
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=10):
+    
+    sns.set(style="whitegrid")
+
+    # =========================
+    # 📊 1. TOP CAUSE - TFRI
+    # =========================
+    plt.figure(figsize=(10, 6))
+    top = result.sort_values('TFRI_norm', ascending=False).head(top_n)
+    
+    sns.barplot(data=top, x='TFRI_norm', y='CAUSA', palette='Reds_r')
+    plt.title(f"Top {top_n} Cause per TFRI")
+    plt.xlabel("TFRI Normalizzato")
+    plt.ylabel("Causa")
+    plt.tight_layout()
+    plt.show()
+
+    # =========================
+    # 📊 2. KRI SIMULATO (P95)
+    # =========================
+    plt.figure(figsize=(10, 6))
+    top_kri = risultati_df.sort_values('KRI_p95_norm', ascending=False).head(top_n)
+
+    sns.barplot(data=top_kri, x='KRI_p95_norm', y='CAUSA', palette='Blues_r')
+    plt.title(f"Top {top_n} Cause per KRI (P95)")
+    plt.xlabel("KRI P95 Normalizzato")
+    plt.ylabel("Causa")
+    plt.tight_layout()
+    plt.show()
+
+    # =========================
+    # 📊 3. HEATMAP RISCHIO (Freq vs Durata)
+    # =========================
+    plt.figure(figsize=(8, 6))
+
+    sns.scatterplot(
+        data=result,
+        x='freq_rel',
+        y='durata_rel',
+        size='TFRI_norm',
+        hue='TFRI_norm',
+        palette='coolwarm',
+        sizes=(50, 400)
+    )
+
+    for i in range(len(result)):
+        plt.text(
+            result['freq_rel'].iloc[i],
+            result['durata_rel'].iloc[i],
+            result['CAUSA'].iloc[i],
+            fontsize=8
+        )
+
+    plt.title("Mappa Rischio: Frequenza vs Durata")
+    plt.xlabel("Frequenza Relativa")
+    plt.ylabel("Durata Relativa")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    plt.show()
+
+    # =========================
+    # 📊 4. REGIONI
+    # =========================
+    plt.figure(figsize=(10, 6))
+    reg_sorted = result_GEO_REG.sort_values('WGHI_reg_norm', ascending=False).head(top_n)
+
+    sns.barplot(data=reg_sorted, x='WGHI_reg_norm', y='Regioni', palette='Greens_r')
+    plt.title(f"Top {top_n} Regioni per WGHI")
+    plt.xlabel("WGHI Normalizzato")
+    plt.ylabel("Regione")
+    plt.tight_layout()
+    plt.show()
+
+    # =========================
+    # 📊 5. PROVINCE
+    # =========================
+    plt.figure(figsize=(10, 6))
+    prov_sorted = result_GEO_PROV.sort_values('WGHI_prov_norm', ascending=False).head(top_n)
+
+    sns.barplot(data=prov_sorted, x='WGHI_prov_norm', y='AREA (PROVINCIA)', palette='Purples_r')
+    plt.title(f"Top {top_n} Province per WGHI")
+    plt.xlabel("WGHI Normalizzato")
+    plt.ylabel("Provincia")
+    plt.tight_layout()
+    plt.show()
+
+
+import unicodedata
+import plotly.express as px
+import unicodedata
+
+def plot_kri_map_regioni_interattivo(result_GEO_REG, value_col='WGHI_reg_norm'):
+    """
+    Mappa interattiva con Plotly per regioni italiane
+    """
+    # Normalizzazione nomi
+    def normalize(text):
+        if text is None:
+            return None
+        return unicodedata.normalize('NFKD', str(text)).encode('ascii', errors='ignore').decode('utf-8').title().strip()
+
+    df = result_GEO_REG.copy()
+    df['Regioni_clean'] = df['Regioni'].apply(normalize)
+
+    fig = px.choropleth(
+        df,
+        locations='Regioni_clean',
+        locationmode='country names',  # riconosce le regioni italiane
+        color=value_col,
+        scope="europe",
+        color_continuous_scale="RdYlGn_r",
+        labels={value_col: "KRI Normalizzato"},
+        hover_name='Regioni_clean',
+        hover_data={value_col: True}
+    )
+
+    fig.update_layout(
+        title_text="Mappa Interattiva KRI per Regione",
+        geo=dict(
+            showframe=False,
+            showcoastlines=False,
+            projection_type='mercator',
+            lataxis_range=[35, 47],  # limita a Italia
+            lonaxis_range=[6, 19]
+        )
+    )
+
+    fig.show()
+    return fig
+
