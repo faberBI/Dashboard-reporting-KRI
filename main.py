@@ -886,9 +886,7 @@ elif selected_kri == "🛑⚡ Business Interruption":
         # =========================
         # Mappa interattiva regioni
         # =========================
-        st.subheader("🗺️ Mappa Interattiva Weighted Geographical Hotspot Index")
-        st.info('Individuare concentrazioni anomale e persistenti di disservizi,  ponderate per durata degli stessi, su specifiche aree geografiche')
-        
+        st.subheader("🗺️ Mappa Interattiva Weighted Geographical Hotspot Index")     
         top10 = WGHI_REG.sort_values('WGHI_reg_norm', ascending=False).head(10)
         display_df = top10[['Regioni', 'WGHI_reg_norm']].copy()
         styled_df = display_df.style.background_gradient(
@@ -897,26 +895,23 @@ elif selected_kri == "🛑⚡ Business Interruption":
         vmin=0, vmax=1             # normalizzazione tra 0 e 1
         ).format({'WGHI_reg_norm': "{:.2f}"})  # due decimali
         st.dataframe(styled_df, use_container_width=True)
-        
-        
         fig = plot_kri_map_regioni_interattivo(WGHI_REG, shapefile_path='Data/Reg01012026_g_WGS84.shp', value_col='WGHI_reg_norm')
         st.plotly_chart(fig, use_container_width=True)
-        
         st.subheader("💾 Download Excel")
         buffer = io.BytesIO()
-
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             # Sheet 1 - dati raw
             df.to_excel(writer, index=False, sheet_name='Input Data')
             # Sheet 2 - KPI principali
             result_TFRI.to_excel(writer, index=False, sheet_name='TFRI')
-            # Sheet 3 - Sintesi TFRI / WGHI
+            # Sheet 3 - Sintesi WGHI_IC
+            WGHI_IC.to_excel(writer, index=False, sheet_name='WGHI Impatto Cliente')
+            # Sheet 4 - Sintesi  WGHI
             WGHI_REG.to_excel(writer, index=False, sheet_name='WGHI Regionale')
-            # Sheet 4 - WGHI per regioni
+            # Sheet 5 - WGHI per regioni
             WGHI_PROV.to_excel(writer, index=False, sheet_name='WGHI Provinciale')
-            # Sheet 5 - WGHI per province
-            risultati_df.to_excel(writer, index=False, sheet_name='95° Percentile Probs')
-            
+            # Sheet 6 - WGHI per province
+            risultati_df.to_excel(writer, index=False, sheet_name='95° Percentile Probs')        
         buffer.seek(0)
         st.download_button(
             label="💾 Scarica file Excel con i KRI",
