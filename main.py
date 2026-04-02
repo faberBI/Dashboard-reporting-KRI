@@ -58,6 +58,7 @@ from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Carica il logo
 logo = Image.open("Image/logo_fibercop.PNG")
