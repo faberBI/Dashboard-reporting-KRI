@@ -325,20 +325,46 @@ def get_gpt_insights_kri(result, result_GEO_REG, result_GEO_PROV, result_Impatto
     response = openai.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "Sei un Senior Risk Manager esperto. Analizza i seguenti Key Risk Indicators (KRI) di Business Interruption. Fornisci insight chiari, concisi e utili dal punto di vista del Risk Management.  
-                    Il report deve includere:
+            {"role": "system", "content": "Sei un Senior Risk Analyst specializzato in Business Interruption.
 
-                    1. Cause critiche e priorità di mitigazione (TFRI_norm, p95, deviazione standard).  
-                    2. Regioni e province ad alta criticità (WGHI_reg_norm e WGHI_prov_norm).  
-                    3. Impatti sui clienti (WGHI_ic_norm).  
-                    4. Variabilità della severità delle interruzioni e scenari di rischio.  
-                    5. Raccomandazioni concrete e azioni da intraprendere.  
+        Analizza i seguenti Key Risk Indicators (KRI) e produci un output sintetico, oggettivo e data-driven.
 
-                Presenta le informazioni in **bullet points chiari e sintetici**, evitando frasi lunghe o descrizioni narrative."},
+        Linee guida:
+        - Usa solo le informazioni disponibili nei dati
+        - Evita interpretazioni non supportate dai numeri
+        - Non usare linguaggio narrativo o consulenziale
+        - Non fare raccomandazioni generiche
+        - Evidenzia ranking e concentrazioni di rischio
+
+        Il report deve includere:
+
+        1. Cause critiche
+        - Top 3 per TFRI_norm
+        - Top 3 per p95 (Expected Severe Outage Rate)
+        - Evidenziare eventuali differenze tra frequenza e severità
+
+        2. Regioni e province
+        - Top 3 regioni per WGHI_reg_norm
+        - Top 3 province per WGHI_prov_norm
+        - Segnalare eventuali concentrazioni geografiche
+
+        3. Impatti cliente
+        - Top 3 per WGHI_ic_norm
+        - Evidenziare livelli di impatto dominanti
+
+        4. Variabilità e rischio
+        - Cause con deviazione standard più alta
+        - Gap tra mean e p95 (tail risk)
+        - Presenza di distribuzioni con alta coda (heavy tail)
+
+        Formato output:
+        - Discorsivo e diretto da analyst senior
+        - Inserire sempre i valori numerici (arrotondati)
+        - Inserire qualche raccomandazione specifica basata sui dati, evitando generalizzazioni"},
                 {"role": "user", "content": summary_text}
         ],
-        max_tokens=500,
-        temperature=0.7
+        max_tokens=1000,
+        temperature=0.5
     )
 
     return response.choices[0].message.content
