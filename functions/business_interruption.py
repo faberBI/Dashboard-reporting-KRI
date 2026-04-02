@@ -252,11 +252,14 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, result_Impatto_Cliente, ri
 
 def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg01012026_g_WGS84.shp', value_col='WGHI_reg_norm'):
     """
-    Crea una mappa interattiva dei KRI per regione italiana usando Plotly + GeoPandas.
+    Mappa interattiva KRI per regioni italiane usando poligoni reali.
     """
-    
+
     # --- Carica shapefile regioni italiane ---
     regioni = gpd.read_file(shapefile_path)
+
+    # --- Assicurati che sia in lat/lon ---
+    regioni = regioni.to_crs(epsg=4326)
 
     # --- Normalizzazione nomi per merge ---
     def normalize(text):
@@ -264,29 +267,31 @@ def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg010
             return None
         return unicodedata.normalize('NFKD', str(text)).encode('ascii', errors='ignore').decode('utf-8').title().strip()
 
-    regioni['Regioni_clean'] = regioni['DEN_REG'].apply(normalize)  # DEN_REG: nomi regioni shapefile
+    regioni['Regioni_clean'] = regioni['DEN_REG'].apply(normalize)
     result_GEO_REG['Regioni_clean'] = result_GEO_REG['Regioni'].apply(normalize)
 
     # --- Merge dati KRI con geometrie ---
     gdf = regioni.merge(result_GEO_REG, on='Regioni_clean', how='left')
 
-    # --- Converti geometrie in GeoJSON ---
-    gdf_json = json.loads(gdf.to_json())
+    # --- Converti GeoDataFrame in GeoJSON per Plotly ---
+    gdf_json = gdf.__geo_interface__
 
-    # --- Crea mappa con Plotly ---
+    # --- Crea mappa choropleth ---
     fig = px.choropleth(
         gdf,
         geojson=gdf_json,
         locations=gdf.index,
         color=value_col,
         hover_name='Regioni_clean',
-        hover_data={value_col: True},
         color_continuous_scale="RdYlGn_r",
+        projection="mercator",
         title=f"Mappa Interattiva KRI per Regione ({value_col})"
     )
 
-    # --- Fit confini ---
-    fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_geos(
+        fitbounds="locations",
+        visible=False
+    )
     fig.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
 
     # --- Mostra su Streamlit ---
