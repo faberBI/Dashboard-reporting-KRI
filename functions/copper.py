@@ -69,7 +69,8 @@ def monte_carlo_forecast_cp_from_disk(
     N_SIM=1000,
     alpha=0.05,
     end_date=None,
-    random_seed=42
+    random_seed=42,
+    n_jobs=-1  # parallel jobs
 ):
     np.random.seed(random_seed)
 
@@ -105,30 +106,44 @@ def monte_carlo_forecast_cp_from_disk(
     H = len(future_dates)
 
     # -----------------------------
-    # Monte Carlo simulation
+    # Preallocazione array
     # -----------------------------
-    last_series = series.copy()
+    last_series_values = series.values
     sim_paths = np.zeros((N_SIM, H))
 
     garch_fc = garch_fit.forecast(horizon=H)
     sigma = np.sqrt(garch_fc.variance.values[-1])
     DIST = garch_fit.model.distribution.name.lower()
 
-    for sim in range(N_SIM):
-        path_series = last_series.copy()
-        if DIST == "t":
-            z = np.random.standard_t(df=garch_fit.params["nu"], size=H)
-        else:
-            z = np.random.standard_normal(H)
+    # -----------------------------
+    # Generazione shock Z
+    # -----------------------------
+    if DIST == "t":
+        z_matrix = np.random.standard_t(df=garch_fit.params["nu"], size=(N_SIM, H))
+    else:
+        z_matrix = np.random.standard_normal((N_SIM, H))
 
+    # -----------------------------
+    # Funzione di simulazione singolo percorso
+    # -----------------------------
+    def simulate_path(sim_idx):
+        path_series = np.zeros(H + len(last_series_values))
+        path_series[:len(last_series_values)] = last_series_values
         for h in range(H):
-            lags = path_series.iloc[-BEST_LAG:].values
-            X_future = pd.DataFrame([lags], columns=[f"lag_{i+1}" for i in range(BEST_LAG)])
-            mu = cat_model.predict(X_future)[0]
-            eps = sigma[h] * z[h]
+            lags = path_series[len(last_series_values)+h-BEST_LAG : len(last_series_values)+h]
+            mu = cat_model.predict(lags.reshape(1, -1))[0]
+            eps = sigma[h] * z_matrix[sim_idx, h]
             y_next = mu + eps
-            sim_paths[sim, h] = y_next
-            path_series = pd.concat([path_series, pd.Series([y_next])], ignore_index=True)
+            path_series[len(last_series_values)+h] = y_next
+        return path_series[len(last_series_values):]
+
+    # -----------------------------
+    # Esecuzione simulazioni
+    # -----------------------------
+    from joblib import Parallel, delayed
+    sim_paths = np.array(Parallel(n_jobs=n_jobs)(
+        delayed(simulate_path)(i) for i in range(N_SIM)
+    ))
 
     # -----------------------------
     # Fan chart GARCH
@@ -165,25 +180,10 @@ def monte_carlo_forecast_cp_from_disk(
         "CP_Upper_95": cp_upper
     }, index=future_dates)
 
-    # -----------------------------
-    # Garantire DatetimeIndex sicuro
-    # -----------------------------
-    try:
-        final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
-    except Exception as e:
-        raise ValueError(f"Impossibile convertire l'indice in datetime: {e}")
-
-    # Rimuove eventuali date non valide
+    final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
     final_forecast = final_forecast.loc[final_forecast.index.notna()]
 
-    # -----------------------------
-    # Resample annuale sicuro
-    # -----------------------------
-    if len(final_forecast) == 0:
-        # fallback: DataFrame vuoto se non ci sono date valide
-        df_yearly = pd.DataFrame(columns=final_forecast.columns)
-    else:
-        df_yearly = final_forecast.resample('Y').mean()
+    df_yearly = final_forecast.resample('Y').mean() if len(final_forecast) > 0 else pd.DataFrame(columns=final_forecast.columns)
 
     return final_forecast, df_yearly
 
