@@ -81,7 +81,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "🛡️💻 Cyber","💳 Credit risk" ,"📈 Interest Rate", "Liquidity Risk💰"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "🛑⚡ Business Interruption","💳 Credit risk" ,"📈 Interest Rate", "Liquidity Risk💰"]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
