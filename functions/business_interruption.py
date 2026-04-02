@@ -285,7 +285,7 @@ def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg010
         hover_name='Regioni_clean',
         color_continuous_scale="RdYlGn_r",
         projection="mercator",
-        title=f"Mappa Interattiva KRI per Regione ({value_col})"
+        title="Mappa Interattiva KRI per Regione (WGHI)"
     )
 
     fig.update_geos(
