@@ -100,10 +100,11 @@ def monte_carlo_forecast_cp_from_disk(
         end=end_date,
         freq='ME'  # Month End
     )
+    future_dates = future_dates[future_dates.notna()]  # indice sicuro
     H = len(future_dates)
 
     # -----------------------------
-    # Preallocazione array
+    # Preallocazione array per simulazioni
     # -----------------------------
     series_values = series.values
     sim_paths = np.zeros((N_SIM, H))
@@ -126,7 +127,8 @@ def monte_carlo_forecast_cp_from_disk(
     # -----------------------------
     for h in range(H):
         # predizione batch CatBoost
-        mu = cat_model.predict(pd.DataFrame(current_values, columns=[f"lag_{i+1}" for i in range(BEST_LAG)]))
+        df_lags = pd.DataFrame(current_values, columns=[f"lag_{i+1}" for i in range(BEST_LAG)])
+        mu = cat_model.predict(df_lags)
         y_next = mu + sigma[h] * z[:, h]
         sim_paths[:, h] = y_next
 
@@ -145,6 +147,7 @@ def monte_carlo_forecast_cp_from_disk(
     # -----------------------------
     # Conformal Prediction
     # -----------------------------
+    # Assicurati di avere make_lag_df definita/importata
     data_cp = make_lag_df(series, BEST_LAG)
     calibration_data = data_cp.iloc[-CALIBRATION_H:]
     X_cal = calibration_data.drop("y", axis=1)
@@ -170,12 +173,14 @@ def monte_carlo_forecast_cp_from_disk(
         "CP_Upper_95": cp_upper
     }, index=future_dates)
 
-    # garantisce DatetimeIndex valido
     final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
     final_forecast = final_forecast.loc[final_forecast.index.notna()]
 
     # resample annuale sicuro
-    df_yearly = final_forecast.resample('Y').mean() if not final_forecast.empty else pd.DataFrame(columns=final_forecast.columns)
+    if final_forecast.empty:
+        df_yearly = pd.DataFrame(columns=final_forecast.columns)
+    else:
+        df_yearly = final_forecast.resample('Y').mean()
 
     return final_forecast, df_yearly
 
