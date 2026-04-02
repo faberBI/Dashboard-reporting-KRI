@@ -881,7 +881,7 @@ elif selected_kri == "🛑⚡ Business Interruption":
         # =========================
         st.subheader("🗺️ Mappa Interattiva KRI per Regione")
         st.table(WGHI_REG)
-        fig = plot_kri_map_regioni_interattivo(WGHI_REG, value_col='WGHI_reg_norm')
+        fig = plot_kri_map_regioni_interattivo(WGHI_REG, shapefile_path='Data/Reg01012026_g_WGS84.shp', value_col='WGHI_reg_norm')
         st.plotly_chart(fig, use_container_width=True)
         
         st.subheader("🗺️💾 Download Excel")
