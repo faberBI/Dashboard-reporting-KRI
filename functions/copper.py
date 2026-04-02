@@ -168,16 +168,22 @@ def monte_carlo_forecast_cp_from_disk(
     # -----------------------------
     # Garantire DatetimeIndex sicuro
     # -----------------------------
-    if not isinstance(final_forecast.index, pd.DatetimeIndex):
-        try:
-            final_forecast.index = pd.to_datetime(final_forecast.index)
-        except Exception as e:
-            raise ValueError(f"Errore nel convertire l'indice in datetime: {e}")
+    try:
+        final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
+    except Exception as e:
+        raise ValueError(f"Impossibile convertire l'indice in datetime: {e}")
+
+    # Rimuove eventuali date non valide
+    final_forecast = final_forecast.loc[final_forecast.index.notna()]
 
     # -----------------------------
     # Resample annuale sicuro
     # -----------------------------
-    df_yearly = final_forecast.resample('Y').mean()
+    if len(final_forecast) == 0:
+        # fallback: DataFrame vuoto se non ci sono date valide
+        df_yearly = pd.DataFrame(columns=final_forecast.columns)
+    else:
+        df_yearly = final_forecast.resample('Y').mean()
 
     return final_forecast, df_yearly
 
