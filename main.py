@@ -53,7 +53,7 @@ from functions.energy_risk import (
     adjust_first_forecast_with_partial_month)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
-
+from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_regioni_interattivo)
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
@@ -861,8 +861,56 @@ elif selected_kri == "💳 Credit risk":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
   
-elif selected_kri == "🛡️💻 Cyber":
-    print('Cyber')
+elif selected_kri == "🛑⚡ Business Interruption":
+    df = st.file_uploader("📂 Carica il file sui disservizi", type="xlsx")
+    
+    if df is not None:
+        with st.spinner("Calcolo KRI e metriche..."):
+            # Calcolo KRI e aggregazioni
+            result_TFRI, WGHI_REG, WGHI_PROV, risultati_df = get_kri_bi(df)
+    
+        st.success("✅ Calcolo completato!")
+    
+        # =========================
+        # Grafici principali
+        # =========================
+        st.subheader("📊 Grafici KRI 🛑⚡")
+        # plot_kri deve essere già definita nel tuo codice
+        plot_kri(result_TFRI, WGHI_REG, WGHI_PROV, risultati_df, top_n=20)
+    
+        # =========================
+        # Mappa interattiva regioni
+        # =========================
+        st.subheader("🗺️ Mappa Interattiva KRI per Regione")
+        fig = plot_kri_map_regioni_interattivo(WGHI_REG, value_col='WGHI_reg_norm')
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.subheader("🗺️💾 Download Excel")
+        buffer = io.BytesIO()
+
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            # Sheet 1 - dati raw
+            df.to_excel(writer, index=False, sheet_name='Input Data')
+            # Sheet 2 - KPI principali
+            result_TFRI.to_excel(writer, index=False, sheet_name='TFRI')
+            # Sheet 3 - Sintesi TFRI / WGHI
+            WGHI_REG.to_excel(writer, index=False, sheet_name='WGHI Regionale')
+            # Sheet 4 - WGHI per regioni
+            WGHI_PROV.to_excel(writer, index=False, sheet_name='WGHI Provinciale')
+            # Sheet 5 - WGHI per province
+            risultati_df.to_excel(writer, index=False, sheet_name='95° Percentile Probs')
+            # Punta all'inizio del buffer
+            writer.save()
+        buffer.seek(0)
+        st.download_button(
+            label="💾 Scarica file Excel con i KRI",
+            data=buffer,
+            file_name="KRI_Business_Interruption.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.info("📌 Carica un file Excel per visualizzare i KRI e la mappa interattiva.")
+    
 elif selected_kri == "📈 Interest Rate":
     import matplotlib.pyplot as plt
     series = {
