@@ -7,11 +7,7 @@ import seaborn as sns
 import unicodedata
 import streamlit as st
 
-def get_kri(df, n_sim=10000):
-    import pandas as pd
-    import numpy as np
-    from scipy.stats import gamma
-
+def get_kri_bi(df, n_sim=10000):
     # --- DATE E DURATA ---
     df['Start Date'] = pd.to_datetime(df['Start Date'])
     df['End Date'] = pd.to_datetime(df['End Date'])
