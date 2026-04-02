@@ -92,8 +92,8 @@ def get_kri_bi(df, n_sim=10000):
     result_Impatto_Cliente['durata_rel'] = result_Impatto_Cliente['durata_sum'] / total_durata_Impatto_Cliente
     result_Impatto_Cliente['WGHI_ic'] = result_Impatto_Cliente['freq_rel'] * result_Impatto_Cliente['durata_rel']
 
-    min_val_prov = result_Impatto_Cliente['WGHI_prov_ic'].min()
-    max_val_prov = result_Impatto_Cliente['WGHI_prov_ic'].max()
+    min_val_prov = result_Impatto_Cliente['WGHI_ic'].min()
+    max_val_prov = result_Impatto_Cliente['WGHI_ic'].max()
     result_Impatto_Cliente['WGHI_ic_norm'] = (
         (result_Impatto_Cliente['WGHI_ic'] - min_val_prov) / (max_val_prov - min_val_prov)
         if max_val_prov != min_val_prov else 0
