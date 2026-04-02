@@ -82,6 +82,28 @@ def get_kri_bi(df, n_sim=10000):
     )
 
     # =========================
+    # 📌 IMPATTO CLIENTE
+    # =========================
+    result_Impatto_Cliente = df.groupby('Impatto Cliente').agg(
+        count=('CAUSA', 'count'),
+        durata_sum=('durata in giorni', 'sum')
+    )
+
+    total_count_Impatto_Cliente = result_Impatto_Cliente['count'].sum()
+    total_durata_Impatto_Cliente = result_Impatto_Cliente['durata_sum'].sum()
+
+    result_Impatto_Cliente['freq_rel'] = result_Impatto_Cliente['count'] / total_count_Impatto_Cliente
+    result_Impatto_Cliente['durata_rel'] = result_Impatto_Cliente['durata_sum'] / total_durata_Impatto_Cliente
+    result_Impatto_Cliente['WGHI_ic'] = result_Impatto_Cliente['freq_rel'] * result_Impatto_Cliente['durata_rel']
+
+    min_val_prov = result_Impatto_Cliente['WGHI_prov_ic'].min()
+    max_val_prov = result_Impatto_Cliente['WGHI_prov_ic'].max()
+    result_Impatto_Cliente['WGHI_ic_norm'] = (
+        (result_Impatto_Cliente['WGHI_ic'] - min_val_prov) / (max_val_prov - min_val_prov)
+        if max_val_prov != min_val_prov else 0
+    )
+
+    # =========================
     # 📌 SIMULAZIONE PER CAUSA
     # =========================
     risultati = []
@@ -127,11 +149,12 @@ def get_kri_bi(df, n_sim=10000):
         result.reset_index(),
         result_GEO_REG.reset_index(),
         result_GEO_PROV.reset_index(),
+        result_Impatto_Cliente.reset_index(),
         risultati_df
     )
 
 
-def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=20):
+def plot_kri(result, result_GEO_REG, result_GEO_PROV, result_Impatto_Cliente, risultati_df, top_n=20):
     # =========================
     # 1️⃣ TOP CAUSE - TFRI
     # =========================
@@ -208,6 +231,22 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=20):
         color='WGHI_prov_norm',
         color_continuous_scale='Purples',
         title=f"Top {top_n} Province per WGHI"
+    )
+    fig.update_layout(yaxis={'categoryorder':'total ascending'})
+    st.plotly_chart(fig, use_container_width=True)
+
+    # =========================
+    # 6️⃣ IMPATTO CLIENTE
+    # =========================
+    ic_sorted = result_Impatto_Cliente.sort_values('WGHI_ic_norm', ascending=False).head(top_n)
+    fig = px.bar(
+        ic_sorted,
+        x='WGHI_ic_norm',
+        y='Impatto Cliente',
+        orientation='h',
+        color='WGHI_ic_norm',
+        color_continuous_scale='Oranges',
+        title=f"Top {top_n} Impatti Cliente per WGHI"
     )
     fig.update_layout(yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig, use_container_width=True)
