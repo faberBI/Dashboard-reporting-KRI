@@ -1235,6 +1235,8 @@ elif selected_kri == "📈 Interest Rate":
         hedged_total = tranche_df['Hedged'].sum()
         notional_total = tranche_df['Notional'].sum()
         unhedged_total = notional_total-hedged_total
+        st.metric(label="Unhedged totale", value=f"{unhedged_total:.3f}")
+        st.metric(label="perdita totale", value = f"{perdita_totale_mln:.3f}")
         perdita_totale_perc = np.round(perdita_totale_mln/unhedged_total,3)
         st.metric(label="Perdita Totale % su Un-Hedged", value=f"{perdita_totale_perc*100} %")
     
