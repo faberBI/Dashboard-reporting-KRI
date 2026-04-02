@@ -9,7 +9,6 @@ import optuna
 import yfinance as yf
 import streamlit as st
 
-
 def download_ecb_series(series_dict, start="2010-01-01"):
     df_final = pd.DataFrame()
     for name, key in series_dict.items():
