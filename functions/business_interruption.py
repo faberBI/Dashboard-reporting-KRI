@@ -325,8 +325,17 @@ def get_gpt_insights_kri(result, result_GEO_REG, result_GEO_PROV, result_Impatto
     response = openai.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "Sei un analista di rischio esperto. Fornisci insight chiari e utili su KRI di Business Interruption."},
-            {"role": "user", "content": summary_text}
+            {"role": "system", "content": "Sei un Senior Risk Manager esperto. Analizza i seguenti Key Risk Indicators (KRI) di Business Interruption. Fornisci insight chiari, concisi e utili dal punto di vista del Risk Management.  
+                    Il report deve includere:
+
+                    1. Cause critiche e priorità di mitigazione (TFRI_norm, p95, deviazione standard).  
+                    2. Regioni e province ad alta criticità (WGHI_reg_norm e WGHI_prov_norm).  
+                    3. Impatti sui clienti (WGHI_ic_norm).  
+                    4. Variabilità della severità delle interruzioni e scenari di rischio.  
+                    5. Raccomandazioni concrete e azioni da intraprendere.  
+
+                Presenta le informazioni in **bullet points chiari e sintetici**, evitando frasi lunghe o descrizioni narrative."},
+                {"role": "user", "content": summary_text}
         ],
         max_tokens=500,
         temperature=0.7
