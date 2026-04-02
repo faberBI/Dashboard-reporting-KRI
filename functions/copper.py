@@ -67,9 +67,9 @@ def monte_carlo_forecast_cp_from_disk(
     N_SIM=1000,
     alpha=0.05,
     end_date=None,
-    random_seed=42
-):
- np.random.seed(random_seed)
+    random_seed=42):
+    
+    np.random.seed(random_seed)
 
     # -----------------------------
     # Caricamento modelli
