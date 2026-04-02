@@ -294,7 +294,4 @@ def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg010
     )
     fig.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
 
-    # --- Mostra su Streamlit ---
-    st.plotly_chart(fig, use_container_width=True)
-
     return fig
