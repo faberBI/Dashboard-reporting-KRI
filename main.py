@@ -932,7 +932,7 @@ elif selected_kri == "🛑⚡ Business Interruption":
     
 elif selected_kri == "📈 Interest Rate":
     import matplotlib.pyplot as plt
-    series = {
+    series_dict = {
     # --- Politica monetaria BCE ---
     "euribor_3m": "FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA",
     "deposit_rate": "FM.D.U2.EUR.4F.KR.DFR.LEV",
@@ -1010,7 +1010,8 @@ elif selected_kri == "📈 Interest Rate":
     st.title("Hybrid ML model 📊 Results")
     st.table(results)
     
-    df_ecb = download_ecb_series(series, start = '2021-01-01')
+    df_ecb = download_ecb_series(series_dict, start = '2021-01-01')
+    st.dataframe(df_ecb)
     df_yahoo = download_yahoo_series(yahoo_symbols, start = '2021-01-01')
     df_all = df_ecb.join(df_yahoo, how="outer")
     df_all = df_all.sort_index().ffill()
