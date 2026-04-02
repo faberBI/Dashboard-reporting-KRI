@@ -101,48 +101,34 @@ def monte_carlo_forecast_cp_from_disk(
         freq='ME'  # Month End
     )
 
-    future_dates = future_dates[future_dates.notna()].drop_duplicates().sort_values()
-    H = len(future_dates)
-
     # -----------------------------
-    # Preallocazione array per simulazioni
+    # Monte Carlo Simulation
     # -----------------------------
-    series_values = series.dropna().values  # rimuove NaN
+    series_values = series.dropna().values
     if len(series_values) < BEST_LAG:
         raise ValueError(f"La serie è troppo corta per il BEST_LAG={BEST_LAG}")
 
+    H = len(future_dates)
     sim_paths = np.zeros((N_SIM, H))
-    current_values = np.tile(series_values[-BEST_LAG:], (N_SIM, 1))  # shape (N_SIM, BEST_LAG)
+    current_values = np.tile(series_values[-BEST_LAG:], (N_SIM, 1))
 
-    # -----------------------------
-    # GARCH shocks
-    # -----------------------------
     garch_fc = garch_fit.forecast(horizon=H)
     sigma = np.sqrt(garch_fc.variance.values[-1])
     DIST = garch_fit.model.distribution.name.lower()
 
-    if DIST == "t":
-        z = np.random.standard_t(df=garch_fit.params["nu"], size=(N_SIM, H))
-    else:
-        z = np.random.standard_normal((N_SIM, H))
+    z = np.random.standard_t(df=garch_fit.params["nu"], size=(N_SIM,H)) if DIST=="t" else np.random.standard_normal((N_SIM,H))
 
-    # -----------------------------
-    # Simulazione Monte Carlo vettorializzata
-    # -----------------------------
     for h in range(H):
-        # predizione batch CatBoost
         df_lags = pd.DataFrame(current_values, columns=[f"lag_{i+1}" for i in range(BEST_LAG)])
         mu = cat_model.predict(df_lags)
-        y_next = mu + sigma[h] * z[:, h]
-        sim_paths[:, h] = y_next
-
-        # aggiorna i lags per il prossimo passo
-        if BEST_LAG > 1:
-            current_values[:, :-1] = current_values[:, 1:]
-        current_values[:, -1] = y_next
+        y_next = mu + sigma[h]*z[:,h]
+        sim_paths[:,h] = y_next
+        if BEST_LAG>1:
+            current_values[:,:-1] = current_values[:,1:]
+        current_values[:,-1] = y_next
 
     # -----------------------------
-    # Fan chart GARCH
+    # Fan chart
     # -----------------------------
     forecast_mean = sim_paths.mean(axis=0)
     lower_95 = np.percentile(sim_paths, 100*alpha/2, axis=0)
@@ -151,7 +137,7 @@ def monte_carlo_forecast_cp_from_disk(
     # -----------------------------
     # Conformal Prediction
     # -----------------------------
-    data_cp = make_lag_df(series, BEST_LAG)  # assicurati che la funzione sia definita
+    data_cp = make_lag_df(series, BEST_LAG)
     calibration_data = data_cp.iloc[-CALIBRATION_H:]
     X_cal = calibration_data.drop("y", axis=1)
     y_cal = calibration_data["y"].values
@@ -159,11 +145,11 @@ def monte_carlo_forecast_cp_from_disk(
 
     garch_cal_fc = garch_fit.forecast(horizon=CALIBRATION_H)
     sigma_cal = np.sqrt(garch_cal_fc.variance.values[-1])
-    conformity_scores = np.abs((y_cal - y_cal_pred) / sigma_cal)
-    q_hat = np.quantile(conformity_scores, 1 - alpha)
+    conformity_scores = np.abs((y_cal - y_cal_pred)/sigma_cal)
+    q_hat = np.quantile(conformity_scores, 1-alpha)
 
-    cp_lower = forecast_mean - q_hat * sigma
-    cp_upper = forecast_mean + q_hat * sigma
+    cp_lower = forecast_mean - q_hat*sigma
+    cp_upper = forecast_mean + q_hat*sigma
 
     # -----------------------------
     # DataFrame finale
@@ -177,24 +163,16 @@ def monte_carlo_forecast_cp_from_disk(
     }, index=future_dates)
 
     # -----------------------------
-    # Indice Datetime valido
+    # Pulizia indice per resample
     # -----------------------------
-    if not isinstance(final_forecast.index, pd.DatetimeIndex):
-        final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
-
+    final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
     final_forecast = final_forecast.loc[final_forecast.index.notna()]
     final_forecast = final_forecast[~final_forecast.index.duplicated()]
     final_forecast = final_forecast.sort_index()
 
-    # -----------------------------
-    # Fallback se vuoto
-    # -----------------------------
     if final_forecast.empty:
         future_dates = pd.date_range(start=pd.Timestamp.today(), periods=12, freq='M')
-        final_forecast = pd.DataFrame(
-            columns=["Mean_Forecast","GARCH_Lower_95","GARCH_Upper_95","CP_Lower_95","CP_Upper_95"],
-            index=future_dates
-        )
+        final_forecast = pd.DataFrame(columns=final_forecast.columns, index=future_dates)
 
     # -----------------------------
     # Resample annuale sicuro
