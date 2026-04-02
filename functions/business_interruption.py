@@ -96,7 +96,7 @@ def get_kri_bi(df, n_sim=10000):
 
         if len(subset) < 2:
             continue
-
+        try:
         shape, loc, scale = gamma.fit(subset, floc=0)
 
         sims = gamma.rvs(shape, loc=loc, scale=scale, size=n_sim)
@@ -108,7 +108,10 @@ def get_kri_bi(df, n_sim=10000):
             'p95': np.percentile(sims, 95),
             'count': len(subset)
         })
-
+        except Exception as e:
+        # Log per debug (opzionale)
+        print(f"Errore fitting gamma per {causa}: {e}")
+        continue
     risultati_df = pd.DataFrame(risultati)
 
     # =========================
