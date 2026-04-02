@@ -866,7 +866,7 @@ elif selected_kri == "🛑⚡ Business Interruption":
         df = pd.read_excel(uploaded_file)
         with st.spinner("Calcolo KRI e metriche..."):
             # Calcolo KRI e aggregazioni
-            result_TFRI, WGHI_REG, WGHI_PROV, risultati_df = get_kri_bi(df)
+            result_TFRI, WGHI_REG, WGHI_PROV, WGHI_IC, risultati_df = get_kri_bi(df)
     
         st.success("✅ Calcolo completato!")
     
@@ -875,12 +875,12 @@ elif selected_kri == "🛑⚡ Business Interruption":
         # =========================
         st.subheader("📊 Grafici KRI 🛑⚡")
         # plot_kri deve essere già definita nel tuo codice
-        plot_kri(result_TFRI, WGHI_REG, WGHI_PROV, risultati_df, top_n=20)
-    
+        plot_kri(result_TFRI, WGHI_REG, WGHI_PROV, WGHI_IC, risultati_df, top_n=20)
         # =========================
         # Mappa interattiva regioni
         # =========================
         st.subheader("🗺️ Mappa Interattiva KRI per Regione")
+        st.table(WGHI_REG)
         fig = plot_kri_map_regioni_interattivo(WGHI_REG, value_col='WGHI_reg_norm')
         st.plotly_chart(fig, use_container_width=True)
         
@@ -898,8 +898,7 @@ elif selected_kri == "🛑⚡ Business Interruption":
             WGHI_PROV.to_excel(writer, index=False, sheet_name='WGHI Provinciale')
             # Sheet 5 - WGHI per province
             risultati_df.to_excel(writer, index=False, sheet_name='95° Percentile Probs')
-            # Punta all'inizio del buffer
-            writer.save()
+            
         buffer.seek(0)
         st.download_button(
             label="💾 Scarica file Excel con i KRI",
