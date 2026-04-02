@@ -1034,7 +1034,7 @@ elif selected_kri == "📈 Interest Rate":
         
         st.subheader("📋 Tranche caricate dall’Excel")
         st.dataframe(tranche_df)
-        
+        st.dataframe(df_dropped)
         series = df_dropped["euribor_3m"].values
         last_date = pd.to_datetime(df_dropped.index[-1])
     
