@@ -874,12 +874,20 @@ elif selected_kri == "🛑⚡ Business Interruption":
         # Grafici principali
         # =========================
         st.subheader("📊 Grafici KRI 🛑⚡")
+        st.markdown("""
+        **Legenda KRI**  
+        - 🟢 **Expected Severe Outage Rate (SOR)**: Modello MonteCarlo per stima della probabilità attesa dei disservizi con durata > soglia "alta"  
+        - 🔵 **Technology Failure Risk Index**: Misura la vulnerabilità strutturale associata a una tipologia di causa di disservizio  
+        - 🔴 **Weighted Geographical Hotspot Index**: Individuare concentrazioni anomale e persistenti di disservizi, ponderate per durata degli stessi, su specifiche aree geografiche (Provincia/Regione)  
+        """)
+        
         # plot_kri deve essere già definita nel tuo codice
         plot_kri(result_TFRI, WGHI_REG, WGHI_PROV, WGHI_IC, risultati_df, top_n=20)
         # =========================
         # Mappa interattiva regioni
         # =========================
-        st.subheader("🗺️ Mappa Interattiva KRI per Regione")
+        st.subheader("🗺️ Mappa Interattiva Weighted Geographical Hotspot Index")
+        st.info('Individuare concentrazioni anomale e persistenti di disservizi,  ponderate per durata degli stessi, su specifiche aree geografiche')
         
         top10 = WGHI_REG.sort_values('WGHI_reg_norm', ascending=False).head(10)
         display_df = top10[['Regioni', 'WGHI_reg_norm']].copy()
