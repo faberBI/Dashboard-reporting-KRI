@@ -29,6 +29,7 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, m
 import yfinance as yf
 import pmdarima as pm
 import matplotlib.pyplot as plt
+import openai
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
@@ -53,7 +54,7 @@ from functions.energy_risk import (
     adjust_first_forecast_with_partial_month)
 from functions.copper import (make_lag_df, monte_carlo_forecast_cp_from_disk, plot_copper_forecast, plot_var_vs_budget, full_copper_forecast)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
-from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_regioni_interattivo)
+from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_regioni_interattivo ,get_gpt_insights_kri)
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
@@ -896,6 +897,12 @@ elif selected_kri == "🛑⚡ Business Interruption":
         st.dataframe(styled_df, use_container_width=True)
         fig = plot_kri_map_regioni_interattivo(WGHI_REG, shapefile_path='Data/Reg01012026_g_WGS84.shp', value_col='WGHI_reg_norm')
         st.plotly_chart(fig, use_container_width=True)
+
+        insights_text = get_gpt_insights_kri(result_TFRI, WGHI_REG, WGHI_PROV, WGHI_IC, risultati_df, model="gpt-4")
+        st.subheader("📊 Insight sui KRI di Business Interruption")
+        st.markdown(insights_text)
+
+        
         st.subheader("💾 Download Excel")
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
