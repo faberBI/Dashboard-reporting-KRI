@@ -688,7 +688,7 @@ elif selected_kri == "🟠 Copper Price":
     if st.button("💹 Esegui simulazione Copper Risk"):
         st.info("Simulazione in corso...")
 
-        result_df , result_df_annual = monte_carlo_forecast_cp_from_disk(series,
+        result_df , result_df_annual = monte_carlo_forecast_cp_from_disk(df_model[price_col],
                                       cat_model_path="utils/catboost_model.cbm",
                                       garch_model_path="utils/garch_model.pkl",
                                       params_path="utils/model_params.pkl",
