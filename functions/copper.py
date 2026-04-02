@@ -100,13 +100,16 @@ def monte_carlo_forecast_cp_from_disk(
         end=end_date,
         freq='ME'  # Month End
     )
-    future_dates = future_dates[future_dates.notna()]  # indice sicuro
+    # Pulizia indice
+    future_dates = future_dates[future_dates.notna()]
+    future_dates = future_dates.drop_duplicates()
+    future_dates = future_dates.sort_values()
     H = len(future_dates)
 
     # -----------------------------
     # Preallocazione array per simulazioni
     # -----------------------------
-    series_values = series.values
+    series_values = series.dropna().values  # rimuove NaN
     sim_paths = np.zeros((N_SIM, H))
     current_values = np.tile(series_values[-BEST_LAG:], (N_SIM, 1))  # shape (N_SIM, BEST_LAG)
 
@@ -147,8 +150,7 @@ def monte_carlo_forecast_cp_from_disk(
     # -----------------------------
     # Conformal Prediction
     # -----------------------------
-    # Assicurati di avere make_lag_df definita/importata
-    data_cp = make_lag_df(series, BEST_LAG)
+    data_cp = make_lag_df(series, BEST_LAG)  # assicurati che la funzione sia definita
     calibration_data = data_cp.iloc[-CALIBRATION_H:]
     X_cal = calibration_data.drop("y", axis=1)
     y_cal = calibration_data["y"].values
@@ -173,10 +175,13 @@ def monte_carlo_forecast_cp_from_disk(
         "CP_Upper_95": cp_upper
     }, index=future_dates)
 
+    # Garantire indice valido e ordinato
     final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
     final_forecast = final_forecast.loc[final_forecast.index.notna()]
+    final_forecast = final_forecast[~final_forecast.index.duplicated()]
+    final_forecast = final_forecast.sort_index()
 
-    # resample annuale sicuro
+    # Resample annuale sicuro
     if final_forecast.empty:
         df_yearly = pd.DataFrame(columns=final_forecast.columns)
     else:
