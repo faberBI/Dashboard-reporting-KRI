@@ -69,7 +69,7 @@ def monte_carlo_forecast_cp_from_disk(
     end_date=None,
     random_seed=42
 ):
-    np.random.seed(random_seed)
+ np.random.seed(random_seed)
 
     # -----------------------------
     # Caricamento modelli
@@ -98,34 +98,39 @@ def monte_carlo_forecast_cp_from_disk(
     future_dates = pd.date_range(
         start=last_date + pd.offsets.MonthBegin(1),
         end=end_date,
-        freq='ME'  # Month End
+        freq='M'
     )
-
-    # -----------------------------
-    # Monte Carlo Simulation
-    # -----------------------------
-    series_values = series.dropna().values
-    if len(series_values) < BEST_LAG:
-        raise ValueError(f"La serie è troppo corta per il BEST_LAG={BEST_LAG}")
-
     H = len(future_dates)
-    sim_paths = np.zeros((N_SIM, H))
-    current_values = np.tile(series_values[-BEST_LAG:], (N_SIM, 1))
 
+    # -----------------------------
+    # Preparazione serie
+    # -----------------------------
+    series = pd.to_numeric(series, errors="coerce").dropna()
+    if len(series) < BEST_LAG:
+        raise ValueError(f"La serie è troppo corta per BEST_LAG={BEST_LAG}")
+
+    last_values = series.values[-BEST_LAG:]
+    sim_paths = np.zeros((N_SIM, H))
+
+    # -----------------------------
+    # GARCH
+    # -----------------------------
     garch_fc = garch_fit.forecast(horizon=H)
     sigma = np.sqrt(garch_fc.variance.values[-1])
     DIST = garch_fit.model.distribution.name.lower()
 
-    z = np.random.standard_t(df=garch_fit.params["nu"], size=(N_SIM,H)) if DIST=="t" else np.random.standard_normal((N_SIM,H))
-
-    for h in range(H):
-        df_lags = pd.DataFrame(current_values, columns=[f"lag_{i+1}" for i in range(BEST_LAG)])
-        mu = cat_model.predict(df_lags)
-        y_next = mu + sigma[h]*z[:,h]
-        sim_paths[:,h] = y_next
-        if BEST_LAG>1:
-            current_values[:,:-1] = current_values[:,1:]
-        current_values[:,-1] = y_next
+    # -----------------------------
+    # Monte Carlo
+    # -----------------------------
+    for sim in range(N_SIM):
+        path = last_values.copy()
+        for h in range(H):
+            X_future = pd.DataFrame([path[-BEST_LAG:]], columns=[f"lag_{i+1}" for i in range(BEST_LAG)])
+            mu = cat_model.predict(X_future)[0]
+            z = np.random.standard_t(df=garch_fit.params["nu"]) if DIST=="t" else np.random.standard_normal()
+            y_next = mu + sigma[h]*z
+            sim_paths[sim,h] = y_next
+            path = np.append(path, y_next)
 
     # -----------------------------
     # Fan chart
@@ -163,7 +168,7 @@ def monte_carlo_forecast_cp_from_disk(
     }, index=future_dates)
 
     # -----------------------------
-    # Pulizia indice per resample
+    # Pulizia indice
     # -----------------------------
     final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
     final_forecast = final_forecast.loc[final_forecast.index.notna()]
@@ -171,8 +176,9 @@ def monte_carlo_forecast_cp_from_disk(
     final_forecast = final_forecast.sort_index()
 
     if final_forecast.empty:
+        # fallback: 12 mesi dall’oggi
         future_dates = pd.date_range(start=pd.Timestamp.today(), periods=12, freq='M')
-        final_forecast = pd.DataFrame(columns=final_forecast.columns, index=future_dates)
+        final_forecast = pd.DataFrame(columns=["Mean_Forecast","GARCH_Lower_95","GARCH_Upper_95","CP_Lower_95","CP_Upper_95"], index=future_dates)
 
     # -----------------------------
     # Resample annuale sicuro
