@@ -7,7 +7,7 @@ import seaborn as sns
 import unicodedata
 import streamlit as st
 import geopandas as gpd
-
+import json
 
 def get_kri_bi(df, n_sim=10000):
     # --- DATE E DURATA ---
@@ -253,14 +253,6 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, result_Impatto_Cliente, ri
 def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg01012026_g_WGS84.shp', value_col='WGHI_reg_norm'):
     """
     Crea una mappa interattiva dei KRI per regione italiana usando Plotly + GeoPandas.
-    
-    Parametri:
-    - result_GEO_REG: DataFrame con colonne ['Regioni', value_col]
-    - shapefile_path: percorso del file shapefile delle regioni italiane
-    - value_col: nome della colonna da colorare nella mappa (es. 'WGHI_reg_norm' o 'WGHI_ic')
-    
-    Restituisce:
-    - fig: oggetto Plotly per la mappa interattiva
     """
     
     # --- Carica shapefile regioni italiane ---
@@ -272,16 +264,19 @@ def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg010
             return None
         return unicodedata.normalize('NFKD', str(text)).encode('ascii', errors='ignore').decode('utf-8').title().strip()
 
-    regioni['Regioni_clean'] = regioni['DEN_REG'].apply(normalize)  # DEN_REG è la colonna con i nomi delle regioni nello shapefile
+    regioni['Regioni_clean'] = regioni['DEN_REG'].apply(normalize)  # DEN_REG: nomi regioni shapefile
     result_GEO_REG['Regioni_clean'] = result_GEO_REG['Regioni'].apply(normalize)
 
-    # --- Merge dei dati KRI con geometrie ---
+    # --- Merge dati KRI con geometrie ---
     gdf = regioni.merge(result_GEO_REG, on='Regioni_clean', how='left')
 
-    # --- Creazione mappa interattiva con Plotly ---
+    # --- Converti geometrie in GeoJSON ---
+    gdf_json = json.loads(gdf.to_json())
+
+    # --- Crea mappa con Plotly ---
     fig = px.choropleth(
         gdf,
-        geojson=gdf.geometry,
+        geojson=gdf_json,
         locations=gdf.index,
         color=value_col,
         hover_name='Regioni_clean',
@@ -290,12 +285,11 @@ def plot_kri_map_regioni_interattivo(result_GEO_REG, shapefile_path='Data/Reg010
         title=f"Mappa Interattiva KRI per Regione ({value_col})"
     )
 
-    # --- Adatta la vista ai confini delle regioni ---
+    # --- Fit confini ---
     fig.update_geos(fitbounds="locations", visible=False)
     fig.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
 
-    # --- Visualizzazione in Streamlit ---
+    # --- Mostra su Streamlit ---
     st.plotly_chart(fig, use_container_width=True)
 
     return fig
-
