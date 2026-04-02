@@ -880,11 +880,22 @@ elif selected_kri == "🛑⚡ Business Interruption":
         # Mappa interattiva regioni
         # =========================
         st.subheader("🗺️ Mappa Interattiva KRI per Regione")
-        st.table(WGHI_REG)
+        
+        top10 = WGHI_REG.sort_values('WGHI_reg_norm', ascending=False).head(10)
+        display_df = top10[['Regioni', 'WGHI_reg_norm']].copy()
+        styled_df = display_df.style.background_gradient(
+        subset=['WGHI_reg_norm'],  # colonna da colorare
+        cmap='RdYlGn_r',           # rosso-giallo-verde inverso
+        vmin=0, vmax=1             # normalizzazione tra 0 e 1
+        ).format({'WGHI_reg_norm': "{:.2f}"})  # due decimali
+        st.subheader("🗺️ Top 10 Regioni per KRI Normalizzato")
+        st.dataframe(styled_df, use_container_width=True)
+        
+        
         fig = plot_kri_map_regioni_interattivo(WGHI_REG, shapefile_path='Data/Reg01012026_g_WGS84.shp', value_col='WGHI_reg_norm')
         st.plotly_chart(fig, use_container_width=True)
         
-        st.subheader("🗺️💾 Download Excel")
+        st.subheader("💾 Download Excel")
         buffer = io.BytesIO()
 
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
