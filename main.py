@@ -861,13 +861,11 @@ elif selected_kri == "💳 Credit risk":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
   
-elif selected_kri == "🛑⚡ Business Interruption":
-    df = st.file_uploader("📂 Carica il file sui disservizi", type="xlsx")
-    
-    if df is not None:
+elif selected_kri == "🛑⚡ Business Interruption":  
+    if uploaded_file is not None:
         with st.spinner("Calcolo KRI e metriche..."):
             # Calcolo KRI e aggregazioni
-            result_TFRI, WGHI_REG, WGHI_PROV, risultati_df = get_kri_bi(df)
+            result_TFRI, WGHI_REG, WGHI_PROV, risultati_df = get_kri_bi(uploaded_file)
     
         st.success("✅ Calcolo completato!")
     
