@@ -878,8 +878,8 @@ elif selected_kri == "🛑⚡ Business Interruption":
         st.markdown("""
         **Legenda KRI**  
         - 🟢 **Expected Severe Outage Rate (SOR)**: Modello MonteCarlo per stima della probabilità attesa dei disservizi con durata > soglia "alta"  
-        - 🔵 **Technology Failure Risk Index**: Misura la vulnerabilità strutturale associata a una tipologia di causa di disservizio  
-        - 🔴 **Weighted Geographical Hotspot Index**: Individuare concentrazioni anomale e persistenti di disservizi, ponderate per durata degli stessi, su specifiche aree geografiche (Provincia/Regione)  
+        - 🔵 **Technology Failure Risk Index (TFRI)**: Misura la vulnerabilità strutturale associata a una tipologia di causa di disservizio  
+        - 🔴 **Weighted Geographical Hotspot Index (WGHI)**: Individuare concentrazioni anomale e persistenti di disservizi, ponderate per durata degli stessi, su specifiche aree geografiche (Provincia/Regione)  
         """)
         st.subheader("📊 Grafici KRI 🛑⚡")
         # plot_kri deve essere già definita nel tuo codice
