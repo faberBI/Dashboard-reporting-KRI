@@ -141,7 +141,7 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=10):
     
     sns.barplot(data=top, x='TFRI_norm', y='CAUSA', palette='Reds_r')
     plt.title(f"Top {top_n} Cause per TFRI")
-    plt.xlabel("TFRI Normalizzato")
+    plt.xlabel("TFRI")
     plt.ylabel("Causa")
     plt.tight_layout()
     plt.show()
@@ -150,11 +150,11 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=10):
     # 📊 2. KRI SIMULATO (P95)
     # =========================
     plt.figure(figsize=(10, 6))
-    top_kri = risultati_df.sort_values('KRI_p95_norm', ascending=False).head(top_n)
+    top_kri = risultati_df.sort_values('Expected Severe Outage Rate_norm', ascending=False).head(top_n)
 
-    sns.barplot(data=top_kri, x='KRI_p95_norm', y='CAUSA', palette='Blues_r')
-    plt.title(f"Top {top_n} Cause per KRI (P95)")
-    plt.xlabel("KRI P95 Normalizzato")
+    sns.barplot(data=top_kri, x='Expected Severe Outage Rate_norm', y='CAUSA', palette='Blues_r')
+    plt.title(f"Top {top_n} Cause per 'Expected Severe Outage Rate")
+    plt.xlabel("'Expected Severe Outage Rate")
     plt.ylabel("Causa")
     plt.tight_layout()
     plt.show()
@@ -197,7 +197,7 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=10):
 
     sns.barplot(data=reg_sorted, x='WGHI_reg_norm', y='Regioni', palette='Greens_r')
     plt.title(f"Top {top_n} Regioni per WGHI")
-    plt.xlabel("WGHI Normalizzato")
+    plt.xlabel("WGHI")
     plt.ylabel("Regione")
     plt.tight_layout()
     plt.show()
@@ -210,7 +210,7 @@ def plot_kri(result, result_GEO_REG, result_GEO_PROV, risultati_df, top_n=10):
 
     sns.barplot(data=prov_sorted, x='WGHI_prov_norm', y='AREA (PROVINCIA)', palette='Purples_r')
     plt.title(f"Top {top_n} Province per WGHI")
-    plt.xlabel("WGHI Normalizzato")
+    plt.xlabel("WGHI")
     plt.ylabel("Provincia")
     plt.tight_layout()
     plt.show()
