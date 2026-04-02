@@ -90,7 +90,7 @@ def monte_carlo_forecast_cp_from_disk(series, cat_model_path="utils/catboost_mod
         end_date = pd.to_datetime(end_date)
 
     future_dates = pd.date_range(start=last_date + pd.offsets.MonthBegin(1),
-                                 end=end_date, freq='M')
+                                 end=end_date, freq='ME')
     H = len(future_dates)
 
     # -----------------------------
