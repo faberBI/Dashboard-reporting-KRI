@@ -644,8 +644,10 @@ elif selected_kri == "🟠 Copper Price":
     # Imposta 'Time' come indice
     df_model.set_index("Time", inplace=True)
     st.dataframe(df_model[price_col])
-    fig = full_copper_forecast(link_df="Data/copper_price.xlsx", price_col='Copper', N_SIM=10000, alpha=0.05, DIST="ged", calibration_size_pct=0.05)
-    st.pyplot(fig)
+    
+    st.subheader(f"Andamento {price_col}")
+    st.line_chart(df_model[[price_col]])
+   
     st.info("Fonte Dati: https://www.insee.fr/en/statistiques/serie/010767327")
     
     # -----------------------------------------------
@@ -697,9 +699,7 @@ elif selected_kri == "🟠 Copper Price":
         # 💰 Aggiunta quantità e calcolo P&L vs budget
         # -----------------------------------------------
         result_df_annual["qty"] = result_df_annual.index.year.map(quantities)
-
         result_df_annual["VaR_vs_budget"] = ((result_df_annual["CP_Lower_95"] - budget_price) * result_df_annual["qty"]) / 1_000_000
-
         result_df_annual.drop(['GARCH_Lower_95','CP_Upper_95'], axis =1, inplace = True)
         result_df_annual.columns = ['Mean_Forecast', 'Upper_95','Lower_95','qty','VaR_vs_budget']
         
