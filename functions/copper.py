@@ -16,27 +16,39 @@ def make_lag_df(series, n_lags):
     return df.dropna().reset_index(drop=True)
 
 def plot_copper_forecast(df_model, result_df_annual):
-    fig, ax = plt.subplots(figsize=(14,7))
-    df_yearly = df_model.resample('Y').mean()
+    fig, ax = plt.subplots(figsize=(14, 7))
+
+    # ✅ Year-End esplicito (invece di 'Y')
+    df_yearly = df_model.resample("YE").mean()
+
     # Prezzo storico
-    ax.plot(df_yearly.index, df_yearly['Copper'], label='Historical Price in €', color='blue')
+    ax.plot(df_yearly.index, df_yearly["Copper"], label="Historical Price in €", color="blue")
 
     # Previsioni future
-    ax.plot(result_df_annual.index, result_df_annual['Mean_Forecast'], label='Forecast Average', color='orange', linestyle='--')
+    ax.plot(
+        result_df_annual.index,
+        result_df_annual["Mean_Forecast"],
+        label="Forecast Average",
+        color="orange",
+        linestyle="--"
+    )
 
-    # Banda di incertezza
-    if 'CP_Lower_95' in result_df_annual.columns and 'GARCH_Upper_95' in result_df_annual.columns:
-        ax.fill_between(result_df_annual.index, 
-                        result_df_annual['CP_Lower_95'], 
-                        result_df_annual['GARCH_Upper_95'], 
-                        color='green', alpha=0.2, label='Adjusted Forecast')
+    # Banda di incertezza (usa colonne se presenti)
+    if "CP_Lower_95" in result_df_annual.columns and "GARCH_Upper_95" in result_df_annual.columns:
+        ax.fill_between(
+            result_df_annual.index,
+            result_df_annual["CP_Lower_95"],
+            result_df_annual["GARCH_Upper_95"],
+            color="green",
+            alpha=0.2,
+            label="Adjusted Forecast"
+        )
 
-    ax.set_title('Historical and Forecasted Copper Prices')
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Price in Euro')
+    ax.set_title("Historical and Forecasted Copper Prices")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Price in Euro")
     ax.grid(True)
     ax.legend()
-
     return fig
 
 def plot_var_vs_budget(result_df_annual):
@@ -67,8 +79,8 @@ def monte_carlo_forecast_cp_from_disk(
     N_SIM=1000,
     alpha=0.05,
     end_date=None,
-    random_seed=42):
-    
+    random_seed=42
+):
     np.random.seed(random_seed)
 
     # -----------------------------
@@ -87,33 +99,48 @@ def monte_carlo_forecast_cp_from_disk(
     CALIBRATION_H = params_loaded.get("CALIBRATION_H", 24)
 
     # -----------------------------
-    # Orizzonte temporale
+    # Preparazione serie (pulizia)
     # -----------------------------
-    last_date = pd.Timestamp.now().normalize()
+    series = pd.to_numeric(series, errors="coerce").dropna()
+
+    if len(series) < BEST_LAG:
+        raise ValueError(f"La serie è troppo corta per BEST_LAG={BEST_LAG}")
+
+    # -----------------------------
+    # Orizzonte temporale (✅ coerente coi dati)
+    # -----------------------------
+    # Se la serie ha un indice datetime, usa l’ultima data reale disponibile:
+    if isinstance(series.index, pd.DatetimeIndex):
+        last_date = pd.to_datetime(series.index.max()).normalize()
+    else:
+        last_date = pd.Timestamp.now().normalize()
+
     if end_date is None:
         end_date = last_date + pd.DateOffset(years=5)
     else:
         end_date = pd.to_datetime(end_date)
 
+    if end_date <= last_date:
+        raise ValueError(
+            f"end_date ({end_date.date()}) deve essere successiva all’ultima data disponibile ({last_date.date()})."
+        )
+
+    # ✅ freq='ME' invece di 'M' (Month End)
     future_dates = pd.date_range(
         start=last_date + pd.offsets.MonthBegin(1),
         end=end_date,
-        freq='M'
+        freq="ME"
     )
     H = len(future_dates)
 
     # -----------------------------
-    # Preparazione serie
+    # Setup simulazione
     # -----------------------------
-    series = pd.to_numeric(series, errors="coerce").dropna()
-    if len(series) < BEST_LAG:
-        raise ValueError(f"La serie è troppo corta per BEST_LAG={BEST_LAG}")
-
     last_values = series.values[-BEST_LAG:]
     sim_paths = np.zeros((N_SIM, H))
 
     # -----------------------------
-    # GARCH
+    # GARCH (vol forecast)
     # -----------------------------
     garch_fc = garch_fit.forecast(horizon=H)
     sigma = np.sqrt(garch_fc.variance.values[-1])
@@ -125,65 +152,77 @@ def monte_carlo_forecast_cp_from_disk(
     for sim in range(N_SIM):
         path = last_values.copy()
         for h in range(H):
-            X_future = pd.DataFrame([path[-BEST_LAG:]], columns=[f"lag_{i+1}" for i in range(BEST_LAG)])
+            X_future = pd.DataFrame(
+                [path[-BEST_LAG:]],
+                columns=[f"lag_{i+1}" for i in range(BEST_LAG)]
+            )
             mu = cat_model.predict(X_future)[0]
-            z = np.random.standard_t(df=garch_fit.params["nu"]) if DIST=="t" else np.random.standard_normal()
-            y_next = mu + sigma[h]*z
-            sim_paths[sim,h] = y_next
+            z = np.random.standard_t(df=garch_fit.params["nu"]) if DIST == "t" else np.random.standard_normal()
+            y_next = mu + sigma[h] * z
+
+            sim_paths[sim, h] = y_next
             path = np.append(path, y_next)
 
     # -----------------------------
     # Fan chart
     # -----------------------------
     forecast_mean = sim_paths.mean(axis=0)
-    lower_95 = np.percentile(sim_paths, 100*alpha/2, axis=0)
-    upper_95 = np.percentile(sim_paths, 100*(1-alpha/2), axis=0)
+    lower_95 = np.percentile(sim_paths, 100 * alpha / 2, axis=0)
+    upper_95 = np.percentile(sim_paths, 100 * (1 - alpha / 2), axis=0)
 
     # -----------------------------
     # Conformal Prediction
     # -----------------------------
     data_cp = make_lag_df(series, BEST_LAG)
     calibration_data = data_cp.iloc[-CALIBRATION_H:]
+
     X_cal = calibration_data.drop("y", axis=1)
     y_cal = calibration_data["y"].values
     y_cal_pred = cat_model.predict(X_cal)
 
     garch_cal_fc = garch_fit.forecast(horizon=CALIBRATION_H)
     sigma_cal = np.sqrt(garch_cal_fc.variance.values[-1])
-    conformity_scores = np.abs((y_cal - y_cal_pred)/sigma_cal)
-    q_hat = np.quantile(conformity_scores, 1-alpha)
 
-    cp_lower = forecast_mean - q_hat*sigma
-    cp_upper = forecast_mean + q_hat*sigma
+    conformity_scores = np.abs((y_cal - y_cal_pred) / sigma_cal)
+    q_hat = np.quantile(conformity_scores, 1 - alpha)
+
+    cp_lower = forecast_mean - q_hat * sigma
+    cp_upper = forecast_mean + q_hat * sigma
 
     # -----------------------------
     # DataFrame finale
     # -----------------------------
-    final_forecast = pd.DataFrame({
-        "Mean_Forecast": (cp_lower + upper_95)/2,
-        "GARCH_Lower_95": lower_95,
-        "GARCH_Upper_95": upper_95,
-        "CP_Lower_95": cp_lower,
-        "CP_Upper_95": cp_upper
-    }, index=future_dates)
+    final_forecast = pd.DataFrame(
+        {
+            "Mean_Forecast": (cp_lower + upper_95) / 2,
+            "GARCH_Lower_95": lower_95,
+            "GARCH_Upper_95": upper_95,
+            "CP_Lower_95": cp_lower,
+            "CP_Upper_95": cp_upper,
+        },
+        index=future_dates
+    )
 
     # -----------------------------
     # Pulizia indice
     # -----------------------------
-    final_forecast.index = pd.to_datetime(final_forecast.index, errors='coerce')
+    final_forecast.index = pd.to_datetime(final_forecast.index, errors="coerce")
     final_forecast = final_forecast.loc[final_forecast.index.notna()]
     final_forecast = final_forecast[~final_forecast.index.duplicated()]
     final_forecast = final_forecast.sort_index()
 
     if final_forecast.empty:
         # fallback: 12 mesi dall’oggi
-        future_dates = pd.date_range(start=pd.Timestamp.today(), periods=12, freq='M')
-        final_forecast = pd.DataFrame(columns=["Mean_Forecast","GARCH_Lower_95","GARCH_Upper_95","CP_Lower_95","CP_Upper_95"], index=future_dates)
+        future_dates = pd.date_range(start=pd.Timestamp.today().normalize(), periods=12, freq="ME")
+        final_forecast = pd.DataFrame(
+            columns=["Mean_Forecast", "GARCH_Lower_95", "GARCH_Upper_95", "CP_Lower_95", "CP_Upper_95"],
+            index=future_dates
+        )
 
     # -----------------------------
-    # Resample annuale sicuro
+    # Resample annuale sicuro (✅ YE)
     # -----------------------------
-    df_yearly = final_forecast.resample('Y').mean()
+    df_yearly = final_forecast.resample("YE").mean()
 
     return final_forecast, df_yearly
 
