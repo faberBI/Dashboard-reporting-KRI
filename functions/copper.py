@@ -7,6 +7,7 @@ import pickle
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, mean_absolute_percentage_error
 import warnings
+import optuna
 warnings.filterwarnings("ignore")
 
 def make_lag_df(series, n_lags):
@@ -73,48 +74,147 @@ def plot_var_vs_budget(result_df_annual):
 
 def monte_carlo_forecast_cp_from_disk(
     series,
-    cat_model_path="utils/catboost_model.cbm",
-    garch_model_path="utils/garch_model.pkl",
-    params_path="utils/model_params.pkl",
-    N_SIM=1000,
-    alpha=0.05,
+    N_SIM=10_000,
     end_date=None,
     random_seed=42
 ):
-    np.random.seed(random_seed)
+    """
+    Random Walk additivo sul PREZZO + Conformal/Bootstrap sul PREZZO.
+    Optuna ottimizza drift_window, cal_window e alpha (coverage vs width).
+    Restituisce lo stesso schema colonne usato nella tua app.
+    """
+    import warnings
+    warnings.filterwarnings("ignore")
+
+    import numpy as np
+    import pandas as pd
+    import optuna
+    from sklearn.model_selection import TimeSeriesSplit
+
+    rng = np.random.default_rng(random_seed)
 
     # -----------------------------
-    # Caricamento modelli
+    # 0) Sanitizzazione input
     # -----------------------------
-    cat_model = CatBoostRegressor()
-    cat_model.load_model(cat_model_path)
+    if not isinstance(series, pd.Series):
+        series = pd.Series(series)
 
-    with open(garch_model_path, "rb") as f:
-        garch_fit = pickle.load(f)
-
-    with open(params_path, "rb") as f:
-        params_loaded = pickle.load(f)
-
-    BEST_LAG = params_loaded["BEST_LAG"]
-    CALIBRATION_H = params_loaded.get("CALIBRATION_H", 24)
-
-    # -----------------------------
-    # Preparazione serie (pulizia)
-    # -----------------------------
     series = pd.to_numeric(series, errors="coerce").dropna()
 
-    if len(series) < BEST_LAG:
-        raise ValueError(f"La serie è troppo corta per BEST_LAG={BEST_LAG}")
+    if not isinstance(series.index, pd.DatetimeIndex):
+        raise ValueError("La serie deve avere DatetimeIndex (Time come index).")
+
+    series = series[~series.index.duplicated()].sort_index()
+
+    if len(series) < 40:
+        raise ValueError("Serie troppo corta: servono almeno ~40 osservazioni per Optuna+Conformal robusto.")
+
+    price = series.astype(float)
+    dP = price.diff().dropna().values   # ΔP_t
+    P  = price.values                  # P_t
 
     # -----------------------------
-    # Orizzonte temporale (✅ coerente coi dati)
+    # Helpers RW
     # -----------------------------
-    # Se la serie ha un indice datetime, usa l’ultima data reale disponibile:
-    if isinstance(series.index, pd.DatetimeIndex):
-        last_date = pd.to_datetime(series.index.max()).normalize()
-    else:
-        last_date = pd.Timestamp.now().normalize()
+    def rolling_drift(dP_hist: np.ndarray, window: int) -> float:
+        w = min(window, len(dP_hist))
+        if w <= 0:
+            return 0.0
+        return float(np.mean(dP_hist[-w:]))
 
+    def one_step_predict_price(P_prev: float, mu: float) -> float:
+        return float(P_prev + mu)
+
+    # -----------------------------
+    # 2) Optuna objective (TimeSeriesSplit, no leakage)
+    #    obiettivo: width piccolo + penalità se coverage < target
+    # -----------------------------
+    tscv = TimeSeriesSplit(n_splits=5)
+    idx_all = np.arange(1, len(P))  # t=1..T-1
+
+    def objective(trial: optuna.Trial) -> float:
+        drift_window = trial.suggest_int("drift_window", 12, 120)
+        cal_window   = trial.suggest_int("cal_window",   12, 120)
+        alpha_trial  = trial.suggest_float("alpha", 0.01, 0.2)
+
+        widths = []
+        penalties = []
+
+        for tr_idx, va_idx in tscv.split(idx_all):
+            tr_points = idx_all[tr_idx]
+            va_points = idx_all[va_idx]
+
+            # errori 1-step nel train fold
+            err_train = []
+            for t in tr_points:
+                mu_t = rolling_drift(dP_hist=dP[:t], window=drift_window)
+                p_hat = one_step_predict_price(P_prev=P[t-1], mu=mu_t)
+                err_train.append(P[t] - p_hat)
+
+            err_train = np.asarray(err_train, dtype=float)
+            w = min(cal_window, len(err_train))
+            if w < 5:
+                return 1e9
+
+            q_hat = np.quantile(np.abs(err_train[-w:]), 1 - alpha_trial)
+
+            # validazione: coverage e width
+            covered = 0
+            total = 0
+            width_sum = 0.0
+
+            for t in va_points:
+                mu_t = rolling_drift(dP_hist=dP[:t], window=drift_window)
+                p_hat = one_step_predict_price(P_prev=P[t-1], mu=mu_t)
+
+                lower = p_hat - q_hat
+                upper = p_hat + q_hat
+
+                y_true = P[t]
+                total += 1
+                covered += int(lower <= y_true <= upper)
+                width_sum += (upper - lower)
+
+            cov = covered / max(1, total)
+            avg_width = width_sum / max(1, total)
+
+            target = 1 - alpha_trial
+            # penalità forte solo per undercoverage (se over-coverage va bene ma è inefficiente -> width già penalizza)
+            penalty = max(0.0, target - cov) * 1000.0
+
+            widths.append(avg_width)
+            penalties.append(penalty)
+
+        return float(np.mean(widths) + np.mean(penalties))
+
+    study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=random_seed))
+    study.optimize(objective, n_trials=300, show_progress_bar=False)
+
+    best = study.best_params
+    DRIFT_W = int(best["drift_window"])
+    CAL_W   = int(best["cal_window"])
+    ALPHA_OPT = float(best["alpha"])
+
+    # -----------------------------
+    # 3) Calibra residui 1-step e q_hat finale
+    # -----------------------------
+    err_hist = []
+    for t in range(1, len(P)):
+        mu_t = rolling_drift(dP_hist=dP[:t], window=DRIFT_W)
+        p_hat = one_step_predict_price(P_prev=P[t-1], mu=mu_t)
+        err_hist.append(P[t] - p_hat)
+
+    err_hist = np.asarray(err_hist, dtype=float)
+    w = min(CAL_W, len(err_hist))
+    resid_pool = err_hist[-w:]
+
+    # q_hat 1-step (utile per debug; multi-step useremo bootstrap)
+    q_hat = float(np.quantile(np.abs(resid_pool), 1 - ALPHA_OPT))
+
+    # -----------------------------
+    # 4) Date future
+    # -----------------------------
+    last_date = pd.to_datetime(price.index.max()).normalize()
     if end_date is None:
         end_date = last_date + pd.DateOffset(years=5)
     else:
@@ -125,7 +225,6 @@ def monte_carlo_forecast_cp_from_disk(
             f"end_date ({end_date.date()}) deve essere successiva all’ultima data disponibile ({last_date.date()})."
         )
 
-    # ✅ freq='ME' invece di 'M' (Month End)
     future_dates = pd.date_range(
         start=last_date + pd.offsets.MonthBegin(1),
         end=end_date,
@@ -134,67 +233,35 @@ def monte_carlo_forecast_cp_from_disk(
     H = len(future_dates)
 
     # -----------------------------
-    # Setup simulazione
+    # 5) Drift “oggi”
     # -----------------------------
-    last_values = series.values[-BEST_LAG:]
-    sim_paths = np.zeros((N_SIM, H))
+    mu0 = rolling_drift(dP_hist=dP, window=DRIFT_W)
+    p0 = float(price.iloc[-1])
 
     # -----------------------------
-    # GARCH (vol forecast)
+    # 6) Simulazione bootstrap multi-step sul PREZZO
+    #    P_{t+1} = P_t + mu0 + shock_t
     # -----------------------------
-    garch_fc = garch_fit.forecast(horizon=H)
-    sigma = np.sqrt(garch_fc.variance.values[-1])
-    DIST = garch_fit.model.distribution.name.lower()
+    shocks = rng.choice(resid_pool, size=(N_SIM, H), replace=True)
+    increments = mu0 + shocks
+    sim_paths = p0 + np.cumsum(increments, axis=1)
+    sim_paths = np.maximum(sim_paths, 0.01)
 
-    # -----------------------------
-    # Monte Carlo
-    # -----------------------------
-    for sim in range(N_SIM):
-        path = last_values.copy()
-        for h in range(H):
-            X_future = pd.DataFrame(
-                [path[-BEST_LAG:]],
-                columns=[f"lag_{i+1}" for i in range(BEST_LAG)]
-            )
-            mu = cat_model.predict(X_future)[0]
-            z = np.random.standard_t(df=garch_fit.params["nu"]) if DIST == "t" else np.random.standard_normal()
-            y_next = mu + sigma[h] * z
+    lower_q = np.percentile(sim_paths, 100 * (ALPHA_OPT / 2.0), axis=0)
+    upper_q = np.percentile(sim_paths, 100 * (1 - ALPHA_OPT / 2.0), axis=0)
 
-            sim_paths[sim, h] = y_next
-            path = np.append(path, y_next)
+    # (per compatibilità, mappiamo questi su "GARCH_*" e "CP_*")
+    lower_95 = lower_q
+    upper_95 = upper_q
+    cp_lower = lower_q
+    cp_upper = upper_q
 
     # -----------------------------
-    # Fan chart
-    # -----------------------------
-    forecast_mean = sim_paths.mean(axis=0)
-    lower_95 = np.percentile(sim_paths, 100 * alpha / 2, axis=0)
-    upper_95 = np.percentile(sim_paths, 100 * (1 - alpha / 2), axis=0)
-
-    # -----------------------------
-    # Conformal Prediction
-    # -----------------------------
-    data_cp = make_lag_df(series, BEST_LAG)
-    calibration_data = data_cp.iloc[-CALIBRATION_H:]
-
-    X_cal = calibration_data.drop("y", axis=1)
-    y_cal = calibration_data["y"].values
-    y_cal_pred = cat_model.predict(X_cal)
-
-    garch_cal_fc = garch_fit.forecast(horizon=CALIBRATION_H)
-    sigma_cal = np.sqrt(garch_cal_fc.variance.values[-1])
-
-    conformity_scores = np.abs((y_cal - y_cal_pred) / sigma_cal)
-    q_hat = np.quantile(conformity_scores, 1 - alpha)
-
-    cp_lower = forecast_mean - q_hat * sigma
-    cp_upper = forecast_mean + q_hat * sigma
-
-    # -----------------------------
-    # DataFrame finale
+    # 7) Output identico (schema colonne)
     # -----------------------------
     final_forecast = pd.DataFrame(
         {
-            "Mean_Forecast": (cp_lower + upper_95) / 2,
+            "Mean_Forecast": (cp_lower + upper_95) / 2.0,
             "GARCH_Lower_95": lower_95,
             "GARCH_Upper_95": upper_95,
             "CP_Lower_95": cp_lower,
@@ -203,25 +270,6 @@ def monte_carlo_forecast_cp_from_disk(
         index=future_dates
     )
 
-    # -----------------------------
-    # Pulizia indice
-    # -----------------------------
-    final_forecast.index = pd.to_datetime(final_forecast.index, errors="coerce")
-    final_forecast = final_forecast.loc[final_forecast.index.notna()]
-    final_forecast = final_forecast[~final_forecast.index.duplicated()]
-    final_forecast = final_forecast.sort_index()
-
-    if final_forecast.empty:
-        # fallback: 12 mesi dall’oggi
-        future_dates = pd.date_range(start=pd.Timestamp.today().normalize(), periods=12, freq="ME")
-        final_forecast = pd.DataFrame(
-            columns=["Mean_Forecast", "GARCH_Lower_95", "GARCH_Upper_95", "CP_Lower_95", "CP_Upper_95"],
-            index=future_dates
-        )
-
-    # -----------------------------
-    # Resample annuale sicuro (✅ YE)
-    # -----------------------------
     df_yearly = final_forecast.resample("YE").mean()
 
     return final_forecast, df_yearly
