@@ -56,6 +56,10 @@ from functions.interest_rates import (download_ecb_series, download_yahoo_series
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune)
 from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_regioni_interattivo ,get_gpt_insights_kri)
 from functions.copper import (make_lag_df, plot_copper_forecast, plot_var_vs_budget, monte_carlo_forecast_cp_from_disk, full_copper_forecast)
+from functions.ebitda import (plot_top_corr_bar, get_top_correlations, simula_fattori_empiricamente, genera_template_input, load_risk_factors, parse_factors, sample_distribution, 
+                            apply_uncertainty_to_params, simulate_ebitda_multi_year_blocks, simulate_ebitda_multi_year_blocks_with_ricavi, simulate_ebitda_multi_year_blocks_old, plot_k_min_max_plotly, 
+                            calcola_importanza_fattori, genera_output_excel)
+
 # -----------------------
 # Configurazione Streamlit
 # -----------------------
@@ -84,7 +88,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "🛑⚡ Business Interruption","💳 Credit risk" ,"📈 Interest Rate", "Liquidity Risk💰"]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "🛑⚡ Business Interruption","💳 Credit risk" ,"📈 Interest Rate", "Liquidity Risk💰","Ebitda @Risk 📊📈" ]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -1425,7 +1429,473 @@ elif selected_kri == "Liquidity Risk💰":
                 file_name="KRI_Liquidity_Risk.xlsx",
                 mime="application/vnd.ms-excel"
             )
-
+# -----------------------
+# Ebitda @Risk 📊📈
+# -----------------------
+elif selected_kri == "Ebitda @Risk 📊📈":
+    if uploaded_file:
+        df = load_risk_factors(uploaded_file)
+        st.write("📄 Anteprima dati:", df.head())
+    
+        blocks = parse_factors(df)
+    
+        anni = sorted(df['anno'].dropna().unique())
+    
+        n_years = len(anni)
+        start_year = anni[0]
+    
+        
+        unique_blocks = {b["name"]: b for b in blocks}.values()
+    
+        activation_df = pd.DataFrame({
+        "Blocco": [b["name"] for b in unique_blocks],
+        **{str(anno): [True] * len(unique_blocks) for anno in anni}
+        })
+    
+        st.subheader("Seleziona i fattori di rischio per anno")
+        activation_df = st.data_editor(activation_df, use_container_width=True)
+        # Questo dict sarà Blocco -> {anno: True/False}
+        activation_dict = activation_df.set_index("Blocco").T.to_dict()
+        
+        
+        st.subheader("Inserisci EBITDA a piano per ogni anno")
+        
+        ebitda_base_dict = {}
+        ebitda_base_list = []
+        for anno in anni:
+            ebitda_anno = st.number_input(
+                f"EBITDA a piano anno {anno}",
+                value=1_000_000.0,
+                step=10_000.0,
+                format="%.2f",
+                key=f"ebitda_{anno}"
+            )
+            ebitda_base_dict[anno] = ebitda_anno
+            ebitda_base_list.append(ebitda_anno)
+            
+        n_sim = st.number_input("Numero di simulazioni", min_value=100, max_value=1000_000, value=1_000, step=100)
+        # Selectbox più chiaro con gli anni reali
+        anno_inizio_k_label = st.selectbox(
+        "Anno da cui applicare l'incertezza sui fattori",
+        options=anni,
+        index=0
+        )
+    
+        # Converti l’anno selezionato nel relativo indice (1-based)
+        anno_inizio_k = anni.index(anno_inizio_k_label) + 1
+    
+        st.subheader("🔧 Imposta il trend di incertezza da applicare ai fattori")
+        trend = st.selectbox(
+            "Trend dell'incertezza sui fattori di rischio",
+            options=["costante", "lineare", "moltiplicativo"],
+            index=0
+        )
+        st.subheader("⚡ Eventi strategici legati ai fattori di rischio")
+        
+        # Estrai anni disponibili dai blocchi
+        anni = sorted({b['anno'] for b in blocks})
+        anni_str = [str(a) for a in anni]
+        
+        # Rimuovi duplicati per nome
+        unique_blocks = {b['name']: b for b in blocks}.values()
+        
+        # Parametri globali default
+        default_lambda = 0.2
+        default_magnitudo = 0.2
+        default_segno = "Negativo"
+        
+        # Parametri shock per ciascun fattore
+        st.markdown("### Configura gli eventi strategici")
+        
+        shock_event_config = []
+        
+        for i, block in enumerate(unique_blocks):
+            with st.expander(f"⚙️ {block['name']}", expanded=False):
+                # Checkbox per abilitare lo shock
+                attivo = st.checkbox("Abilita shock su questo fattore", key=f"shock_enable_{i}")
+        
+                # Anni in cui può essere attivo (solo se attivo)
+                anni_attivi = {}
+                if attivo:
+                    st.markdown("**Anni in cui applicare lo shock:**")
+                    col_check = st.columns(len(anni_str))
+                    for j, anno in enumerate(anni_str):
+                        anni_attivi[anno] = col_check[j].checkbox(anno, value=False, key=f"{block['name']}_{anno}")
+        
+                    # Parametri shock (solo se attivo)
+                    lambda_poisson = st.slider("λ (frequenza evento shock)", min_value=0.0, max_value=1.0, value=default_lambda, step=0.01, key=f"lambda_{i}")
+                    magnitudo = st.slider("Magnitudo dell'impatto", min_value=0.0, max_value=1.0, value=default_magnitudo, step=0.01, key=f"magnitudo_{i}")
+                    segno = st.selectbox("Segno dell'impatto", ["Negativo", "Positivo"], index=0, key=f"segno_{i}")
+                else:
+                    lambda_poisson = 0.0
+                    magnitudo = 0.0
+                    segno = "Negativo"
+        
+                # Salva configurazione
+                shock_event_config.append({
+                    "name": block['name'],
+                    "attivo": attivo,
+                    "anni_attivi": anni_attivi,
+                    "lambda": lambda_poisson,
+                    "magnitudo": magnitudo,
+                    "segno": segno
+                })
+        
+        # Costruisci dizionario finale per uso nella simulazione
+        shock_event_dict = {
+            cfg["name"]: {
+                "anni_attivi": cfg["anni_attivi"],
+                "lambda": cfg["lambda"],
+                "magnitudo": cfg["magnitudo"],
+                "segno": cfg["segno"]
+            }
+            for cfg in shock_event_config if cfg["attivo"]
+        }
+    
+        st.subheader("⚡ Eventi esogeni (Macroeconomici) su fattori di rischio")
+        
+        lambda_shock = st.slider("Frequenza media shock (λ)", min_value=0.0, max_value=1.0, step=0.01, value=0.1)
+        magnitudo_shock = st.slider("Magnitudo shock", min_value=0.0, max_value=1.0, step=0.01, value=0.1)
+        
+        # Inizializza lo stato se non esiste
+        if "shock_activated" not in st.session_state:
+            st.session_state.shock_activated = False
+        
+        # Usa direttamente il valore del checkbox per aggiornare lo stato
+        attiva_shock = st.checkbox("Attiva Shock esogeni sull'EBITDA", value=st.session_state.shock_activated)
+        
+        st.session_state.shock_activated = attiva_shock
+        
+        if st.button("▶️ Esegui simulazione"):
+            #risultati = simulate_ebitda_multi_year(
+            #    blocks= blocks,
+            #    ebitda_base_list= ebitda_base_list,
+            #    n_sim= n_sim,
+            #    n_years= n_years,
+            #    anno_inizio_k= anno_inizio_k,
+            #    trend=trend
+            #)
+            
+            #risultati = simulate_ebitda_multi_year(blocks, ebitda_base_list, n_sim=n_sim, n_years=n_years,
+            #                               anno_inizio_k=anno_inizio_k, trend=trend,
+            #                               attiva_shock=st.session_state.shock_activated, lambda_shock_annuo=lambda_shock, magnitudo_shock=magnitudo_shock
+            
+            
+            
+            print(f'blocchi {blocks}')
+                                           
+            risultati, cor_matrix_by_year, ricavi_negativi_records, df_parametri_simulati =  simulate_ebitda_multi_year_blocks_with_ricavi(
+            blocks=blocks,
+            ebitda_base_list=ebitda_base_list,
+            n_sim=n_sim,
+            anni = anni,
+            anno_inizio_k=anno_inizio_k,
+            trend=trend,
+            activation_matrix=activation_dict,
+            attiva_shock=st.session_state.shock_activated,
+            lambda_shock_annuo=lambda_shock,
+            magnitudo_shock= magnitudo_shock,
+            shock_event_dict= shock_event_dict # 👈 NUOVO DIZIONARIO
+                )
+                
+            # st.write("Simulazione completata!")
+    
+            #import io
+        # Creo un buffer in memoria per salvare il dataframe Excel
+            #output = io.BytesIO()
+            #with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            #    df_parametri_simulati.to_excel(writer, sheet_name='ParametriSimulati')
+            #    output.seek(0)
+    
+        # Bottone per il download
+            #st.download_button(
+            #    label="📥 Scarica Excel dei parametri simulati",
+            #    data=output,
+            #    file_name='parametri_simulati.xlsx',
+            #   mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            #)        
+    
+            for res in risultati:
+                anno = res['anno']
+                sim = res['ebitda_simulazioni']
+                st.subheader(f"📈 Anno {anno}")
+                st.write(f"Media EBITDA simulata: {np.mean(sim):,.2f}")
+                st.write(f"Deviazione standard: {np.std(sim):,.2f}")
+                fig_dist = px.histogram(sim, nbins=100, title=f"Distribuzione EBITDA simulata anno {anno}")
+                st.plotly_chart(fig_dist, use_container_width=True)
+    
+            st.subheader("📊 Grafici riepilogativi delle simulazioni")
+    
+            anni = list(range(2025, 2025 + len(risultati)))
+            mean_ebitda = [np.mean(r["ebitda_simulazioni"]) for r in risultati]
+            p5_ebitda = [np.percentile(r["ebitda_simulazioni"], 5) for r in risultati]
+            p95_ebitda = [np.percentile(r["ebitda_simulazioni"], 95) for r in risultati]
+    
+            fig1 = go.Figure()
+            fig1.add_trace(go.Scatter(x=anni, y=mean_ebitda, mode='lines+markers', name='Media EBITDA', line=dict(color='navy')))
+            fig1.add_trace(go.Scatter(x=anni + anni[::-1], y=p95_ebitda + p5_ebitda[::-1], fill='toself',
+                                      fillcolor='rgba(135, 206, 250, 0.4)', line=dict(color='rgba(255,255,255,0)'),
+                                      hoverinfo="skip", showlegend=True, name='Intervallo 5°-95°'))
+            fig1.add_trace(go.Scatter(x=anni, y=ebitda_base_list, mode='lines+markers', name='EBITDA di Piano',
+                                      line=dict(color='gray', dash='dash')))
+            fig1.update_layout(title="Andamento medio EBITDA con intervallo di confidenza e piano",
+                               xaxis_title="Anno", yaxis_title="EBITDA", xaxis=dict(tickmode='linear'), template='plotly_white')
+            st.plotly_chart(fig1, use_container_width=True)
+            
+            anni = list(range(2025, 2025 + len(risultati)))
+            mean_ebitda = [np.mean(r["ebitda_simulazioni"]) for r in risultati]
+            p5_ebitda = [np.percentile(r["ebitda_simulazioni"], 5) for r in risultati]
+            p95_ebitda = [np.percentile(r["ebitda_simulazioni"], 95) for r in risultati]
+            ebitda_base = ebitda_base_list
+            
+            # Trova gli anni con shock (>=1)
+            anni_con_shock = [anno for anno, r in zip(anni, risultati) if r.get("shock_ebitda", 0) > 0]
+            media_con_shock = [np.mean(r["ebitda_simulazioni"]) for r in risultati if r.get("shock_ebitda", 0) > 0]
+            
+            fig_shock = go.Figure()
+            
+            # Linea media EBITDA
+            fig_shock.add_trace(go.Scatter(
+                x=anni,
+                y=mean_ebitda,
+                mode='lines+markers',
+                name='Media EBITDA',
+                line=dict(color='navy')
+            ))
+            
+            # Banda di confidenza 5°-95°
+            fig_shock.add_trace(go.Scatter(
+                x=anni + anni[::-1],
+                y=p95_ebitda + p5_ebitda[::-1],
+                fill='toself',
+                fillcolor='rgba(135, 206, 250, 0.4)',
+                line=dict(color='rgba(255,255,255,0)'),
+                hoverinfo="skip",
+                showlegend=True,
+                name='Intervallo 5°-95°'
+            ))
+            
+            # EBITDA di piano
+            fig_shock.add_trace(go.Scatter(
+                x=anni,
+                y=ebitda_base,
+                mode='lines+markers',
+                name='EBITDA di Piano',
+                line=dict(color='gray', dash='dash')
+            ))
+            
+            # Marker per gli shock esterni
+            if anni_con_shock:
+                fig_shock.add_trace(go.Scatter(
+                    x=anni_con_shock,
+                    y=media_con_shock,
+                    mode='markers',
+                    name='Shock Esterni',
+                    marker=dict(color='red', size=12, symbol='x'),
+                    hovertemplate='Anno %{x}<br>Shock Esterno<br>Media EBITDA: %{y:.2f}<extra></extra>'
+                ))
+            
+            fig_shock.update_layout(
+                title="Andamento medio EBITDA con intervallo di confidenza, piano e shock esterni",
+                xaxis_title="Anno",
+                yaxis_title="EBITDA",
+                xaxis=dict(tickmode='linear'),
+                template='plotly_white'
+            )
+            
+            st.plotly_chart(fig_shock, use_container_width=True) 
+            
+            # Crea la tabella degli anni con shock esogeni
+            tabella_shock = pd.DataFrame([
+            {
+            "Anno": str(r["anno"]),
+            "Shock_EBITDA": r.get("shock_ebitda", 0),
+            "Media EBITDA": f"€{np.mean(r['ebitda_simulazioni']):,.2f}"
+            }
+            for r in risultati if r.get("shock_ebitda", 0) > 0
+            ])
+    
+            if not tabella_shock.empty:
+                st.subheader("📉 Anni con shock esogeni")
+                st.dataframe(tabella_shock)
+            else:
+                st.info("✅ Nessuno shock esogeno si è verificato nel modello probabilistico.")
+            
+            
+    
+            df_box = pd.DataFrame({
+                "Anno": np.repeat(anni, n_sim),
+                "EBITDA": np.concatenate([r["ebitda_simulazioni"] for r in risultati])
+            })
+            fig2 = px.box(df_box, x="Anno", y="EBITDA", title="Distribuzione EBITDA simulato per anno")
+            fig2.update_layout(template='plotly_white')
+            st.plotly_chart(fig2, use_container_width=True)
+            
+                   
+    
+            st.subheader("🔝 Top 10 correlazioni tra fattori di rischio per anno (grafico)")
+            
+            for anno, data in cor_matrix_by_year.items():
+                corr_matrix = data["matrice"]
+                fattori = data["fattori"]
+            
+                if not isinstance(corr_matrix, pd.DataFrame):
+                    corr_matrix = pd.DataFrame(corr_matrix, index=fattori, columns=fattori)
+            
+                top_corr_pairs = get_top_correlations(corr_matrix, top_n=10)
+                fig = plot_top_corr_bar(top_corr_pairs, anno)
+                st.plotly_chart(fig, use_container_width=True)
+            
+    
+            tornado_per_anno, importanza_totale = calcola_importanza_fattori(risultati)
+    
+            st.subheader("🌪️ Importanza fattori di rischio per anno")
+            
+            for entry in tornado_per_anno:
+                anno = entry['anno']
+                importanza = entry['importanza'].sort_values(ascending=True)
+                fig_tornado = go.Figure(go.Bar(
+                    x=importanza.values,
+                    y=importanza.index,
+                    orientation='h',
+                    marker_color='salmon'
+                ))
+                fig_tornado.update_layout(
+                    title=f"Anno {anno} - Importanza fattori di rischio",
+                    xaxis_title="Importanza relativa",
+                    yaxis_title="Fattori di rischio",
+                    template='plotly_white'
+                )
+                st.plotly_chart(fig_tornado, use_container_width=True)
+    
+            st.subheader("📊 Importanza aggregata fattori di rischio")
+            importanza_totale = importanza_totale.sort_values(ascending=True)
+            fig_totale = go.Figure(go.Bar(
+                x=importanza_totale.values,
+                y=importanza_totale.index,
+                orientation='h',
+                marker_color='mediumseagreen'
+            ))
+            fig_totale.update_layout(
+                title="Importanza aggregata fattori di rischio",
+                xaxis_title="Importanza relativa",
+                yaxis_title="Fattori di rischio",
+                template='plotly_white'
+            )
+            st.plotly_chart(fig_totale, use_container_width=True)
+    
+            percentili = [5, 50, 95]
+            color_map = {5: 'red', 50: 'blue', 95: 'green'}
+    
+            fig_percentili = go.Figure()
+            for p in percentili:
+                y_p = [np.percentile(r["ebitda_simulazioni"], p) for r in risultati]
+                fig_percentili.add_trace(go.Scatter(
+                    x=anni,
+                    y=y_p,
+                    mode='lines+markers',
+                    name=f'Percentile {p}',
+                    line=dict(width=2, dash='solid', color=color_map[p])
+                ))
+            fig_percentili.add_trace(go.Scatter(
+                x=anni,
+                y=ebitda_base_list,
+                mode='lines+markers',
+                name='EBITDA di Piano',
+                line=dict(color='gray', dash='dash')
+            ))
+            fig_percentili.update_layout(
+                title="Percentili 5° - 50° - 95° EBITDA per anno simulato",
+                xaxis_title="Anno",
+                yaxis_title="EBITDA",
+                template='plotly_white'
+            )
+            st.plotly_chart(fig_percentili, use_container_width=True)
+            
+            def stile_simbolo(val):
+                if val == "✓":
+                    return "color: red; font-weight: bold; text-align: center"
+                else:
+                    return "text-align: center"
+            
+            st.subheader("📊 Eventi rilevanti per fattore di rischio ")
+            shock_data = []
+            for entry in risultati:
+                print(f'grafico eventi rilevanti per fattore di rischio {entry}')
+                anno = entry['anno']
+                shock_occorrenze = entry.get('shock_occorrenze', {})  # ✅ uso diretto
+                for fattore, shock in shock_occorrenze.items():
+                    shock_data.append({
+                        "Anno": anno,
+                        "Fattore": fattore,
+                        "Shock": 1 if shock else 0
+                    })
+            
+            # 📊 Crea DataFrame
+            df_shock = pd.DataFrame(shock_data)
+            if not df_shock.empty:
+            # Pivot per fattore vs anno
+                df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
+                    
+            # --- Nuova tabella con ✓ / vuoto ---
+                def simbolo(x):
+                    return "✓" if x == 1 else "x"
+            
+                df_tabella = df_pivot.applymap(simbolo)
+                df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
+                st.markdown("### Dettaglio evento per fattore e anno")
+                st.dataframe(df_tabella_styled)
+               
+            else:
+                st.info("Nessun effetto su fattori di rischio ")
+            
+            st.subheader("🌪️ Tornado chart per fattori di rischio (percentili 5°-95°)")
+    
+            fattori = sorted(set().union(*[e["fattori_simulati"].keys() for e in risultati]))
+            
+            data = []
+            for entry in risultati:
+                anno = entry["anno"]
+                for fatt in fattori:
+                    sim_vals = entry["fattori_simulati"].get(fatt)
+                    if sim_vals is not None:
+                        p5 = np.percentile(sim_vals, 5)
+                        p95 = np.percentile(sim_vals, 95)
+                        data.append({"Anno": anno, "Fattore": fatt, "Valore": p5, "Tipo": "5° Percentile"})
+                        data.append({"Anno": anno, "Fattore": fatt, "Valore": p95, "Tipo": "95° Percentile"})
+                    else:
+                        st.info(f"ℹ️ Fattore '{fatt}' disattivato nell'anno {entry['anno']}")
+                        
+            df_tornado = pd.DataFrame(data)
+            df_tornado["Valore_milioni"] = df_tornado["Valore"] / 1_000_000
+            fig_tornado_ts = px.bar(
+                df_tornado,
+                x="Valore",
+                y="Fattore",
+                color="Tipo",
+                facet_col="Anno",
+                orientation='h',
+                barmode="overlay",
+                color_discrete_map={"5° Percentile": "red", "95° Percentile": "green"},
+                title="Dispersione dei fattori di rischio (5° vs 95° percentile) per anno",
+                text=df_tornado["Valore_milioni"].apply(lambda x: f"{x:.2f}Mln") 
+            )
+            fig_tornado_ts.update_layout(template="plotly_white", showlegend=True)
+            st.plotly_chart(fig_tornado_ts, use_container_width=True)
+            
+            #plot_k_min_max_plotly(blocks)
+    
+            excel_data = genera_output_excel(risultati, ebitda_base_dict)
+    
+            st.download_button(
+                label="📥 Esporta risultati",
+                data=excel_data,
+                file_name="risultati_ebitda.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    
+    else:
+        st.info("Carica un file Excel per iniziare la simulazione.")
+   
         
     
     
