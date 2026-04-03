@@ -188,7 +188,7 @@ def monte_carlo_forecast_cp_from_disk(
         return float(np.mean(widths) + np.mean(penalties))
 
     study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=random_seed))
-    study.optimize(objective, n_trials=300, show_progress_bar=False)
+    study.optimize(objective, n_trials=50, show_progress_bar=False)
 
     best = study.best_params
     DRIFT_W = int(best["drift_window"])
