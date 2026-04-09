@@ -1112,13 +1112,16 @@ def genera_output_excel(risultati_anni, ebitda_base_dict):
     df_fattori = pd.DataFrame(fattori_data)
 
     # Tabella shock ✓ / x
-    df_shock = pd.DataFrame(shock_data)
-    if not df_shock.empty:
-        df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
-        df_pivot = safe_applymap(df_pivot, lambda x: "✓" if x == 1 else "x")
-    else:
+    try:
+        df_shock = pd.DataFrame(shock_data)
+        if not df_shock.empty:
+            df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
+            df_pivot = safe_applymap(df_pivot, lambda x: "✓" if x == 1 else "x")
+        else:
+            df_tabella = pd.DataFrame(columns=["Fattore"])
+    except:
         df_tabella = pd.DataFrame(columns=["Fattore"])
-
+        
     # --- Esportazione Excel ---
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
