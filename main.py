@@ -60,7 +60,7 @@ from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_
 from functions.copper import (make_lag_df, plot_copper_forecast, plot_var_vs_budget, monte_carlo_forecast_cp_from_disk, full_copper_forecast)
 from functions.ebitda import (plot_top_corr_bar, get_top_correlations, simula_fattori_empiricamente, genera_template_input, load_risk_factors, parse_factors, sample_distribution, 
                             apply_uncertainty_to_params, simulate_ebitda_multi_year_blocks, simulate_ebitda_multi_year_blocks_with_ricavi, simulate_ebitda_multi_year_blocks_old, plot_k_min_max_plotly, 
-                            calcola_importanza_fattori, genera_output_excel, safe_pivot)
+                            calcola_importanza_fattori, genera_output_excel, safe_pivot, ensure_dataframe)
 
 # -----------------------
 # Configurazione Streamlit
@@ -1866,8 +1866,8 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             
             if not df_shock.empty and {"Fattore", "Anno", "Shock"}.issubset(df_shock.columns):
                 try:
-                    # Pivot sicuro
                     df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
+                    df_pivot = ensure_dataframe(df_pivot)
                     if not isinstance(df_pivot, pd.DataFrame):
                         df_pivot = pd.DataFrame(df_pivot)
             
