@@ -14,6 +14,24 @@ import plotly.graph_objects as go
 
 @st.cache_data
 
+def ensure_dataframe(obj):
+    """Trasforma qualsiasi oggetto compatibile in DataFrame o ritorna DataFrame vuoto."""
+    import pandas as pd
+    import numpy as np
+
+    if isinstance(obj, pd.DataFrame):
+        return obj.copy()
+    elif isinstance(obj, pd.Series):
+        return obj.to_frame()
+    elif isinstance(obj, (dict, list, tuple, np.ndarray)):
+        try:
+            return pd.DataFrame(obj)
+        except:
+            return pd.DataFrame()
+    else:
+        # Oggetto non compatibile → DataFrame vuoto
+        return pd.DataFrame()
+
 def safe_pivot(df, index, columns, values):
     if df.empty:
         return pd.DataFrame()
