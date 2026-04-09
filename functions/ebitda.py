@@ -34,32 +34,31 @@ def plot_top_corr_bar(top_corr_pairs, anno):
     fig.update_layout(yaxis={'categoryorder':'total ascending'})
     return fig
     
+import numpy as np
+import pandas as pd
+
 def get_top_correlations(corr_matrix, top_n=10):
     corr_matrix = corr_matrix.copy()
     
-    # 🔹 Escludi la diagonale solo se la matrice è quadrata
-    if corr_matrix.shape[0] == corr_matrix.shape[1]:
-        np.fill_diagonal(corr_matrix.values, np.nan)
-    else:
-        # Se non è quadrata, sostituisci manualmente i valori diagonali se possibile
-        for i, col in enumerate(corr_matrix.columns[:corr_matrix.shape[0]]):
-            corr_matrix.iloc[i, i] = np.nan
+    # 🔹 Imposta a NaN la diagonale in modo sicuro
+    for i, col in enumerate(corr_matrix.columns[:corr_matrix.shape[0]]):
+        corr_matrix.iloc[i, i] = np.nan  # funziona anche se non è quadrata
 
-    # Trasforma in dataframe a 3 colonne: feature1, feature2, correlazione assoluta
+    # Trasforma in serie di correlazioni assolute
     corr_unstacked = corr_matrix.abs().unstack()
-    
+
     # Rimuovi duplicati (A,B) e (B,A)
     corr_unstacked = corr_unstacked[corr_unstacked.index.get_level_values(0) < corr_unstacked.index.get_level_values(1)]
-    
-    # Prendi le top N coppie
+
+    # Prendi le top N correlazioni
     top_corr = corr_unstacked.sort_values(ascending=False).head(top_n)
-    
-    # Ricostruisci le coppie con valori originali (segno incluso)
+
+    # Ricostruisci coppie con il valore originale (segno incluso)
     pairs = []
     for (f1, f2), val_abs in top_corr.items():
         val_orig = corr_matrix.loc[f1, f2]
         pairs.append((f1, f2, val_orig))
-    
+
     return pairs
     
 def simula_fattori_empiricamente(fattori_simulati, n_sim):
