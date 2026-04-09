@@ -1816,18 +1816,35 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                         
             st.subheader("📊 Eventi rilevanti per fattore di rischio")
             
-            # 🔧 DataFrame
+            # 📊 DataFrame
             df = pd.DataFrame(risultati)
             
-            # 🔧 Normalizza colonne
-            df.columns = df.columns.str.strip()
-            df = df.rename(columns={
-                "anno": "Anno",
-                "fattore": "Fattore",
-                "shock": "Shock"
-            })
+            # 🔍 DEBUG (fondamentale)
+            st.write("Colonne trovate:", df.columns.tolist())
             
-            # 🔄 Pivot semplice (Fattore vs Anno)
+            # 🔧 Normalizzazione nomi colonne
+            df.columns = df.columns.str.strip().str.lower()
+            
+            # 🔁 Rinomina intelligente
+            rename_map = {}
+            for col in df.columns:
+                if "anno" in col:
+                    rename_map[col] = "Anno"
+                elif "fattore" in col:
+                    rename_map[col] = "Fattore"
+                elif "shock" in col:
+                    rename_map[col] = "Shock"
+            
+            df = df.rename(columns=rename_map)
+            
+            st.write("Colonne dopo rename:", df.columns.tolist())
+            
+            # 🚨 Controllo finale
+            if not {"Anno", "Fattore", "Shock"}.issubset(df.columns):
+                st.error("❌ Colonne necessarie non trovate")
+                st.stop()
+            
+            # 🔄 Pivot
             df_pivot = df.pivot_table(
                 index="Fattore",
                 columns="Anno",
@@ -1835,13 +1852,13 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                 aggfunc="max"
             ).fillna(0)
             
-            # 🔤 Trasforma in ✓ / x
+            # 🔤 ✓ / x
             def simbolo(x):
                 return "✓" if x == 1 else "x"
             
             df_tabella = df_pivot.applymap(simbolo)
             
-            # 🎨 TUA funzione di stile
+            # 🎨 Stile
             def stile_simbolo(val):
                 if val == "✓":
                     return "color: green; font-weight: bold"
@@ -1849,11 +1866,10 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                     return "color: red; font-weight: bold"
                 return ""
             
-            # 🎨 Applica stile
             df_styled = df_tabella.style.applymap(stile_simbolo)
             
             # 📺 Output
-            st.dataframe(df_styled)          
+            st.dataframe(df_styled)        
                
             st.subheader("🌪️ Tornado chart per fattori di rischio (percentili 5°-95°)")
     
