@@ -1846,7 +1846,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                 df_tabella = df_pivot.applymap(simbolo)
                 df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
                 st.markdown("### Dettaglio evento per fattore e anno")
-                st.dataframe(df_tabella_styled)
+                st.write(df_tabella_styled)
                
             else:
                 st.info("Nessun effetto su fattori di rischio ")
