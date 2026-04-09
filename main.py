@@ -1842,26 +1842,35 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                     color = "black"
                 return f"color: {color}; font-weight: bold"
             
-            # Funzione sicura per creare un DataFrame da pivot
-            def safe_pivot(df, index, columns, values):
-                try:
-                    pivoted = df.pivot(index=index, columns=columns, values=values).fillna(0)
-                    # Garantisce che sia DataFrame
-                    if not isinstance(pivoted, pd.DataFrame):
-                        pivoted = pd.DataFrame(pivoted)
-                    return pivoted
-                except Exception as e:
-                    print(f"Errore pivot: {e}")
+            # Funzione sicura per trasformare qualsiasi input in DataFrame
+            def to_dataframe_safe(data):
+                if isinstance(data, pd.DataFrame):
+                    return data.copy()
+                elif isinstance(data, pd.Series):
+                    return data.to_frame()
+                elif isinstance(data, dict):
+                    try:
+                        return pd.DataFrame(data)
+                    except:
+                        return pd.DataFrame([data])
+                elif isinstance(data, (list, tuple, np.ndarray)):
+                    try:
+                        return pd.DataFrame(data)
+                    except:
+                        return pd.DataFrame([data])
+                else:
                     return pd.DataFrame()
             
-            # 📊 Crea DataFrame
-            df_shock = pd.DataFrame(shock_data)
+            # 📊 Crea DataFrame sicuro
+            df_shock = to_dataframe_safe(shock_data)
             
-            if not df_shock.empty:
-                # Pivot sicuro
-                df_pivot = safe_pivot(df_shock, "Fattore", "Anno", "Shock")
+            if not df_shock.empty and {"Fattore", "Anno", "Shock"}.issubset(df_shock.columns):
+                try:
+                    # Pivot sicuro
+                    df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
+                    if not isinstance(df_pivot, pd.DataFrame):
+                        df_pivot = pd.DataFrame(df_pivot)
             
-                if not df_pivot.empty:
                     # Funzione ✓ / x
                     def simbolo(x):
                         return "✓" if x == 1 else "x"
@@ -1871,10 +1880,12 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             
                     st.markdown("### Dettaglio evento per fattore e anno")
                     st.write(df_tabella_styled)
-                else:
-                    st.info("Pivot vuoto, nessun effetto da mostrare.")
+            
+                except Exception as e:
+                    st.error(f"Errore nel pivot/applymap: {e}")
             else:
                 st.info("Nessun effetto su fattori di rischio o colonne mancanti")
+
                 
             st.subheader("🌪️ Tornado chart per fattori di rischio (percentili 5°-95°)")
     
