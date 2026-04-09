@@ -14,45 +14,15 @@ import plotly.graph_objects as go
 
 @st.cache_data
 
-def to_dataframe_safe(data, columns=None):
-    """
-    Converte qualsiasi struttura dati in un DataFrame Pandas.
-    
-    Supporta:
-    - DataFrame → restituisce lo stesso
-    - Series → converte in DataFrame
-    - dict → DataFrame dalle chiavi come colonne
-    - list / tuple / np.array → DataFrame
-    - None → DataFrame vuoto
-    """
-    if isinstance(data, pd.DataFrame):
-        return data.copy()
-    
-    elif isinstance(data, pd.Series):
-        return data.to_frame()
-    
-    elif isinstance(data, dict):
-        try:
-            return pd.DataFrame(data)
-        except Exception:
-            # Se il dict non è direttamente convertibile
-            return pd.DataFrame([data])
-    
-    elif isinstance(data, (list, tuple, np.ndarray)):
-        try:
-            return pd.DataFrame(data, columns=columns)
-        except Exception:
-            # Se non ci sono colonne, crea nomi generici
-            n_cols = len(data[0]) if len(data) > 0 and hasattr(data[0], '__len__') else 1
-            cols = [f"col_{i}" for i in range(n_cols)]
-            return pd.DataFrame(data, columns=cols)
-    
-    elif data is None:
+def safe_pivot(df, index, columns, values):
+    if df.empty:
         return pd.DataFrame()
-    
-    else:
-        # fallback: prova a fare DataFrame con un singolo elemento
-        return pd.DataFrame([data])
+    try:
+        pivoted = df.pivot(index=index, columns=columns, values=values)
+        return pivoted.fillna(0)
+    except Exception as e:
+        print("Errore pivot:", e)
+        return pd.DataFrame()
 
 def plot_top_corr_bar(top_corr_pairs, anno):
     df_corr = pd.DataFrame(top_corr_pairs, columns=["Feature 1", "Feature 2", "Correlazione"])
