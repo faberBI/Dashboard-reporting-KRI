@@ -1035,7 +1035,7 @@ def safe_applymap(df, func):
         return df
     return df.applymap(func)
 
-def genera_output_excel(risultati_anni, ebitda_base_dict):
+def genera_output_excel(risultati_anni, ebitda_base_dict, df_styled):
     dati_output = []
     fattori_data = []
     shock_data = []
@@ -1098,35 +1098,15 @@ def genera_output_excel(risultati_anni, ebitda_base_dict):
                     "Valore": p95
                 })
 
-        # Shock rilevanti
-        shock_occorrenze = entry.get("shock_occorrenze", {})
-        for fattore, shock in shock_occorrenze.items():
-            shock_data.append({
-                "Anno": anno,
-                "Fattore": fattore,
-                "Shock": 1 if shock else 0
-            })
-
     # --- DataFrame per ciascuna sheet ---
     df_output = pd.DataFrame(dati_output)
     df_fattori = pd.DataFrame(fattori_data)
-
-    # Tabella shock ✓ / x
-    try:
-        df_shock = pd.DataFrame(shock_data)
-        if not df_shock.empty:
-            df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
-            df_pivot = safe_applymap(df_pivot, lambda x: "✓" if x == 1 else "x")
-        else:
-            df_tabella = pd.DataFrame(columns=["Fattore"])
-    except:
-        df_tabella = pd.DataFrame(columns=["Fattore"])
-        
+  
     # --- Esportazione Excel ---
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         df_output.to_excel(writer, index=False, sheet_name='Risultati EBITDA')
         df_fattori.to_excel(writer, index=False, sheet_name='Fattori di Rischio')
-        df_tabella.to_excel(writer, sheet_name='Shock Fattori')  # index=True è utile qui
+        df_styled.to_excel(writer, sheet_name='Shock Fattori')  
     buffer.seek(0)
     return buffer
