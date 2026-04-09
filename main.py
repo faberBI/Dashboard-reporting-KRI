@@ -1832,7 +1832,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                         "Fattore": fattore,
                         "Shock": 1 if shock else 0
                     })
-            # Funzione di stile per Streamlit (esempio: ✓ verde, x rosso)
+            # Funzione di stile
             def stile_simbolo(val):
                 if val == "✓":
                     color = "green"
@@ -1842,37 +1842,40 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                     color = "black"
                 return f"color: {color}; font-weight: bold"
             
+            # Funzione sicura per creare un DataFrame da pivot
+            def safe_pivot(df, index, columns, values):
+                try:
+                    pivoted = df.pivot(index=index, columns=columns, values=values).fillna(0)
+                    # Garantisce che sia DataFrame
+                    if not isinstance(pivoted, pd.DataFrame):
+                        pivoted = pd.DataFrame(pivoted)
+                    return pivoted
+                except Exception as e:
+                    print(f"Errore pivot: {e}")
+                    return pd.DataFrame()
+            
             # 📊 Crea DataFrame
             df_shock = pd.DataFrame(shock_data)
             
-            if not df_shock.empty and {"Fattore", "Anno", "Shock"}.issubset(df_shock.columns):
-                
-                try:
-                    # Pivot per fattore vs anno
-                    df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
-                except Exception as e:
-                    st.error(f"Errore nel pivot: {e}")
-                    df_pivot = pd.DataFrame()
+            if not df_shock.empty:
+                # Pivot sicuro
+                df_pivot = safe_pivot(df_shock, "Fattore", "Anno", "Shock")
             
                 if not df_pivot.empty:
-                    # --- Funzione ✓ / x ---
+                    # Funzione ✓ / x
                     def simbolo(x):
                         return "✓" if x == 1 else "x"
             
-                    # Applica simbolo a ogni cella del DataFrame
                     df_tabella = df_pivot.applymap(simbolo)
-            
-                    # Styling
                     df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
             
-                    # Mostra su Streamlit
                     st.markdown("### Dettaglio evento per fattore e anno")
-                    st.write(df_tabella_styled)  # st.write supporta Styler
+                    st.write(df_tabella_styled)
                 else:
                     st.info("Pivot vuoto, nessun effetto da mostrare.")
             else:
                 st.info("Nessun effetto su fattori di rischio o colonne mancanti")
-            
+                
             st.subheader("🌪️ Tornado chart per fattori di rischio (percentili 5°-95°)")
     
             fattori = sorted(set().union(*[e["fattori_simulati"].keys() for e in risultati]))
