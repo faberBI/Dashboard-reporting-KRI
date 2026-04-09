@@ -1850,7 +1850,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             def simbolo(x):
                 return "✓" if x == 1 else "x"
             
-            df_tabella = df_pivot.applymap(simbolo)
+            df_tabella = df_pivot.map(simbolo)
             
             # 🎨 Stile (il tuo)
             def stile_simbolo(val):
