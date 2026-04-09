@@ -30,6 +30,7 @@ import yfinance as yf
 import pmdarima as pm
 import matplotlib.pyplot as plt
 import openai
+import plotly.express as px
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
