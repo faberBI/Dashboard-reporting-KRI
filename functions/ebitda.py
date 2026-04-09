@@ -36,10 +36,16 @@ def plot_top_corr_bar(top_corr_pairs, anno):
     
 def get_top_correlations(corr_matrix, top_n=10):
     corr_matrix = corr_matrix.copy()
-    # Escludi la diagonale
-    np.fill_diagonal(corr_matrix.values, np.nan)
     
-    # Trasforma in dataframe a 3 colonne: feature1, feature2, correlazione
+    # 🔹 Escludi la diagonale solo se la matrice è quadrata
+    if corr_matrix.shape[0] == corr_matrix.shape[1]:
+        np.fill_diagonal(corr_matrix.values, np.nan)
+    else:
+        # Se non è quadrata, sostituisci manualmente i valori diagonali se possibile
+        for i, col in enumerate(corr_matrix.columns[:corr_matrix.shape[0]]):
+            corr_matrix.iloc[i, i] = np.nan
+
+    # Trasforma in dataframe a 3 colonne: feature1, feature2, correlazione assoluta
     corr_unstacked = corr_matrix.abs().unstack()
     
     # Rimuovi duplicati (A,B) e (B,A)
@@ -53,6 +59,7 @@ def get_top_correlations(corr_matrix, top_n=10):
     for (f1, f2), val_abs in top_corr.items():
         val_orig = corr_matrix.loc[f1, f2]
         pairs.append((f1, f2, val_orig))
+    
     return pairs
     
 def simula_fattori_empiricamente(fattori_simulati, n_sim):
