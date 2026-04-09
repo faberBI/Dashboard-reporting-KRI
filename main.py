@@ -1854,10 +1854,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             
             # 📺 Output
             st.dataframe(df_styled)          
-            else:
-                st.info("Nessun dato valido o colonne mancanti")
-
-                
+               
             st.subheader("🌪️ Tornado chart per fattori di rischio (percentili 5°-95°)")
     
             fattori = sorted(set().union(*[e["fattori_simulati"].keys() for e in risultati]))
