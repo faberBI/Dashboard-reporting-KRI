@@ -1896,7 +1896,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                 title="Dispersione dei fattori di rischio (5° vs 95° percentile) per anno",
                 text=df_tornado["Valore_milioni"].apply(lambda x: f"{x:.2f}Mln") 
             )
-            fig_tornado_ts.update_layout(template="plotly_white", showlegend=True)
+            fig_tornado_ts.update_layout(template="plotly_white", showlegend=True, height=800, width=1200)
             st.plotly_chart(fig_tornado_ts, use_container_width=True)
             
             #plot_k_min_max_plotly(blocks)
