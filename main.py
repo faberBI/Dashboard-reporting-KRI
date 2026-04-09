@@ -1832,22 +1832,26 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                         "Fattore": fattore,
                         "Shock": 1 if shock else 0
                     })
-            
             # 📊 Crea DataFrame
             df_shock = pd.DataFrame(shock_data)
+            
             if not df_shock.empty:
-            # Pivot per fattore vs anno
+                # Pivot per fattore vs anno
                 df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
-                    
-            # --- Nuova tabella con ✓ / vuoto ---
+            
+                # --- Funzione ✓ / x ---
                 def simbolo(x):
                     return "✓" if x == 1 else "x"
-                
-                df_pivot = df_pivot.to_frame()
+            
+                # Applica simbolo a ogni cella del DataFrame
                 df_tabella = df_pivot.applymap(simbolo)
+            
+                # Styling (devi avere già definito stile_simbolo)
                 df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
+            
+                # Mostra su Streamlit
                 st.markdown("### Dettaglio evento per fattore e anno")
-                st.write(df_tabella_styled)
+                st.write(df_tabella_styled)  # st.write funziona con Styler
                
             else:
                 st.info("Nessun effetto su fattori di rischio ")
