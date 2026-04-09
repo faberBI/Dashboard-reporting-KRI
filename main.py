@@ -31,6 +31,7 @@ import pmdarima as pm
 import matplotlib.pyplot as plt
 import openai
 import plotly.express as px
+import plotly.graph_objects as go
 
 # Library custom
 from utils.data_loader import load_kri_excel, validate_kri_data
