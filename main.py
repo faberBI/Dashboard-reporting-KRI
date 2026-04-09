@@ -1842,7 +1842,8 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             # --- Nuova tabella con ✓ / vuoto ---
                 def simbolo(x):
                     return "✓" if x == 1 else "x"
-            
+                
+                df_pivot = df_pivot.to_frame()
                 df_tabella = df_pivot.applymap(simbolo)
                 df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
                 st.markdown("### Dettaglio evento per fattore e anno")
