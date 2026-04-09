@@ -1816,32 +1816,26 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                         
             st.subheader("📊 Eventi rilevanti per fattore di rischio")
             
+            # 🔧 Costruzione corretta dati flat
+            shock_data = []
+            
+            for entry in risultati:
+                anno = entry.get("anno")
+                shock_dict = entry.get("shock_occorrenze", {})
+            
+                for fattore, shock in shock_dict.items():
+                    shock_data.append({
+                        "Anno": anno,
+                        "Fattore": fattore,
+                        "Shock": 1 if shock else 0
+                    })
+            
             # 📊 DataFrame
-            df = pd.DataFrame(risultati)
+            df = pd.DataFrame(shock_data)
             
-            # 🔍 DEBUG (fondamentale)
-            st.write("Colonne trovate:", df.columns.tolist())
-            
-            # 🔧 Normalizzazione nomi colonne
-            df.columns = df.columns.str.strip().str.lower()
-            
-            # 🔁 Rinomina intelligente
-            rename_map = {}
-            for col in df.columns:
-                if "anno" in col:
-                    rename_map[col] = "Anno"
-                elif "fattore" in col:
-                    rename_map[col] = "Fattore"
-                elif "shock" in col:
-                    rename_map[col] = "Shock"
-            
-            df = df.rename(columns=rename_map)
-            
-            st.write("Colonne dopo rename:", df.columns.tolist())
-            
-            # 🚨 Controllo finale
-            if not {"Anno", "Fattore", "Shock"}.issubset(df.columns):
-                st.error("❌ Colonne necessarie non trovate")
+            # 🚨 Se vuoto → stop
+            if df.empty:
+                st.info("Nessun dato disponibile")
                 st.stop()
             
             # 🔄 Pivot
@@ -1858,7 +1852,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             
             df_tabella = df_pivot.applymap(simbolo)
             
-            # 🎨 Stile
+            # 🎨 Stile (il tuo)
             def stile_simbolo(val):
                 if val == "✓":
                     return "color: green; font-weight: bold"
@@ -1869,7 +1863,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             df_styled = df_tabella.style.applymap(stile_simbolo)
             
             # 📺 Output
-            st.dataframe(df_styled)        
+            st.dataframe(df_styled)
                
             st.subheader("🌪️ Tornado chart per fattori di rischio (percentili 5°-95°)")
     
