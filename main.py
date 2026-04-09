@@ -1860,7 +1860,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                     return "color: red; font-weight: bold"
                 return ""
             
-            df_styled = df_tabella.style.applymap(stile_simbolo)
+            df_styled = df_tabella.style.map(stile_simbolo)
             
             # 📺 Output
             st.dataframe(df_styled)
