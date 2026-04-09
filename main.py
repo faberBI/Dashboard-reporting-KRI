@@ -1901,7 +1901,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             
             #plot_k_min_max_plotly(blocks)
     
-            excel_data = genera_output_excel(risultati, ebitda_base_dict, df_styled)
+            excel_data = genera_output_excel(risultati, ebitda_base_dict, df_tabella)
     
             st.download_button(
                 label="📥 Esporta risultati",
