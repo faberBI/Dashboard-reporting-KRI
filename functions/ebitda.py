@@ -1084,6 +1084,7 @@ def genera_output_excel(risultati_anni, ebitda_base_dict):
     df_shock = pd.DataFrame(shock_data)
     if not df_shock.empty:
         df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
+        df_pivot = pd.DataFrame(df_pivot)
         df_tabella = df_pivot.applymap(lambda x: "✓" if x == 1 else "x")
     else:
         df_tabella = pd.DataFrame(columns=["Fattore"])
