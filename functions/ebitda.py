@@ -138,7 +138,7 @@ def parse_factors(df):
         k_max = row['k_max'] if not pd.isna(row['k_max']) else 0
 
         # Prendo valore base a piano
-        base_val = row['valore  a piano'] if not pd.isna(row['valore  a piano']) else 0
+        base_val = row['valore a piano'] if not pd.isna(row['valore a piano']) else 0
         perc = row['perc'] if not pd.isna(row['perc']) else 0
         dipendente= row['variabile dipendente']
         block = {
