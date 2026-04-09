@@ -483,9 +483,6 @@ def simulate_ebitda_multi_year_blocks(
 
     return risultati_anni, cor_matrix_by_year
 
-import pandas as pd
-import numpy as np
-
 def simulate_ebitda_multi_year_blocks_with_ricavi(
     blocks, 
     ebitda_base_list, 
@@ -783,9 +780,6 @@ def simulate_ebitda_multi_year_blocks_with_ricavi(
     )
 
     return risultati_anni, cor_matrix_by_year, df_ricavi_negativi, df_parametri_simulati
-
-
-
 
 def simulate_ebitda_multi_year_blocks_old(
     blocks, 
