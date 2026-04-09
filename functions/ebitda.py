@@ -40,20 +40,24 @@ import pandas as pd
 def get_top_correlations(corr_matrix, top_n=10):
     corr_matrix = corr_matrix.copy()
     
-    # 🔹 Imposta a NaN la diagonale in modo sicuro
-    for i, col in enumerate(corr_matrix.columns[:corr_matrix.shape[0]]):
-        corr_matrix.iloc[i, i] = np.nan  # funziona anche se non è quadrata
+    # 🔹 Imposta la diagonale a NaN senza usare np.fill_diagonal
+    n_rows = corr_matrix.shape[0]
+    n_cols = corr_matrix.shape[1]
+    for i in range(min(n_rows, n_cols)):
+        corr_matrix.iloc[i, i] = np.nan  # funziona anche se non quadrata
 
     # Trasforma in serie di correlazioni assolute
     corr_unstacked = corr_matrix.abs().unstack()
 
     # Rimuovi duplicati (A,B) e (B,A)
-    corr_unstacked = corr_unstacked[corr_unstacked.index.get_level_values(0) < corr_unstacked.index.get_level_values(1)]
+    corr_unstacked = corr_unstacked[
+        corr_unstacked.index.get_level_values(0) < corr_unstacked.index.get_level_values(1)
+    ]
 
     # Prendi le top N correlazioni
     top_corr = corr_unstacked.sort_values(ascending=False).head(top_n)
 
-    # Ricostruisci coppie con il valore originale (segno incluso)
+    # Ricostruisci coppie con valore originale (segno incluso)
     pairs = []
     for (f1, f2), val_abs in top_corr.items():
         val_orig = corr_matrix.loc[f1, f2]
