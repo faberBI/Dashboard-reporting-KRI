@@ -1860,7 +1860,8 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                         return pd.DataFrame([data])
                 else:
                     return pd.DataFrame()
-            
+
+            st.write(shock_data)
             # 📊 Crea DataFrame sicuro
             df_shock = to_dataframe_safe(shock_data)
             
