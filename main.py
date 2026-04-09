@@ -1816,52 +1816,44 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                         
             st.subheader("📊 Eventi rilevanti per fattore di rischio")
             
-            # 📌 1. Usa direttamente i dati
-            shock_data = risultati
+            # 🔧 DataFrame
+            df = pd.DataFrame(risultati)
             
-            # Debug opzionale
-            st.write("Anteprima dati:", shock_data[:5])
+            # 🔧 Normalizza colonne
+            df.columns = df.columns.str.strip()
+            df = df.rename(columns={
+                "anno": "Anno",
+                "fattore": "Fattore",
+                "shock": "Shock"
+            })
             
-            # 📊 2. Creazione DataFrame
-            df_shock = pd.DataFrame(shock_data)
+            # 🔄 Pivot semplice (Fattore vs Anno)
+            df_pivot = df.pivot_table(
+                index="Fattore",
+                columns="Anno",
+                values="Shock",
+                aggfunc="max"
+            ).fillna(0)
             
-            # Controllo colonne
-            required_cols = {"Anno", "Fattore", "Shock"}
+            # 🔤 Trasforma in ✓ / x
+            def simbolo(x):
+                return "✓" if x == 1 else "x"
             
-            if not df_shock.empty and required_cols.issubset(df_shock.columns):
+            df_tabella = df_pivot.applymap(simbolo)
             
-                try:
-                    # 📊 3. Pivot (robusto contro duplicati)
-                    df_pivot = df_shock.pivot_table(
-                        index="Fattore",
-                        columns="Anno",
-                        values="Shock",
-                        aggfunc="max"   # evita errori se duplicati
-                    ).fillna(0)
+            # 🎨 TUA funzione di stile
+            def stile_simbolo(val):
+                if val == "✓":
+                    return "color: green; font-weight: bold"
+                elif val == "x":
+                    return "color: red; font-weight: bold"
+                return ""
             
-                    # 🔤 4. Conversione in simboli
-                    def simbolo(x):
-                        return "✓" if x == 1 else "x"
+            # 🎨 Applica stile
+            df_styled = df_tabella.style.applymap(stile_simbolo)
             
-                    df_tabella = df_pivot.applymap(simbolo)
-            
-                    # 🎨 5. Styling
-                    def stile_simbolo(val):
-                        if val == "✓":
-                            return "color: green; font-weight: bold"
-                        elif val == "x":
-                            return "color: red; font-weight: bold"
-                        return ""
-            
-                    df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
-            
-                    # 📺 6. Output
-                    st.markdown("### Dettaglio evento per fattore e anno")
-                    st.write(df_tabella_styled)
-            
-                except Exception as e:
-                    st.error(f"Errore nel pivot/applymap: {e}")
-            
+            # 📺 Output
+            st.dataframe(df_styled)          
             else:
                 st.info("Nessun dato valido o colonne mancanti")
 
