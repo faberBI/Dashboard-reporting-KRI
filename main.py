@@ -1813,79 +1813,57 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                 template='plotly_white'
             )
             st.plotly_chart(fig_percentili, use_container_width=True)
+                        
+            st.subheader("📊 Eventi rilevanti per fattore di rischio")
             
-            def stile_simbolo(val):
-                if val == "✓":
-                    return "color: red; font-weight: bold; text-align: center"
-                else:
-                    return "text-align: center"
+            # 📌 1. Usa direttamente i dati
+            shock_data = risultati
             
-            st.subheader("📊 Eventi rilevanti per fattore di rischio ")
-            shock_data = []
-            for entry in risultati:
-                print(f'grafico eventi rilevanti per fattore di rischio {entry}')
-                anno = entry['anno']
-                shock_occorrenze = entry.get('shock_occorrenze', {})  # ✅ uso diretto
-                for fattore, shock in shock_occorrenze.items():
-                    shock_data.append({
-                        "Anno": anno,
-                        "Fattore": fattore,
-                        "Shock": 1 if shock else 0
-                    })
-            # Funzione di stile
-            def stile_simbolo(val):
-                if val == "✓":
-                    color = "green"
-                elif val == "x":
-                    color = "red"
-                else:
-                    color = "black"
-                return f"color: {color}; font-weight: bold"
+            # Debug opzionale
+            st.write("Anteprima dati:", shock_data[:5])
             
-            # Funzione sicura per trasformare qualsiasi input in DataFrame
-            def to_dataframe_safe(data):
-                if isinstance(data, pd.DataFrame):
-                    return data.copy()
-                elif isinstance(data, pd.Series):
-                    return data.to_frame()
-                elif isinstance(data, dict):
-                    try:
-                        return pd.DataFrame(data)
-                    except:
-                        return pd.DataFrame([data])
-                elif isinstance(data, (list, tuple, np.ndarray)):
-                    try:
-                        return pd.DataFrame(data)
-                    except:
-                        return pd.DataFrame([data])
-                else:
-                    return pd.DataFrame()
-
-            st.write(shock_data)
-            # 📊 Crea DataFrame sicuro
-            df_shock = to_dataframe_safe(shock_data)
+            # 📊 2. Creazione DataFrame
+            df_shock = pd.DataFrame(shock_data)
             
-            if not df_shock.empty and {"Fattore", "Anno", "Shock"}.issubset(df_shock.columns):
+            # Controllo colonne
+            required_cols = {"Anno", "Fattore", "Shock"}
+            
+            if not df_shock.empty and required_cols.issubset(df_shock.columns):
+            
                 try:
-                    df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
-                    df_pivot = ensure_dataframe(df_pivot)
-                    if not isinstance(df_pivot, pd.DataFrame):
-                        df_pivot = pd.DataFrame(df_pivot)
+                    # 📊 3. Pivot (robusto contro duplicati)
+                    df_pivot = df_shock.pivot_table(
+                        index="Fattore",
+                        columns="Anno",
+                        values="Shock",
+                        aggfunc="max"   # evita errori se duplicati
+                    ).fillna(0)
             
-                    # Funzione ✓ / x
+                    # 🔤 4. Conversione in simboli
                     def simbolo(x):
                         return "✓" if x == 1 else "x"
             
                     df_tabella = df_pivot.applymap(simbolo)
+            
+                    # 🎨 5. Styling
+                    def stile_simbolo(val):
+                        if val == "✓":
+                            return "color: green; font-weight: bold"
+                        elif val == "x":
+                            return "color: red; font-weight: bold"
+                        return ""
+            
                     df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
             
+                    # 📺 6. Output
                     st.markdown("### Dettaglio evento per fattore e anno")
                     st.write(df_tabella_styled)
             
                 except Exception as e:
                     st.error(f"Errore nel pivot/applymap: {e}")
+            
             else:
-                st.info("Nessun effetto su fattori di rischio o colonne mancanti")
+                st.info("Nessun dato valido o colonne mancanti")
 
                 
             st.subheader("🌪️ Tornado chart per fattori di rischio (percentili 5°-95°)")
