@@ -60,7 +60,7 @@ from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_
 from functions.copper import (make_lag_df, plot_copper_forecast, plot_var_vs_budget, monte_carlo_forecast_cp_from_disk, full_copper_forecast)
 from functions.ebitda import (plot_top_corr_bar, get_top_correlations, simula_fattori_empiricamente, genera_template_input, load_risk_factors, parse_factors, sample_distribution, 
                             apply_uncertainty_to_params, simulate_ebitda_multi_year_blocks, simulate_ebitda_multi_year_blocks_with_ricavi, simulate_ebitda_multi_year_blocks_old, plot_k_min_max_plotly, 
-                            calcola_importanza_fattori, genera_output_excel)
+                            calcola_importanza_fattori, genera_output_excel, safe_pivot)
 
 # -----------------------
 # Configurazione Streamlit
@@ -1832,29 +1832,46 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                         "Fattore": fattore,
                         "Shock": 1 if shock else 0
                     })
+            # Funzione di stile per Streamlit (esempio: ✓ verde, x rosso)
+            def stile_simbolo(val):
+                if val == "✓":
+                    color = "green"
+                elif val == "x":
+                    color = "red"
+                else:
+                    color = "black"
+                return f"color: {color}; font-weight: bold"
+            
             # 📊 Crea DataFrame
             df_shock = pd.DataFrame(shock_data)
             
-            if not df_shock.empty:
-                # Pivot per fattore vs anno
-                df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
+            if not df_shock.empty and {"Fattore", "Anno", "Shock"}.issubset(df_shock.columns):
+                
+                try:
+                    # Pivot per fattore vs anno
+                    df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
+                except Exception as e:
+                    st.error(f"Errore nel pivot: {e}")
+                    df_pivot = pd.DataFrame()
             
-                # --- Funzione ✓ / x ---
-                def simbolo(x):
-                    return "✓" if x == 1 else "x"
+                if not df_pivot.empty:
+                    # --- Funzione ✓ / x ---
+                    def simbolo(x):
+                        return "✓" if x == 1 else "x"
             
-                # Applica simbolo a ogni cella del DataFrame
-                df_tabella = df_pivot.applymap(simbolo)
+                    # Applica simbolo a ogni cella del DataFrame
+                    df_tabella = df_pivot.applymap(simbolo)
             
-                # Styling (devi avere già definito stile_simbolo)
-                df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
+                    # Styling
+                    df_tabella_styled = df_tabella.style.applymap(stile_simbolo)
             
-                # Mostra su Streamlit
-                st.markdown("### Dettaglio evento per fattore e anno")
-                st.write(df_tabella_styled)  # st.write funziona con Styler
-               
+                    # Mostra su Streamlit
+                    st.markdown("### Dettaglio evento per fattore e anno")
+                    st.write(df_tabella_styled)  # st.write supporta Styler
+                else:
+                    st.info("Pivot vuoto, nessun effetto da mostrare.")
             else:
-                st.info("Nessun effetto su fattori di rischio ")
+                st.info("Nessun effetto su fattori di rischio o colonne mancanti")
             
             st.subheader("🌪️ Tornado chart per fattori di rischio (percentili 5°-95°)")
     
