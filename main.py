@@ -1437,7 +1437,7 @@ elif selected_kri == "Liquidity Risk💰":
 elif selected_kri == "Ebitda @Risk 📊📈":
     if uploaded_file:
         df = load_risk_factors(uploaded_file)
-        st.write("📄 Anteprima dati:", df.head())
+        #st.write("📄 Anteprima dati:", df.head())
     
         blocks = parse_factors(df)
     
