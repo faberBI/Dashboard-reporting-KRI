@@ -1831,15 +1831,15 @@ elif selected_kri == "Ebitda @Risk 📊📈":
                     })
             
             # 📊 DataFrame
-            df = pd.DataFrame(shock_data)
+            df_shock = pd.DataFrame(shock_data)
             
             # 🚨 Se vuoto → stop
-            if df.empty:
+            if df_shock.empty:
                 st.info("Nessun dato disponibile")
                 st.stop()
             
             # 🔄 Pivot
-            df_pivot = df.pivot_table(
+            df_pivot = df_shock.pivot_table(
                 index="Fattore",
                 columns="Anno",
                 values="Shock",
@@ -1901,7 +1901,7 @@ elif selected_kri == "Ebitda @Risk 📊📈":
             
             #plot_k_min_max_plotly(blocks)
     
-            excel_data = genera_output_excel(risultati, ebitda_base_dict)
+            excel_data = genera_output_excel(risultati, ebitda_base_dict, df_styled)
     
             st.download_button(
                 label="📥 Esporta risultati",
