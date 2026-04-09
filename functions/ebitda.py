@@ -1022,6 +1022,18 @@ def calcola_importanza_fattori(risultati_raw):
     return tornado_per_anno, importanza_totale
 
 
+
+def safe_applymap(df, func):
+    """
+    Applica applymap a df se è DataFrame. 
+    Se non lo è, crea DataFrame vuoto.
+    """
+    if not isinstance(df, pd.DataFrame):
+        df = pd.DataFrame(df)  # forza la conversione, o diventa vuoto se non compatibile
+    if df.empty:
+        return df
+    return df.applymap(func)
+
 def genera_output_excel(risultati_anni, ebitda_base_dict):
     dati_output = []
     fattori_data = []
@@ -1102,8 +1114,7 @@ def genera_output_excel(risultati_anni, ebitda_base_dict):
     df_shock = pd.DataFrame(shock_data)
     if not df_shock.empty:
         df_pivot = df_shock.pivot(index="Fattore", columns="Anno", values="Shock").fillna(0)
-        df_pivot = ensure_dataframe(df_pivot)
-        df_tabella = df_pivot.applymap(lambda x: "✓" if x == 1 else "x")
+        df_pivot = safe_applymap(df_pivot, lambda x: "✓" if x == 1 else "x")
     else:
         df_tabella = pd.DataFrame(columns=["Fattore"])
 
@@ -1115,4 +1126,3 @@ def genera_output_excel(risultati_anni, ebitda_base_dict):
         df_tabella.to_excel(writer, sheet_name='Shock Fattori')  # index=True è utile qui
     buffer.seek(0)
     return buffer
-
