@@ -600,3 +600,117 @@ def plot_hedging_dashboard(df, month_col="Anno-Mese"):
 
     return fig_cost, fig_hedge, fig_cov
 
+
+def read_budget_excel(file):
+    df = pd.read_excel(file)
+
+    # Normalizza nomi colonne
+    df.columns = [c.strip() for c in df.columns]
+
+    required_cols = {"Month", "Budget_Cum"}
+    if not required_cols.issubset(df.columns):
+        raise ValueError(f"Il file deve contenere colonne: {required_cols}")
+
+    months = df["Month"].astype(str).tolist()
+    budget_cum = df["Budget_Cum"].astype(float).values
+
+    return months, budget_cum
+
+def simulate_budget(
+    budget_cum,
+    months,
+    mu=20,
+    sigma_ratio=0.2,
+    shape_sigma=0.15,
+    n_sim=10000,
+    seed=42,
+    plot=True
+):
+    # ============================================================
+    # INPUT CHECK
+    # ============================================================
+    budget_cum = np.array(budget_cum, dtype=float)
+
+    if not np.all(np.diff(budget_cum) >= 0):
+        raise ValueError("Budget cumulato NON monotono!")
+
+    Y_budget = budget_cum[-1]
+
+    # ============================================================
+    # INCREMENTALE
+    # ============================================================
+    monthly_budget = np.diff(np.insert(budget_cum, 0, 0.0))
+
+    if not np.isclose(monthly_budget.sum(), Y_budget):
+        raise ValueError("Errore nella somma del budget")
+
+    # ============================================================
+    # PROFILO
+    # ============================================================
+    monthly_profile = monthly_budget / Y_budget
+
+    # ============================================================
+    # SIMULAZIONE
+    # ============================================================
+    rng = np.random.default_rng(seed)
+
+    sigma = sigma_ratio * mu
+    Y_sim = np.clip(rng.normal(mu, sigma, n_sim), 0, None)
+
+    shape = rng.lognormal(
+        mean=np.log(monthly_profile + 1e-8),
+        sigma=shape_sigma,
+        size=(n_sim, len(months))
+    )
+
+    shape /= shape.sum(axis=1, keepdims=True)
+
+    monthly_sim = Y_sim[:, None] * shape
+
+    # ============================================================
+    # STATISTICHE
+    # ============================================================
+    P50 = np.percentile(monthly_sim, 50, axis=0)
+    P90 = np.percentile(monthly_sim, 10, axis=0)
+    P95 = np.percentile(monthly_sim, 5, axis=0)
+
+    df = pd.DataFrame({
+        "Month": months,
+        "Budget": monthly_budget,
+        "P50": P50,
+        "P90": P90,
+        "P95": P95
+    })
+
+    df["Cum_Budget"] = df["Budget"].cumsum()
+    df["Cum_P50"] = df["P50"].cumsum()
+    df["Cum_P95"] = df["P95"].cumsum()
+
+    # ============================================================
+    # PLOT
+    # ============================================================
+    fig = None
+
+    if plot:
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        ax.plot(months, df["Cum_Budget"], label="Budget cumulato", linewidth=2)
+        ax.plot(months, df["Cum_P50"], label="P50 simulato", linewidth=2)
+        ax.plot(months, df["Cum_P95"], label="P95 simulato", linewidth=2)
+
+        ax.set_title("Budget vs Simulazione (cumulato)")
+        ax.legend()
+        ax.grid()
+        plt.xticks(rotation=45)
+
+    # ============================================================
+    # OUTPUT
+    # ============================================================
+    results = {
+        "df": df,
+        "fig": fig,
+        "Y_budget": Y_budget,
+        "P50_total": np.median(Y_sim)
+    }
+
+    return results
