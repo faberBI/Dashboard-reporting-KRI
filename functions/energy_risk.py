@@ -616,6 +616,7 @@ def read_budget_excel(file):
 
     return months, budget_cum
 
+
 def simulate_budget(
     budget_cum,
     months,
@@ -623,11 +624,10 @@ def simulate_budget(
     sigma_ratio=0.2,
     shape_sigma=0.15,
     n_sim=10000,
-    seed=42,
-    plot=True
+    seed=42
 ):
     # ============================================================
-    # INPUT CHECK
+    # 1. CHECK INPUT
     # ============================================================
     budget_cum = np.array(budget_cum, dtype=float)
 
@@ -637,20 +637,13 @@ def simulate_budget(
     Y_budget = budget_cum[-1]
 
     # ============================================================
-    # INCREMENTALE
+    # 2. INCREMENTALE (MENSILE)
     # ============================================================
     monthly_budget = np.diff(np.insert(budget_cum, 0, 0.0))
-
-    if not np.isclose(monthly_budget.sum(), Y_budget):
-        raise ValueError("Errore nella somma del budget")
-
-    # ============================================================
-    # PROFILO
-    # ============================================================
     monthly_profile = monthly_budget / Y_budget
 
     # ============================================================
-    # SIMULAZIONE
+    # 3. SIMULAZIONE MONTE CARLO
     # ============================================================
     rng = np.random.default_rng(seed)
 
@@ -668,49 +661,133 @@ def simulate_budget(
     monthly_sim = Y_sim[:, None] * shape
 
     # ============================================================
-    # STATISTICHE
+    # 4. STATISTICHE MENSILI
     # ============================================================
-    P50 = np.percentile(monthly_sim, 50, axis=0)
-    P90 = np.percentile(monthly_sim, 10, axis=0)
-    P95 = np.percentile(monthly_sim, 5, axis=0)
+    P50_m = np.percentile(monthly_sim, 50, axis=0)
+    P90_m = np.percentile(monthly_sim, 10, axis=0)
+    P95_m = np.percentile(monthly_sim, 5, axis=0)
 
+    # ============================================================
+    # 5. DATAFRAME
+    # ============================================================
     df = pd.DataFrame({
         "Month": months,
         "Budget": monthly_budget,
-        "P50": P50,
-        "P90": P90,
-        "P95": P95
+        "P50": P50_m,
+        "P90": P90_m,
+        "P95": P95_m
     })
 
+    # cumulato
     df["Cum_Budget"] = df["Budget"].cumsum()
     df["Cum_P50"] = df["P50"].cumsum()
     df["Cum_P95"] = df["P95"].cumsum()
 
     # ============================================================
-    # PLOT
+    # 6. GRAFICO CUMULATO (FAN CHART)
     # ============================================================
-    fig = None
+    fig_cum = go.Figure()
 
-    if plot:
-        fig, ax = plt.subplots(figsize=(10, 5))
+    # banda P95
+    fig_cum.add_trace(go.Scatter(
+        x=months,
+        y=df["Cum_P95"],
+        line=dict(width=0),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
 
-        ax.plot(months, df["Cum_Budget"], label="Budget cumulato", linewidth=2)
-        ax.plot(months, df["Cum_P50"], label="P50 simulato", linewidth=2)
-        ax.plot(months, df["Cum_P95"], label="P95 simulato", linewidth=2)
+    # banda tra P95 e P50
+    fig_cum.add_trace(go.Scatter(
+        x=months,
+        y=df["Cum_P50"],
+        fill='tonexty',
+        name="Range (P50–P95)",
+        mode='lines',
+        line=dict(width=0),
+    ))
 
-        ax.set_title("Budget vs Simulazione (cumulato)")
-        ax.legend()
-        ax.grid()
-        plt.xticks(rotation=45)
+    # linea P50
+    fig_cum.add_trace(go.Scatter(
+        x=months,
+        y=df["Cum_P50"],
+        name="P50 cumulato",
+        line=dict(width=3)
+    ))
+
+    # linea Budget
+    fig_cum.add_trace(go.Scatter(
+        x=months,
+        y=df["Cum_Budget"],
+        name="Budget cumulato",
+        line=dict(width=3, dash="dash")
+    ))
+
+    fig_cum.update_layout(
+        title="Produzione Cumulata (Budget vs Simulazione)",
+        xaxis_title="Mese",
+        yaxis_title="Valore cumulato",
+        template="plotly_white",
+        hovermode="x unified"
+    )
 
     # ============================================================
-    # OUTPUT
+    # 7. GRAFICO MENSILE
     # ============================================================
-    results = {
+    fig_monthly = go.Figure()
+
+    # banda P95
+    fig_monthly.add_trace(go.Scatter(
+        x=months,
+        y=df["P95"],
+        line=dict(width=0),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+
+    # banda tra P95 e P50
+    fig_monthly.add_trace(go.Scatter(
+        x=months,
+        y=df["P50"],
+        fill='tonexty',
+        name="Range (P50–P95)",
+        mode='lines',
+        line=dict(width=0),
+    ))
+
+    # linea P50
+    fig_monthly.add_trace(go.Scatter(
+        x=months,
+        y=df["P50"],
+        name="P50 mensile",
+        line=dict(width=3)
+    ))
+
+    # linea Budget
+    fig_monthly.add_trace(go.Scatter(
+        x=months,
+        y=df["Budget"],
+        name="Budget mensile",
+        line=dict(width=3, dash="dash")
+    ))
+
+    fig_monthly.update_layout(
+        title="Produzione Mensile (Budget vs Simulazione)",
+        xaxis_title="Mese",
+        yaxis_title="Valore mensile",
+        template="plotly_white",
+        hovermode="x unified"
+    )
+
+    # ============================================================
+    # 8. OUTPUT
+    # ============================================================
+    return {
         "df": df,
-        "fig": fig,
+        "fig_cum": fig_cum,
+        "fig_monthly": fig_monthly,
         "Y_budget": Y_budget,
-        "P50_total": np.median(Y_sim)
+        "P50_total": np.median(Y_sim),
+        'plot_monthly': fig_monthly,
+        'plot_cum': fig_cum
     }
-
-    return results
