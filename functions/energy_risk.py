@@ -607,19 +607,19 @@ def read_budget_excel(file):
     # Normalizza nomi colonne
     df.columns = [c.strip() for c in df.columns]
 
-    required_cols = {"Month", "Budget_Cum"}
+    required_cols = {"Month", "Budget_Cum", "Year"}
     if not required_cols.issubset(df.columns):
         raise ValueError(f"Il file deve contenere colonne: {required_cols}")
 
-    months = df["Month"].astype(str).tolist()
-    budget_cum = df["Budget_Cum"].astype(float).values
+    # Eventuale cast (modifica direttamente il df)
+    df["Month"] = df["Month"].astype(str)
+    df["Budget_Cum"] = df["Budget_Cum"].astype(float)
 
-    return months, budget_cum
+    return df
 
 
 def simulate_budget(
-    budget_cum,
-    months,
+    df,
     mu=20,
     sigma_ratio=0.2,
     shape_sigma=0.15,
@@ -629,7 +629,16 @@ def simulate_budget(
     # ============================================================
     # 1. CHECK INPUT
     # ============================================================
-    budget_cum = np.array(budget_cum, dtype=float)
+    required_cols = {"Year", "Month", "Budget_Cum"}
+    if not required_cols.issubset(df.columns):
+        raise ValueError(f"Il DataFrame deve contenere: {required_cols}")
+
+    df = df.copy()
+
+    # Ordina correttamente per anno + mese
+    df = df.sort_values(["Year", "Month"]).reset_index(drop=True)
+
+    budget_cum = df["Budget_Cum"].astype(float).values
 
     if not np.all(np.diff(budget_cum) >= 0):
         raise ValueError("Budget cumulato NON monotono!")
@@ -653,7 +662,7 @@ def simulate_budget(
     shape = rng.lognormal(
         mean=np.log(monthly_profile + 1e-8),
         sigma=shape_sigma,
-        size=(n_sim, len(months))
+        size=(n_sim, len(df))
     )
 
     shape /= shape.sum(axis=1, keepdims=True)
@@ -668,64 +677,62 @@ def simulate_budget(
     P95_m = np.percentile(monthly_sim, 5, axis=0)
 
     # ============================================================
-    # 5. DATAFRAME
+    # 5. DATAFRAME OUTPUT
     # ============================================================
-    df = pd.DataFrame({
-        "Month": months,
-        "Budget": monthly_budget,
-        "P50": P50_m,
-        "P90": P90_m,
-        "P95": P95_m
-    })
+    df_out = df.copy()
 
-    # cumulato
-    df["Cum_Budget"] = df["Budget"].cumsum()
-    df["Cum_P50"] = df["P50"].cumsum()
-    df["Cum_P95"] = df["P95"].cumsum()
+    df_out["Budget"] = monthly_budget
+    df_out["P50"] = P50_m
+    df_out["P90"] = P90_m
+    df_out["P95"] = P95_m
+
+    # cumulati
+    df_out["Cum_Budget"] = df_out["Budget"].cumsum()
+    df_out["Cum_P50"] = df_out["P50"].cumsum()
+    df_out["Cum_P95"] = df_out["P95"].cumsum()
+
+    # asse x leggibile (Anno-Mese)
+    x_axis = df_out["Year"].astype(str) + "-" + df_out["Month"].astype(str)
 
     # ============================================================
-    # 6. GRAFICO CUMULATO (FAN CHART)
+    # 6. GRAFICO CUMULATO
     # ============================================================
     fig_cum = go.Figure()
 
-    # banda P95
     fig_cum.add_trace(go.Scatter(
-        x=months,
-        y=df["Cum_P95"],
+        x=x_axis,
+        y=df_out["Cum_P95"],
         line=dict(width=0),
         showlegend=False,
         hoverinfo='skip'
     ))
 
-    # banda tra P95 e P50
     fig_cum.add_trace(go.Scatter(
-        x=months,
-        y=df["Cum_P50"],
+        x=x_axis,
+        y=df_out["Cum_P50"],
         fill='tonexty',
         name="Range (P50–P95)",
         mode='lines',
         line=dict(width=0),
     ))
 
-    # linea P50
     fig_cum.add_trace(go.Scatter(
-        x=months,
-        y=df["Cum_P50"],
+        x=x_axis,
+        y=df_out["Cum_P50"],
         name="P50 cumulato",
         line=dict(width=3)
     ))
 
-    # linea Budget
     fig_cum.add_trace(go.Scatter(
-        x=months,
-        y=df["Cum_Budget"],
+        x=x_axis,
+        y=df_out["Cum_Budget"],
         name="Budget cumulato",
         line=dict(width=3, dash="dash")
     ))
 
     fig_cum.update_layout(
-        title="Produzione Cumulata (Budget vs Simulazione)",
-        xaxis_title="Mese",
+        title="Produzione Cumulata (multi-anno)",
+        xaxis_title="Anno-Mese",
         yaxis_title="Valore cumulato",
         template="plotly_white",
         hovermode="x unified"
@@ -736,44 +743,40 @@ def simulate_budget(
     # ============================================================
     fig_monthly = go.Figure()
 
-    # banda P95
     fig_monthly.add_trace(go.Scatter(
-        x=months,
-        y=df["P95"],
+        x=x_axis,
+        y=df_out["P95"],
         line=dict(width=0),
         showlegend=False,
         hoverinfo='skip'
     ))
 
-    # banda tra P95 e P50
     fig_monthly.add_trace(go.Scatter(
-        x=months,
-        y=df["P50"],
+        x=x_axis,
+        y=df_out["P50"],
         fill='tonexty',
         name="Range (P50–P95)",
         mode='lines',
         line=dict(width=0),
     ))
 
-    # linea P50
     fig_monthly.add_trace(go.Scatter(
-        x=months,
-        y=df["P50"],
+        x=x_axis,
+        y=df_out["P50"],
         name="P50 mensile",
         line=dict(width=3)
     ))
 
-    # linea Budget
     fig_monthly.add_trace(go.Scatter(
-        x=months,
-        y=df["Budget"],
+        x=x_axis,
+        y=df_out["Budget"],
         name="Budget mensile",
         line=dict(width=3, dash="dash")
     ))
 
     fig_monthly.update_layout(
-        title="Produzione Mensile (Budget vs Simulazione)",
-        xaxis_title="Mese",
+        title="Produzione Mensile (multi-anno)",
+        xaxis_title="Anno-Mese",
         yaxis_title="Valore mensile",
         template="plotly_white",
         hovermode="x unified"
@@ -783,11 +786,8 @@ def simulate_budget(
     # 8. OUTPUT
     # ============================================================
     return {
-        "df": df,
-        "fig_cum": fig_cum,
-        "fig_monthly": fig_monthly,
+        "df": df_out,
         "Y_budget": Y_budget,
-        "P50_total": np.median(Y_sim),
-        'plot_monthly': fig_monthly,
-        'plot_cum': fig_cum
+        "plot_monthly": fig_monthly,
+        "plot_cum": fig_cum
     }
