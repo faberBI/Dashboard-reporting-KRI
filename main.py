@@ -321,6 +321,7 @@ if selected_kri == "⚡ Energy Risk":
         st.metric(label="Yearly Value@Risk w/o Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w/o_solar'].sum(), 0):,.0f}")
 
         st.subheader("📈 Hedging Optimization Model")
+        
         df = dati_fibercop.copy()
         df["Fabbisogno"] *= 1000
         df["Copertura"] = (df['PPA Erg'] + df['Forward'] + df['Solar']) * 1000
@@ -350,7 +351,7 @@ if selected_kri == "⚡ Energy Risk":
                 hedge[mask] += max_needed * weights
                
         # Limite mensile
-        max_hedge_mensile = df["Fabbisogno"].values * 0.85 - df["Copertura"].values
+        max_hedge_mensile = df["Fabbisogno"].values * alpha - df["Copertura"].values
         hedge = np.minimum(hedge, max_hedge_mensile)
         
         # Saturazione residuo anno per anno
@@ -434,7 +435,7 @@ if selected_kri == "⚡ Energy Risk":
             hedge_tot = hedge.sum()
             anno_best = df.loc[best_month, "Anno"]
             cvar_pct = CVaR_current / ebitda_inputs[anno_best] * 100
-            copertura_annua_pct = (df["Coperto"] + hedge).sum() / total_fabbisogno * 100
+            copertura_annua_pct = (df["Copertura"] + hedge).sum() / total_fabbisogno * 100
         
             log.append({
                 "iter": iteration,
