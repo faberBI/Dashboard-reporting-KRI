@@ -345,7 +345,7 @@ if selected_kri == "⚡ Energy Risk":
             max_needed = max(max_copertura_totale_year - coperto_attuale_year, 0)
 
             # pesi proporzionali allo scoperto
-            weights = df.loc[mask, "scoperto_w_solar"].values
+            weights = df.loc[mask, "Scoperto_base"].values
             if weights.sum() > 0:
                 weights = weights / weights.sum()
                 hedge[mask] += max_needed * weights
@@ -434,12 +434,17 @@ if selected_kri == "⚡ Energy Risk":
             # log iterazione
             hedge_tot = hedge.sum()
             anno_best = df.loc[best_month, "Anno"]
+            
+            if CVaR_current > CVaR_limit[anno_best]:
+                st.warning("⚠️ CVaR oltre il risk appetite, stop ottimizzazione.")
+                break
+
             cvar_pct = CVaR_current / ebitda_inputs[anno_best] * 100
             copertura_annua_pct = (df["Copertura"] + hedge).sum() / total_fabbisogno * 100
         
             log.append({
                 "iter": iteration,
-                "mese": df.loc[best_month, "mese"],
+                "mese": df.loc[best_month, "Month"],
                 "anno": anno_best,
                 "hedge_tot_MWh": hedge_tot,
                 "CVaR_euro": CVaR_current,
