@@ -636,7 +636,9 @@ def simulate_budget(
     df = df.copy()
 
     # Ordina correttamente per anno + mese
-    df = df.sort_values(["Year", "Month"]).reset_index(drop=True)
+    df["date"] = pd.to_datetime(df["Year"].astype(str) + "-" + df["Month"])
+
+    df = df.sort_values("date").reset_index(drop=True)
 
     budget_cum = df["Budget_Cum"].astype(float).values
 
