@@ -367,21 +367,12 @@ if selected_kri == "⚡ Energy Risk":
                     sigma_ratio=solar_sigma_ratio,
                     shape_sigma=0.15,
                     n_sim=n_simulations,
-                    seed=42
-                )
+                    seed=42)
                 
-
-                if (("plot_monthly" in out and out["plot_monthly"] is not None) or ("plot_cum" in out and out["plot_cum"] is not None)):                
-                    st.subheader("☀️ Solar – simulazione stocastica")               
-                    col1, col2 = st.columns(2)              
-                    with col1:
-                        if "plot_monthly" in out and out["plot_monthly"] is not None:
-                            st.caption("Produzione mensile")
-                            st.plotly_chart(out["plot_monthly"], use_container_width=True)              
-                    with col2:
-                        if "plot_cum" in out and out["plot_cum"] is not None:
-                            st.caption("Produzione cumulata")
-                            st.plotly_chart(out["plot_cum"], use_container_width=True)
+           
+                st.subheader("☀️ Solar – simulazione stocastica")               
+                st.plotly_chart(out["plot_monthly"], use_container_width=True)              
+                st.plotly_chart(out["plot_cum"], use_container_width=True)
 
 
                 st.session_state.solar_cache_key = cache_key
