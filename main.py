@@ -629,7 +629,7 @@ if selected_kri == "⚡ Energy Risk":
             last_5y.to_excel(writer, sheet_name="last_5y", index=False)
             monthly_std.to_excel(writer, sheet_name="monthly_std", index=False)
             monthly_price.to_excel(writer, sheet_name="monthly_price", index=False)
-            pd.DataFrame(PUN_monthly_forecast).to_excel(writer, sheet_name="PUN_forecast", index=False)
+            pd.DataFrame(forecast).to_excel(writer, sheet_name="PUN_forecast", index=False)
             pd.DataFrame(monthly_sigma, columns=['monthly_sigma']).to_excel(writer, sheet_name="monthly_sigma", index=False)
             pd.DataFrame(PUN_paths).to_excel(writer, sheet_name="PUN_paths", index=False)
             dati_fibercop.to_excel(writer, sheet_name="dati_var", index=False)
