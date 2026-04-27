@@ -176,7 +176,17 @@ if selected_kri == "⚡ Energy Risk":
     # ============================================================
     month_map_ita_to_num = {
         "gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,
-        "lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12
+        "lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12,
+        
+        "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+        "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+
+        "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+        "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+
+        "Gen": 1, "Feb": 2, "Mar": 3, "Apr": 4, "Mag": 5, "Giu": 6,
+        "Lug": 7, "Ago": 8, "Set": 9, "Ott": 10, "Nov": 11, "Dic": 12
+
     }
     month_map_num_to_ita = {v: k for k, v in month_map_ita_to_num.items()}
 
