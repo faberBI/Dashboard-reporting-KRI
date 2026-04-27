@@ -626,14 +626,15 @@ if selected_kri == "⚡ Energy Risk":
         # Esportazione Excel
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_base.to_excel(writer, sheet_name="dati_input", index=False)
             last_5y.to_excel(writer, sheet_name="last_5y", index=False)
             monthly_std.to_excel(writer, sheet_name="monthly_std", index=False)
             monthly_price.to_excel(writer, sheet_name="monthly_price", index=False)
             pd.DataFrame(forecast).to_excel(writer, sheet_name="PUN_forecast", index=False)
             pd.DataFrame(monthly_sigma, columns=['monthly_sigma']).to_excel(writer, sheet_name="monthly_sigma", index=False)
             pd.DataFrame(PUN_paths).to_excel(writer, sheet_name="PUN_paths", index=False)
-            dati_fibercop.to_excel(writer, sheet_name="dati_var", index=False)
-            dati_monthly.to_excel(writer, sheet_name = "dati_var_monthly", index = False)
+            dati_fibercop.to_excel(writer, sheet_name="dati_var_monthly", index=False)
+            dati_monthly.to_excel(writer, sheet_name = "dati_var_yearly", index = False)
             pd.DataFrame(VaR_95_monthly, columns=['VaR_95']).to_excel(writer, sheet_name="VaR_95_monthly", index=False)
             pd.DataFrame(shocks).to_excel(writer, sheet_name="shocks", index=False)
             pd.DataFrame(df).to_excel(writer, sheet_name="Hedging", index=False)
