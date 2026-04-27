@@ -161,238 +161,356 @@ st.dataframe(df.head())
 # -----------------------
 # Logica specifica KRI
 # -----------------------
-if selected_kri == "⚡ Energy Risk": 
+if selected_kri == "⚡ Energy Risk":
+
     st.subheader("💰 Inserisci o modifica EBITDA per anno")
-    # Verifica che il DataFrame non sia vuoto
+
     if df.empty:
         st.warning("⚠️ Nessun dato disponibile nel DataFrame!")
-    else:
-        # Se la colonna Ebitda non esiste, la aggiunge con un valore predefinito
-        agg_dict = {
-            "Fabbisogno": "sum",
-            "PPA Erg": "sum",
-            "Forward": "sum",
-            "Solar": "sum",
-            "Prezzo Forward": "mean",
-            "Prezzo Budget": "mean"}
+        st.stop()
 
-        # Group by per anno
-        df_grouped = df.groupby("Anno").agg(agg_dict).reset_index()
-        if "Ebitda" not in df_grouped.columns:
-            df_grouped["Ebitda"] = 1_900_000_000
+    # ============================================================
+    # 0) UTIL: normalizzazione mesi (ITA <-> num)
+    # ============================================================
+    month_map_ita_to_num = {
+        "gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,
+        "lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12
+    }
+    month_map_num_to_ita = {v: k for k, v in month_map_ita_to_num.items()}
 
-        # Dizionario per i valori inseriti
-        ebitda_inputs = {}
+    def normalize_month_num(s: pd.Series) -> pd.Series:
+        """
+        Converte Month in numero 1..12:
+        - accetta 'gen','feb',... oppure '1','2',... oppure già numerico.
+        """
+        ss = s.astype(str).str.strip().str.lower()
+        num_from_ita = ss.map(month_map_ita_to_num)
+        num_from_num = pd.to_numeric(ss, errors="coerce")
+        out = num_from_ita.fillna(num_from_num)
+        return out.astype("Int64")
 
-        # Crea un campo numerico per ogni anno
-        for i, row in df_grouped.iterrows():
-            anno = int(row["Anno"]) if "Anno" in df_grouped.columns else (2025 + i)
-            default_value = float(row["Ebitda"])
+    def month_num_to_ita(series_num: pd.Series) -> pd.Series:
+        return series_num.map(month_map_num_to_ita).astype("string")
 
-            ebitda_inputs[anno] = st.number_input(
-                f"EBITDA per {anno} (€)",
-                min_value=0.0,
-                value=default_value,
-                step=1_000_000.0,
-                format="%.0f"
-            )
+    # ============================================================
+    # 1) PREPARAZIONE DATI BASE + allineamento Month (DB italiano)
+    # ============================================================
+    df_base = df.copy()
 
-    # Aggiorna la colonna Ebitda con i valori inseriti
-        df_grouped["Ebitda"] = [ebitda_inputs[anno] for anno in df_grouped["Anno"]]
+    # normalizzo mese sul DB (italiano)
+    df_base = df_base.assign(
+        Month_num=normalize_month_num(df_base["Month"]),
+        Month_ita=lambda x: month_num_to_ita(x["Month_num"])
+    )
 
-    # Mostra il DataFrame aggiornato
-        st.dataframe(df)
-        st.dataframe(df_grouped.style.format({"Ebitda": "€{:,.0f}"}))
+    df_base["Month"] = df_base["Month_ita"]
 
+    # ============================================================
+    # 2) INPUT EBITDA
+    # ============================================================
+    agg_dict = {
+        "Fabbisogno": "sum",
+        "PPA Erg": "sum",
+        "Forward": "sum",
+        "Solar": "sum",
+        "Prezzo Forward": "mean",
+        "Prezzo Budget": "mean"
+    }
+
+    df_grouped = df_base.groupby("Anno").agg(agg_dict).reset_index()
+
+    if "Ebitda" not in df_grouped.columns:
+        df_grouped["Ebitda"] = 1_900_000_000
+
+    ebitda_inputs = {}
+    for _, row in df_grouped.iterrows():
+        anno = int(row["Anno"])
+        ebitda_inputs[anno] = st.number_input(
+            f"EBITDA per {anno} (€)",
+            min_value=0.0,
+            value=float(row["Ebitda"]),
+            step=1_000_000.0,
+            format="%.0f",
+            key=f"ebitda_{anno}"
+        )
+
+    df_grouped["Ebitda"] = df_grouped["Anno"].map(ebitda_inputs)
+    st.dataframe(df_grouped.style.format({"Ebitda": "€{:,.0f}"}))
     st.success("✅ Parametri validi, pronti per la simulazione!")
 
-    # -----------------------
-    # Parametri simulazione
-    # -----------------------
-    import random
-    random.seed(42)
-    
-    n_simulations = st.number_input("Numero di simulazioni", min_value=1000, max_value=1000_000, value=10_000, step=1000)
-    risk_appetite = st.number_input("Risk appetite - Max loss in % of EBIDA", min_value=0.005, max_value=0.2, value=0.01, step=0.001)
-    step = st.number_input("MWh to buy each step of Optmization", min_value= 1000, max_value=10000, value=5000, step=1000)
-    alpha = st.number_input("% minima di copertura del fabbisogno", min_value= 0.5, max_value=1.0, value=0.85, step=0.05)
-    
-    n_year = len(df['Anno'].unique())
-    st.metric(label="Numero di anni da simulare", value=n_year)
-    
-    start_date = st.date_input("Dati aggiornati al", pd.Timestamp.today().date())
-    start_date_sim = pd.Timestamp.today().normalize()
+    # ============================================================
+    # 3) PARAMETRI SIMULAZIONE
+    # ============================================================
+    n_simulations = st.number_input("Numero simulazioni", 1000, 1_000_000, 10_000, 1000)
+    risk_appetite = st.number_input("Risk appetite (% EBITDA)", 0.005, 0.2, 0.01, 0.001)
+    step = st.number_input("Step MWh hedging", 1000, 10000, 5000, 1000)
+    alpha = st.number_input("Copertura minima fabbisogno", 0.5, 1.0, 0.85, 0.05)
 
-    # -----------------------------------------------------------
-    # PULSANTE SIMULAZIONE
-    # -----------------------------------------------------------
-    
+    n_year = int(df_base["Anno"].nunique())
+    st.metric("Numero anni simulati", n_year)
+
+    # ============================================================
+    # 4) SOLAR STOCASTICO
+    # ============================================================
+    st.subheader("☀️ Stress Produzione Solar")
+
+    use_solar_stochastic = st.checkbox("Attiva Solar stocastico", value=False)
+    solar_sigma_ratio = st.number_input("σ Solar", 0.01, 1.0, 0.20, 0.05)
+    mu_prod = st.number_input("Produzione effettiva Solar", 0.0, 1000.0, 20.0, 5.0)
+    regen_solar = st.button("🔄 Rigenera Solar")
+
+    df_budget = None
+    if use_solar_stochastic:
+        df_budget = read_budget_excel("Data/Solar_Budget.xlsx")
+
+        # ✅ ALLINEAMENTO Month del budget al DB in italiano
+        # budget: crea Month_num e Month_ita e (se vuoi) Month = Month_ita
+        df_budget = df_budget.copy()
+        # df_budget DEVE avere colonne Year, Month, Budget_Cum (come nella tua funzione)
+        df_budget = df_budget.assign(
+            Month_num=normalize_month_num(df_budget["Month"]),
+            Month_ita=lambda x: month_num_to_ita(x["Month_num"])
+        )
+        df_budget["Month"] = df_budget["Month_ita"]
+
+        with st.expander("🔎 Check Solar Budget"):
+            st.dataframe(df_budget[["Year", "Month", "Budget_Cum"]])
+
+    # ============================================================
+    # 5) SIMULAZIONE
+    # ============================================================
     if st.button("💹 Esegui simulazione Energy Risk"):
-        
+
         st.info("⏳ Simulazione in corso...")
-    
-        # ---------------------------------------
-        # LETTURA FILE EXCEL
-        # ---------------------------------------
+
+        # -------------------------
+        # 5.1 PUN DATA
+        # -------------------------
         data_path = "Data/Pun_ts_price.xlsx"
-        df_excel = None
-    
-        if os.path.exists(data_path):
-            df_excel = pd.read_excel(data_path)
-            st.success("📊 Dati PUN caricati dal percorso predefinito.")
-        else:
-            uploaded_file = st.file_uploader("Carica il file Excel PUN", type=["xlsx"])
-            if uploaded_file is None:
-                st.warning("⚠️ Carica un file per procedere.")
-                st.stop()
-            df_excel = pd.read_excel(uploaded_file)
-    
-        # Controllo colonne richieste
+        if not os.path.exists(data_path):
+            st.error("❌ File PUN mancante: Data/Pun_ts_price.xlsx")
+            st.stop()
+
+        df_excel = pd.read_excel(data_path)
         if "Date" not in df_excel.columns or "GMEPIT24 Index" not in df_excel.columns:
-            st.error("❌ Il file deve contenere le colonne 'Date' e 'GMEPIT24 Index'.")
+            st.error("❌ Formato file errato: servono colonne 'Date' e 'GMEPIT24 Index'")
             st.stop()
-    
-        # Preprocessing
+
         df_excel["Date"] = pd.to_datetime(df_excel["Date"])
-        st.session_state.energy_df = df_excel
-    
-        if df_excel.empty:
-            st.error("❌ Il dataset filtrato è vuoto.")
-            st.stop()
 
+        # -------------------------
+        # 5.2 MODELLO PREZZI
+        # -------------------------
         np.random.seed(42)
+
         last_5y, monthly_std, monthly_price, monthly_price_year = get_return(data_path)
-        st.success("✅ Statistiche calcolate!")
-        L, rho_hat = apply_cholesky(last_5y)
-        hist_pun = pd.read_excel(data_path)
-        hist_pun["log_return"] = np.log(hist_pun["GMEPIT24 Index"] / hist_pun["GMEPIT24 Index"].shift(1))
-        hist_pun["Month"] = hist_pun["Date"].dt.month
-        hist_filter = hist_pun[hist_pun['Year']>2015]
-        
-        series = hist_filter.set_index('Date')['GMEPIT24 Index'].astype(float).dropna()
-        fig, ax = plt.subplots(figsize=(12, 5))
-        ax.plot(series.index, series.values, linewidth=2)
-        ax.set_title("Serie Storica PUN giornaliera", fontsize=13)
-        ax.set_xlabel("Data")
-        ax.set_ylabel("Prezzo")
-        ax.grid(True, linestyle="--", alpha=0.4)
-        plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
-        
-        series = monthly_price_year.set_index("Date")["avg_price"] 
-        new_start = pd.Timestamp(series[-1:].index[0].strftime('%Y-%m-%d'))
-        PUN_monthly_forecast = forecast_monthly_prices(series, n_years=n_year)
-        new_index = pd.date_range(start=new_start, periods=len(PUN_monthly_forecast), freq='MS')
-        PUN_monthly_forecast.index = new_index
+        L, _ = apply_cholesky(last_5y)
 
-        st.write('PUN forecast', PUN_monthly_forecast)
-        
-        st.success("✅ Modello ibrido allenato!")
-        st.subheader("📈 Prezzo PUN e Volatilità")
-        monthly_sigma, rolling_std, sigma_t = get_garch(last_5y)
-        st.success("✅ Volatilità stimata!")
-        plot_volatility(rolling_std, sigma_t)
-        
-        st.subheader("📈 Forecast Hybrid Model")
-        PUN_paths, shocks = simulate_prices(PUN_monthly_forecast, monthly_price['avg_price'].values,
-                                        monthly_sigma, monthly_std, L, n_sims=n_simulations)
+        hist_pun = df_excel.copy()
+        hist_pun["Year"] = hist_pun["Date"].dt.year
+        hist_filter = hist_pun[hist_pun["Year"] > 2015]
+        series_daily = hist_filter.set_index("Date")["GMEPIT24 Index"].astype(float).dropna()
+
+        # serie mensile per forecast
+        series_monthly = monthly_price_year.set_index("Date")["avg_price"]
+        forecast = forecast_monthly_prices(series_monthly, n_years=n_year)
+
+        # indice mensile coerente (MS)
+        start_ms = pd.Timestamp(series_monthly.index[-1]).to_period("M").to_timestamp("MS")
+        forecast.index = pd.date_range(start=start_ms, periods=len(forecast), freq="MS")
+
+        monthly_sigma, _, _ = get_garch(last_5y)
+
+        PUN_paths, shocks = simulate_prices(
+            forecast,
+            monthly_price["avg_price"].values,
+            monthly_sigma=monthly_sigma,
+            monthly_std=monthly_std,
+            L=L,
+            n_sims=n_simulations
+        )
+
         VaR_95_monthly = np.percentile(PUN_paths, 95, axis=0)
-        st.success("✅ VaR al 95 percentile calcolato!")
+        st.success("✅ VaR mensile (95°) calcolato sui path PUN!")
 
-        last_month = series.index[-1]
-        n_months = n_year*12
-        cut_month = n_months - (last_month.month-1)
+        # -------------------------
+        # 5.3 DEFINIZIONE df_risk (Solar OFF = piano, Solar ON = P95 con fallback)
+        # -------------------------
+        df_risk = df_base.copy()
+
+        if use_solar_stochastic:
+
+            if df_budget is None or df_budget.empty:
+                st.error("❌ Solar stocastico attivo ma budget solar non disponibile")
+                st.stop()
+
+            # cache key (evita ricalcolo inutile)
+            cache_key = (float(mu_prod), float(solar_sigma_ratio), int(n_simulations), 42)
+
+            if regen_solar or ("solar_cache_key" not in st.session_state) or (st.session_state.solar_cache_key != cache_key):
+
+                out = simulate_budget(
+                    df=df_budget,
+                    mu=mu_prod,
+                    sigma_ratio=solar_sigma_ratio,
+                    shape_sigma=0.15,
+                    n_sim=n_simulations,
+                    seed=42
+                )
+
+                st.session_state.solar_cache_key = cache_key
+                st.session_state.solar_out = out
+
+            solar_out = st.session_state.solar_out
+
+            # estraggo P95, allineo mese in ITA + num
+            df_solar_p95 = solar_out["df"][["Year", "Month", "P95"]].copy()
+            df_solar_p95 = df_solar_p95.assign(
+                Month_num=normalize_month_num(df_solar_p95["Month"]),
+                Month_ita=lambda x: month_num_to_ita(x["Month_num"])
+            ).rename(columns={"Year": "Anno", "P95": "Solar_P95"})
+
+            # merge robusto su (Anno, Month_num) e fallback al Solar piano
+            df_risk = (
+                df_risk
+                .assign(
+                    Solar_budget=lambda x: x["Solar"],
+                    Month_num=normalize_month_num(df_risk["Month"]),
+                    Month_ita=lambda x: month_num_to_ita(x["Month_num"])
+                )
+                .merge(
+                    df_solar_p95[["Anno", "Month_num", "Solar_P95"]],
+                    on=["Anno", "Month_num"],
+                    how="left"
+                )
+                .assign(
+                    Solar=lambda x: x["Solar_P95"].fillna(x["Solar_budget"])
+                )
+                .drop(columns=["Solar_P95"])
+            )
+
+            st.success("✅ Solar stocastico applicato ai valori di piano")
+
+        else:
+            st.info("ℹ️ Solar deterministico: VaR calcolato con Solar a piano")
+
+        # -------------------------
+        # 5.4 VaR Engine
+        # -------------------------
+        last_month = series_daily.index[-1]
+        n_months = n_year * 12
+        cut_month = n_months - (last_month.month - 1)
         hid_month = n_months - cut_month
 
-        st.write('mesi rimanenti', cut_month)
-        st.write('mesi da nascondere', hid_month)
-        
-        dati_fibercop = compute_VaR(df, VaR_95_monthly, cut_month, hid_month)
-        dati_fibercop['Anno_Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
-        st.dataframe(dati_fibercop.drop(['Anno_Mese'], axis=1))
-        st.subheader("📈 Grafico VaR mensile")
-        plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026)
-        
-        fig = plot_energy_stack_with_var(dati_fibercop)
-        st.pyplot(fig, use_container_width=True)
-        fig_plot_var = plot_var_bars(dati_fibercop)
-        
-        st.metric( label="Yearly Value@Risk with Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w_solar'].sum(), 0):,.0f}")
-        st.metric(label="Yearly Value@Risk w/o Solar",value=f"€ {np.round(dati_fibercop['Var_monthly_95_w/o_solar'].sum(), 0):,.0f}")
+        dati_fibercop = compute_VaR(df_risk, VaR_95_monthly, cut_month, hid_month)
 
+        st.subheader("📊 Output VaR")
+        st.dataframe(dati_fibercop)
+
+        st.metric(
+            "Yearly VaR (somma mensile)",
+            f"€ {np.round(dati_fibercop['Var_monthly_95_w_solar'].sum(), 0):,.0f}"
+        )
+
+       # ============================================================
+        # 6) OTTIMIZZAZIONE (USA SEMPRE IL PIANO)
+        # ============================================================
         st.subheader("📈 Hedging Optimization Model")
-        
-        df = dati_fibercop.copy()
-        df["Fabbisogno"] *= 1000
-        df["Copertura"] = (df['PPA Erg'] + df['Forward'] + df['Solar']) * 1000
-        df["Scoperto_base"] = df['scoperto_w_solar'] * 1000
-        
-        # CVaR limit (prendo il primo anno come riferimento)
-        CVaR_limit = {year: ebitda_inputs[year] * risk_appetite for year in df['Anno'].unique()}
 
-        
-        # Hedge cost mensile
+        # df_opt = metriche rischio (da df_risk) + Solar_plan (da df_base)
+        df_opt = (
+            dati_fibercop
+            .merge(
+                df_base[["Anno", "Month_num", "Month", "Solar"]].rename(columns={"Solar": "Solar_plan"}),
+                on=["Anno", "Month_num", "Month"],
+                how="left"
+            )
+        )
+
+        # IMPORTANTISSIMO: ordina per allineare con PUN_paths (mesi in ordine)
+        df = (
+            df_opt
+            .sort_values(["Anno", "Month_num"])
+            .reset_index(drop=True)
+            .copy()
+        )
+
+        # ⚠️ ripristino Solar OPERATIVO (sempre piano) per ottimizzazione
+        df["Solar"] = df["Solar_plan"]
+
+        # ---- unità: lavoro in MWh
+        df["Fabbisogno"] = df["Fabbisogno"] * 1000
+        df["Copertura"] = (df["PPA Erg"] + df["Forward"] + df["Solar"]) * 1000
+
+        # ---- ALLINEA unità anche per CVaR (compute_CVaR usa scoperto_w_solar)
+        df["scoperto_w_solar"] = df["scoperto_w_solar"] * 1000
+        if "scoperto_w/o_solar" in df.columns:
+            df["scoperto_w/o_solar"] = df["scoperto_w/o_solar"] * 1000
+
+        # per grafici/diagnostica
+        df["Scoperto_base"] = df["scoperto_w_solar"]
+
+        # Limiti annuali (risk appetite su EBITDA)
+        CVaR_limit = {year: ebitda_inputs[year] * risk_appetite for year in df["Anno"].unique()}
+
+        # Hedge cost mensile (€/MWh)
         df["hedge_cost"] = df["Prezzo Forward"] - df["Prezzo Budget"]
-        
-        # Inizializzazione hedge
+
+        # Inizializzazione hedge (MWh)
         n_months = len(df)
         hedge = np.zeros(n_months, dtype=float)
-        for year in df['Anno'].unique():
-            mask = df['Anno'] == year
-            total_fabbisogno_year = df.loc[mask, 'Fabbisogno'].sum()
-            coperto_attuale_year = df.loc[mask, 'Copertura'].sum()
+
+        for year in df["Anno"].unique():
+            mask = df["Anno"] == year
+            total_fabbisogno_year = df.loc[mask, "Fabbisogno"].sum()
+            coperto_attuale_year = df.loc[mask, "Copertura"].sum()
             max_copertura_totale_year = total_fabbisogno_year * alpha
             max_needed = max(max_copertura_totale_year - coperto_attuale_year, 0)
 
-            # pesi proporzionali allo scoperto
             weights = df.loc[mask, "Scoperto_base"].values
             if weights.sum() > 0:
                 weights = weights / weights.sum()
-                hedge[mask] += max_needed * weights
-               
-        # Limite mensile
+                hedge[mask.values] += max_needed * weights
+
+        # Limite mensile (MWh)
         max_hedge_mensile = df["Fabbisogno"].values * alpha - df["Copertura"].values
         hedge = np.minimum(hedge, max_hedge_mensile)
-        
+
         # Saturazione residuo anno per anno
-        for year in df['Anno'].unique():
-            mask = df['Anno'] == year
-            residuo = (df.loc[mask, 'Fabbisogno'].sum() * alpha) - (df.loc[mask, 'Copertura'].sum() + hedge[mask].sum())
+        for year in df["Anno"].unique():
+            mask = df["Anno"] == year
+            residuo = (df.loc[mask, "Fabbisogno"].sum() * alpha) - (df.loc[mask, "Copertura"].sum() + hedge[mask.values].sum())
 
             while residuo > 0:
-                spazio = max_hedge_mensile[mask] - hedge[mask]
+                spazio = max_hedge_mensile[mask.values] - hedge[mask.values]
                 spazio[spazio < 0] = 0
                 if spazio.sum() <= 0:
                     break
                 incremento = residuo * (spazio / spazio.sum())
-                hedge[mask] += incremento
-                hedge[mask] = np.minimum(hedge[mask], max_hedge_mensile[mask])
-                residuo = (df.loc[mask, 'Fabbisogno'].sum() * alpha) - (df.loc[mask, 'Copertura'].sum() + hedge[mask].sum())
+                hedge[mask.values] += incremento
+                hedge[mask.values] = np.minimum(hedge[mask.values], max_hedge_mensile[mask.values])
+                residuo = (df.loc[mask, "Fabbisogno"].sum() * alpha) - (df.loc[mask, "Copertura"].sum() + hedge[mask.values].sum())
 
-        # Converto hedge in float
         hedge = hedge.astype(float)
 
-        # Calcolo CVaR iniziale (puoi anche fare anno per anno se vuoi)
+        # CVaR iniziale (globale, usato per efficienza rischio/costo)
         CVaR_current = CVaR(hedge, df, PUN_paths)
 
-        # MODIFICATO! 
         # =========================
         # OTTIMIZZAZIONE GREEDY MULTI-ANNO
         # =========================
         iteration = 0
         log = []
-        
-        # totale fabbisogno per tutti gli anni (per metriche aggregate)
         total_fabbisogno = df["Fabbisogno"].sum()
-        
+
         while True:
             iteration += 1
             best_month = None
-            best_efficiency = 0
-        
-            # mesi ammissibili
+            best_efficiency = 0.0
+
             spazio = max_hedge_mensile - hedge
             admissible = (spazio >= step) & (df["hedge_cost"].values > 0)
+
             if not admissible.any():
                 st.warning("⚠️ Nessun ulteriore miglioramento possibile.")
                 break
@@ -400,29 +518,28 @@ if selected_kri == "⚡ Energy Risk":
             for m in np.where(admissible)[0]:
                 hedge_test = hedge.copy()
                 hedge_test[m] += step
-        
-                # anno del mese corrente
+
                 anno_m = df.loc[m, "Anno"]
-                mask_year = df['Anno'] == anno_m
-        
-                # copertura annua per quell'anno
-                copertura_annua = (df.loc[mask_year, 'Copertura'].sum() + hedge_test[mask_year].sum()) / df.loc[mask_year, 'Fabbisogno'].sum()
+                mask_year = (df["Anno"].values == anno_m)
+
+                copertura_annua = (
+                    (df.loc[mask_year, "Copertura"].sum() + hedge_test[mask_year].sum())
+                    / df.loc[mask_year, "Fabbisogno"].sum()
+                )
                 if copertura_annua > alpha:
                     continue
                 
-                # calcolo CVaR nuovo
                 CVaR_new = CVaR(hedge_test, df, PUN_paths)
                 risk_reduction = CVaR_current - CVaR_new
                 cost_eur = step * df.loc[m, "hedge_cost"]
                 if cost_eur <= 0:
                     continue
                 
-                # efficienza rischio/costo
                 efficiency = risk_reduction / cost_eur
                 if efficiency > best_efficiency:
                     best_efficiency = efficiency
                     best_month = m
-        
+
             if best_month is None:
                 st.warning("⚠️ Nessun ulteriore miglioramento possibile.")
                 break
@@ -430,45 +547,57 @@ if selected_kri == "⚡ Energy Risk":
             # aggiorna hedge
             hedge[best_month] += step
             CVaR_current = CVaR(hedge, df, PUN_paths)
-        
-            # log iterazione
-            hedge_tot = hedge.sum()
-            anno_best = df.loc[best_month, "Anno"]
-            
-            if CVaR_current > CVaR_limit[anno_best]:
-                st.warning("⚠️ CVaR oltre il risk appetite, stop ottimizzazione.")
-                break
 
-            cvar_pct = CVaR_current / ebitda_inputs[anno_best] * 100
-            copertura_annua_pct = (df["Copertura"] + hedge).sum() / total_fabbisogno * 100
-        
+            # =========================
+            # CHECK RISK APPETITE (ANNUALE) - COERENTE
+            # =========================
+            anno_best = df.loc[best_month, "Anno"]
+            mask_year = (df["Anno"].values == anno_best)
+
+            CVaR_year = compute_CVaR(
+                hedge_vector=hedge[mask_year],
+                df=df.loc[mask_year].copy(),
+                PUN_paths=PUN_paths[:, mask_year]
+            )
+
+            if CVaR_year > CVaR_limit[anno_best]:
+                st.warning(
+                    f"⚠️ CVaR {CVaR_year:,.0f}€ oltre risk appetite {CVaR_limit[anno_best]:,.0f}€ per {anno_best}. Stop ottimizzazione."
+                )
+                break
+            
+            # log (usa CVaR_year per coerenza annuale)
+            hedge_tot = hedge.sum()
+            cvar_pct = (CVaR_year / ebitda_inputs[anno_best]) * 100
+            copertura_tot_pct = ((df["Copertura"] + hedge).sum() / total_fabbisogno) * 100
+
             log.append({
                 "iter": iteration,
                 "mese": df.loc[best_month, "Month"],
-                "anno": anno_best,
-                "hedge_tot_MWh": hedge_tot,
-                "CVaR_euro": CVaR_current,
-                "CVaR_pct_EBITDA": cvar_pct,
-                "copertura_annua_pct": copertura_annua_pct
+                "anno": int(anno_best),
+                "hedge_tot_MWh": float(hedge_tot),
+                "CVaR_euro": float(CVaR_year),
+                "CVaR_pct_EBITDA": float(cvar_pct),
+                "copertura_annua_pct": float(copertura_tot_pct)
             })
-        
-            st.write(f"Iter {iteration}: CVaR={CVaR_current:,.0f}€, Copertura annua={copertura_annua_pct:.2f}%")
-        
+
+            st.write(f"Iter {iteration}: CVaR anno {anno_best} = {CVaR_year:,.0f}€, Copertura totale = {copertura_tot_pct:.2f}%")
+
         log = pd.DataFrame(log)
-        
+
         # =========================
-        # OUTPUT FINALE MULTI-ANNO
+        # OUTPUT FINALE
         # =========================
         df["hedge_addizionale_MWh"] = hedge
         df["coperto_totale"] = df["Copertura"] + hedge
         df["scoperto_finale"] = df["Fabbisogno"] - df["coperto_totale"]
         total_hedge_cost = np.sum(hedge * df["hedge_cost"].values)
-        copertura_annua_pct = df["coperto_totale"].sum() / total_fabbisogno * 100
-        
+        copertura_tot_pct = (df["coperto_totale"].sum() / total_fabbisogno) * 100
+
         st.dataframe(df)
-        st.metric("CVaR finale (€)", f"€ {CVaR_current:,.0f}")
+        st.metric("CVaR finale (ultimo anno vincolante) (€)", f"€ {log['CVaR_euro'].iloc[-1]:,.0f}" if len(log) else f"€ {CVaR_current:,.0f}")
         st.metric("Costo hedge totale (€)", f"€ {total_hedge_cost:,.0f}")
-        st.metric("Copertura annua totale (%)", f"{copertura_annua_pct:.2f}%")
+        st.metric("Copertura totale (%)", f"{copertura_tot_pct:.2f}%")
 
         st.subheader("📊 Grafici")
         if 'Month' in df.columns:
