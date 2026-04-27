@@ -368,17 +368,15 @@ if selected_kri == "⚡ Energy Risk":
                     shape_sigma=0.15,
                     n_sim=n_simulations,
                     seed=42)
-                
-           
-                st.subheader("☀️ Solar – simulazione stocastica")               
-                st.plotly_chart(out["plot_monthly"], use_container_width=True)              
-                st.plotly_chart(out["plot_cum"], use_container_width=True)
-
 
                 st.session_state.solar_cache_key = cache_key
                 st.session_state.solar_out = out
 
             solar_out = st.session_state.solar_out
+
+            st.subheader("☀️ Solar – simulazione stocastica")               
+            st.plotly_chart(solar_out["plot_monthly"], use_container_width=True)              
+            st.plotly_chart(solar_out["plot_cum"], use_container_width=True)
 
             # estraggo P95, allineo mese in ITA + num
             df_solar_p95 = solar_out["df"][["Year", "Month", "P95"]].copy()
