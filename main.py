@@ -328,7 +328,7 @@ if selected_kri == "⚡ Energy Risk":
         forecast = forecast_monthly_prices(series_monthly, n_years=n_year)
 
         # indice mensile coerente (MS)
-        start_ms = pd.Timestamp(series_monthly.index[-1]).to_period("M").to_timestamp("MS")
+        start_ms = pd.Timestamp(series_monthly.index[-1]).to_period("M").to_timestamp(how="start")
         forecast.index = pd.date_range(start=start_ms, periods=len(forecast), freq="MS")
 
         monthly_sigma, _, _ = get_garch(last_5y)
