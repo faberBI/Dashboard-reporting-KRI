@@ -369,6 +369,13 @@ if selected_kri == "⚡ Energy Risk":
                     n_sim=n_simulations,
                     seed=42
                 )
+                
+                # Grafico produzione mensile
+                if ("plot_monthly" in out and out["plot_monthly"] is not None) or (if "plot_cum" in out and out["plot_cum"] is not None):
+                    st.subheader("☀️ Solar – simulazione stocastica")
+                    st.plotly_chart(out["plot_monthly"], use_container_width=True)
+                    st.plotly_chart(out["plot_cum"], use_container_width=True)
+
 
                 st.session_state.solar_cache_key = cache_key
                 st.session_state.solar_out = out
