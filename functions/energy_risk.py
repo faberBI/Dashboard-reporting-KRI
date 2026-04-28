@@ -105,7 +105,7 @@ def get_garch(last_5y, rolling_window=12):
     
     return monthly_sigma, rolling_std, sigma_t
 
-def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_std, L, n_sims=100_000, seed=42):
+def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_std, L, n_sims=100_000, seed=42, min_price=5.0):
     np.random.seed(seed)
     vol_h = monthly_sigma * np.array(PUN_monthly)
     vol_m = np.array(monthly_std['std_log_return_montly'].values) * np.array(PUN_monthly)
@@ -120,6 +120,7 @@ def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_st
         Z = np.random.normal(size=(n_sims,12))
         shocks = (Z @ L.T) * vol_f[np.newaxis, :]
         P_paths = P_mean[np.newaxis, :] + shocks
+        P_paths = np.clip(P_paths, min_price, None)
         all_years.append(P_paths)
     
     PUN_paths = np.hstack(all_years)
