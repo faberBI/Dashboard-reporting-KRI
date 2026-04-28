@@ -353,7 +353,7 @@ if selected_kri == "⚡ Energy Risk":
         if use_solar_stochastic:
 
             if df_budget is None or df_budget.empty:
-                st.error("❌ Solar stocastico attivo ma budget solar non disponibile")
+                st.error("❌ Caricare budget solar")
                 st.stop()
 
             # cache key (evita ricalcolo inutile)
@@ -615,8 +615,14 @@ if selected_kri == "⚡ Energy Risk":
         st.metric("Copertura totale (%)", f"{copertura_tot_pct:.2f}%")
 
         st.subheader("📊 Grafici")
-        if 'Month' in df.columns:
-            df['Anno-Mese'] = df['Anno'].astype(str) + "-" + df['Month'].astype(str)
+        if 'Month' in df.columns:         
+            df['Month_num'] = (['Month'].str.lower().map({"gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,"lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12}))
+            df['period'] = pd.PeriodIndex(
+                year=df['Anno'],
+                month=df['Month_num'],
+                freq='M')
+            df['Anno-Mese'] = df['period'].astype(str)
+        
         plot_monthly_coverage_stack(df, month_col="Anno-Mese")
         fig_cost, fig_hedge, fig_cov = plot_hedging_dashboard(df, month_col="Anno-Mese")
         st.plotly_chart(fig_cost, use_container_width=True)
