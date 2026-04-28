@@ -616,7 +616,7 @@ if selected_kri == "⚡ Energy Risk":
 
         st.subheader("📊 Grafici")
         if 'Month' in df.columns:         
-            df['Month_num'] = (df['Month'].str.lower().map({"gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,"lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12
+            df['Month_num'] = (df['Month'].str.lower().map({"gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,"lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12,
             "Gen": 1, "Feb": 2, "Mar": 3, "Apr": 4, "Mag": 5, "Giu": 6,"Lug": 7, "Ago": 8, "Set": 9, "Ott": 10, "Nov": 11, "Dic": 12}))
             df['period'] = pd.PeriodIndex(
                 year=df['Anno'],
