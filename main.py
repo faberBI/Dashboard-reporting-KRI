@@ -616,12 +616,14 @@ if selected_kri == "⚡ Energy Risk":
 
         st.subheader("📊 Grafici")
         if 'Month' in df.columns:         
-            df['Month_num'] = (df['Month'].str.lower().map({"gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,"lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12,
-            "Gen": 1, "Feb": 2, "Mar": 3, "Apr": 4, "Mag": 5, "Giu": 6,"Lug": 7, "Ago": 8, "Set": 9, "Ott": 10, "Nov": 11, "Dic": 12}))
-            df['period'] = pd.PeriodIndex(
-                year=df['Anno'],
-                month=df['Month_num'],
-                freq='M')
+            month_map = {"gen": 1, "feb": 2, "mar": 3, "apr": 4,"mag": 5, "giu": 6, "lug": 7, "ago": 8,"set": 9, "ott": 10, "nov": 11, "dic": 12}
+            df['Month_num'] = (df['Month'].str.lower().str.strip().map(month_map))
+            df['Anno'] = df['Anno'].astype(int)
+            df['Month_num'] = df['Month_num'].astype(int)
+            df['date'] = pd.to_datetime(
+            df['Anno'].astype(str) + "-" + df['Month_num'].astype(str).str.zfill(2),format="%Y-%m")
+            df['period'] = df['date'].dt.to_period('M')
+            df = df.sort_values('period')
             df['Anno-Mese'] = df['period'].astype(str)
         
         plot_monthly_coverage_stack(df, month_col="Anno-Mese")
