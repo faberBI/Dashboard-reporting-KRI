@@ -92,7 +92,7 @@ st.title("📊 Risk Situation Room")
 # -----------------------
 # Selezione KRI
 # -----------------------
-kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "🛑⚡ Business Interruption","💳 Credit risk" ,"📈 Interest Rate", "Liquidity Risk💰","Ebitda @Risk 📊📈" ]
+kri_options = ["⚡ Energy Risk", "🌪️ Natural Event Risk", "🟠 Copper Price", "🛑⚡ Business Interruption","💳 Credit risk" ,"📈 Interest Rate", "💰 Liquidity Risk","📊📈 Ebitda @Risk" ]
 
 if "kri_data" not in st.session_state:
     st.session_state.kri_data = {}
@@ -1419,7 +1419,7 @@ elif selected_kri == "📈 Interest Rate":
 # -----------------------
 # 💰Liquidity Risk
 # -----------------------
-elif selected_kri == "Liquidity Risk💰":
+elif selected_kri == "💰 Liquidity Risk":
     st.subheader("📊 Monthly KRI Liquidity 📊")
     run_liquidity  = st.button("🚀 Calcolo KRI Liquidity...")
 
@@ -1600,7 +1600,7 @@ elif selected_kri == "Liquidity Risk💰":
 # -----------------------
 # Ebitda @Risk 📊📈
 # -----------------------
-elif selected_kri == "Ebitda @Risk 📊📈":
+elif selected_kri == "📊📈 Ebitda @Risk":
     if uploaded_file:
         df = load_risk_factors(uploaded_file)
         #st.write("📄 Anteprima dati:", df.head())
