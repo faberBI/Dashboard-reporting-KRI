@@ -88,8 +88,6 @@ def get_risk_sismico(codice_comune, database):
     return str(zona_sismica)
 
 
-
-
 # ==========================
 # Funzione di utilità percentili
 # ==========================
