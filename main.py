@@ -60,7 +60,7 @@ from functions.energy_risk import (
 from functions.interest_rates import (download_ecb_series, download_yahoo_series, plot_predictions_streamlit, simulate_euribor, plot_full_forecast, get_spread_for_date, get_plan_euribor_for_date)
 from functions.geospatial import (get_risk_area_frane, get_risk_area_idro, get_magnitudes_for_comune, calcola_percentili, calcola_vulnerabilita_intrinseca_frane, calcola_perdita_attesa_frane, vulnerabilita_profondita_pol, simulazione_perdita_attesa_idro, calculate_IEMS,
                                 calculate_mu_D, generate_damage_probability, calculate_value_loss,simulazione_perdita_attesa_sismica, simula_danno_tempesta, simulazione_portafoglio_con_rischi_correlati, 
-                                get_risk_sismico, get_risk_area_idro, get_risk_incendi)
+                                get_risk_sismico, get_risk_incendi)
 from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_regioni_interattivo ,get_gpt_insights_kri)
 from functions.copper import (make_lag_df, plot_copper_forecast, plot_var_vs_budget, monte_carlo_forecast_cp_from_disk, full_copper_forecast)
 from functions.ebitda import (plot_top_corr_bar, get_top_correlations, simula_fattori_empiricamente, genera_template_input, load_risk_factors, parse_factors, sample_distribution, 
