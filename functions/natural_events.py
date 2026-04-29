@@ -8,6 +8,88 @@ from scipy.stats import lognorm, poisson
 from copulas.multivariate import GaussianMultivariate
 from copulas.univariate import ParametricType, Univariate
 
+def get_risk_incendi(lat, long, database):
+    # Crea un GeoDataFrame con il punto centrale (EPSG:4326)
+    gdf = gpd.GeoDataFrame(geometry=[Point(long, lat)], crs="EPSG:4326")
+
+    # Converti in UTM zona 33N per calcolare il buffer in metri
+    gdf_utm = gdf.to_crs("EPSG:32633")
+    circle_utm = gdf_utm.geometry.buffer(3000)  # raggio = 1 km
+
+    # Riconverti il buffer in EPSG:4326
+    circle_gdf = gpd.GeoDataFrame(geometry=circle_utm, crs="EPSG:32633").to_crs("EPSG:4326")
+
+    # Assicurati che abbia il CRS corretto
+    database = database.set_crs("EPSG:4326", allow_override=True)
+
+    # Filtra i punti nel buffer
+    punti_nel_cerchio = database[database.within(circle_gdf.geometry.iloc[0])]
+
+    if punti_nel_cerchio.empty or punti_nel_cerchio['fire_index'].isna().all():
+        return 'Very Low'
+    else:
+        return punti_nel_cerchio['fire_index'].iloc[0]
+
+def get_risk_area_idro(lat, long, database):
+    # Crea un GeoDataFrame con il punto specificato
+    punto = gpd.GeoDataFrame(
+            {'geometry': [Point(long, lat)]},
+            crs=database.crs  # Assicura lo stesso CRS del database
+        )
+    punto_m = punto.to_crs(epsg=32632)# Buffer preciso di 10 metri
+    buffered_point = punto_m.buffer(600)
+    buffered_point = buffered_point.to_crs(epsg = 4326)
+
+    # Intersezione in metri
+    zone = database[database.intersects(buffered_point.iloc[0])]
+    if zone.empty:
+        return "Pericolosità idraulica bassa - LowProbabilityHazard"
+    else:
+        zone['area'] = zone.geometry.area
+        zona_scelta = zone.iloc[0]
+        return zona_scelta['scenario']
+
+
+def get_risk_area_frane(lat, long, database):
+    # Crea un GeoDataFrame con il punto specificato
+    punto = gpd.GeoDataFrame(
+            {'geometry': [Point(long, lat)]},
+            crs=database.crs  # Assicura lo stesso CRS del database
+        )
+    punto_m = punto.to_crs(epsg=32632)# Buffer preciso di 10 metri
+    buffered_point = punto_m.buffer(600)
+    buffered_point = buffered_point.to_crs(epsg = 4326)
+
+    # Intersezione in metri
+    zone = database[database.intersects(buffered_point.iloc[0])]
+    if zone.empty:
+        return "Molto bassa"
+    else:
+        zone['area'] = zone.geometry.area
+        zona_scelta = zone.iloc[0]
+        return zona_scelta['per_fr_ita']
+
+def get_risk_sismico(codice_comune, database):
+    # Filtro per il codice del comune
+    filtered_data = database[database['COD_ISTAT_COMUNE'] == codice_comune]
+
+    # Se non ci sono righe corrispondenti, ritorna '4'
+    if filtered_data.empty:
+        return '4'
+
+    # Ottieni il valore della colonna 'ZONA_SISMICA'
+    zona_sismica = filtered_data['ZONA_SISMICA'].iloc[0]
+
+    # Converti in stringa e poi controlla se è vuota o solo spazi
+    if not str(zona_sismica).strip():
+        return '4'
+
+    # Ritorna la zona sismica come stringa
+    return str(zona_sismica)
+
+
+
+
 # ==========================
 # Funzione di utilità percentili
 # ==========================
