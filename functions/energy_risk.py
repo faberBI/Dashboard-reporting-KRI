@@ -109,7 +109,7 @@ def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_st
     np.random.seed(seed)
     vol_h = monthly_sigma * np.array(PUN_monthly)
     vol_m = np.array(monthly_std['std_log_return_montly'].values) * np.array(PUN_monthly)
-    vol_f = vol_h*0.7+ vol_m*0.3
+    vol_f = vol_h*0.65+ vol_m*0.25
     
     n_total_months = len(PUN_monthly_forecast)
     n_years = n_total_months // 12
