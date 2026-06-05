@@ -14,111 +14,6 @@ import plotly.graph_objects as go
 
 @st.cache_data
 
-def normalize_dist(x):
-    if pd.isna(x):
-        return None
-    x = str(x).strip().lower()
-    if x in ["", "none", "nan"]:
-        return None
-    return x
-
-
-def normalize_varia(x):
-    if pd.isna(x):
-        return None
-    x = str(x).strip().lower()
-    if x in ["prezzo", "solo prezzo"]:
-        return "Solo Prezzo"
-    elif x in ["quantità", "quantita", "solo quantità", "solo quantita"]:
-        return "Solo Quantità"
-    elif x in ["entrambi", "prezzo e quantità", "prezzo e quantita"]:
-        return "Entrambi"
-    return None
-
-
-def build_dist_legacy(row, side):
-    """
-    side = 'p' oppure 'q'
-    Usa il tracciato legacy:
-    - Distribuzione, min, moda, max, mu, sigma, prob, value
-    - colonna fissa opposta: p o q
-    """
-    dist = normalize_dist(row.get("Distribuzione"))
-
-    if side == "p":
-        fixed_val = row.get("p", 1)
-    else:
-        fixed_val = row.get("q", 1)
-
-    fixed_val = 1 if pd.isna(fixed_val) else fixed_val
-
-    if dist == "triangolare":
-        return {
-            "dist": "triangolare",
-            "a": row.get("min", np.nan),
-            "b": row.get("moda", np.nan),
-            "c": row.get("max", np.nan)
-        }
-
-    elif dist == "normale":
-        return {
-            "dist": "normale",
-            "mu": row.get("mu", np.nan),
-            "sigma": row.get("sigma", np.nan)
-        }
-
-    elif dist == "bernoulli":
-        return {
-            "dist": "bernoulli",
-            "prob": row.get("prob", np.nan),
-            "value": row.get("value", np.nan)
-        }
-
-    else:
-        return {
-            "dist": None,
-            "b": fixed_val
-        }
-
-
-def build_dist_specific(row, prefix):
-    """
-    prefix = 'prezzo' oppure 'quantità'
-    Usa il nuovo tracciato per il caso 'Entrambi'
-    """
-    dist = normalize_dist(row.get(f"Distribuzione_{prefix}"))
-
-    if dist == "triangolare":
-        return {
-            "dist": "triangolare",
-            "a": row.get(f"min_{prefix}", np.nan),
-            "b": row.get(f"moda_{prefix}", np.nan),
-            "c": row.get(f"max_{prefix}", np.nan)
-        }
-
-    elif dist == "normale":
-        return {
-            "dist": "normale",
-            "mu": row.get(f"mu_{prefix}", np.nan),
-            "sigma": row.get(f"sigma_{prefix}", np.nan)
-        }
-
-    elif dist == "bernoulli":
-        return {
-            "dist": "bernoulli",
-            "prob": row.get(f"prob_{prefix}", np.nan),
-            "value": row.get(f"value_{prefix}", np.nan)
-        }
-
-    else:
-        base_col = "p" if prefix == "prezzo" else "q"
-        base_val = row.get(base_col, 1)
-        base_val = 1 if pd.isna(base_val) else base_val
-        return {
-            "dist": None,
-            "b": base_val
-        }
-
 def ensure_dataframe(df):
     """
     Garantisce che df sia un DataFrame.
@@ -236,47 +131,35 @@ def simula_fattori_empiricamente(fattori_simulati, n_sim):
 
 def genera_template_input():
     data = {
-        "Fattore di rischio": ["Prezzo Energia", "Quantità Venduta", "Bonus straordinario", "Costo straordinario"],
-        "variabile": ["prezzo", "quantità", "prezzo", "prezzo"],
-        "anno": [2025, 2025, 2026, 2026],
-        "valore a piano": [100000, 200000, 0, 0],
-        "costo variabile": ["no", "no", "no", "no"],
-        "perc": [np.nan, np.nan, np.nan, np.nan],
-        "variabile dipendente": [np.nan, np.nan, np.nan, np.nan],
-        "tipo_variabile": ["ricavo", "ricavo", "ricavo", "costo"],
-        "k_min": [0.01, 0.01, 0.00, 0.00],
-        "k_max": [0.05, 0.05, 0.00, 0.00],
-
-        # PREZZO
-        "distribuzione_prezzo": ["normale", None, "bernoulli", "bernoulli"],
-        "p_base": [np.nan, 50, np.nan, np.nan],
-        "p_min": [np.nan, np.nan, np.nan, np.nan],
-        "p_moda": [np.nan, np.nan, np.nan, np.nan],
-        "p_max": [np.nan, np.nan, np.nan, np.nan],
-        "p_mu": [120, np.nan, np.nan, np.nan],
-        "p_sigma": [15, np.nan, np.nan, np.nan],
-        "p_prob": [np.nan, np.nan, 0.30, 0.15],
-        "p_value": [np.nan, np.nan, 1000000, 500000],
-
-        # QUANTITA'
-        "distribuzione_quantità": [None, "triangolare", None, None],
-        "q_base": [1000, np.nan, 1, 1],
-        "q_min": [np.nan, 800, np.nan, np.nan],
-        "q_moda": [np.nan, 1000, np.nan, np.nan],
-        "q_max": [np.nan, 1300, np.nan, np.nan],
-        "q_mu": [np.nan, np.nan, np.nan, np.nan],
-        "q_sigma": [np.nan, np.nan, np.nan, np.nan],
-        "q_prob": [np.nan, np.nan, np.nan, np.nan],
-        "q_value": [np.nan, np.nan, np.nan, np.nan],
+        "Fattore di rischio": ["Esempio Fattore 1", "Esempio Fattore 2"],
+        "Distribuzione": ['triangolare','normale'],
+        "variabile": ["prezzo", "quantità"],
+        "anno": [2025, 2026],
+        "valore  a piano": [1000, 2000],
+        "min": [2, np.nan],
+        "moda":[2.5, np.nan],
+        "max":[4, np.nan],
+        "incertezza":[np.nan, np.nan],
+        "q":[450, np.nan ],
+        "p":[np.nan,20],
+        "costo variabile":["no", "si"],
+        "perc":[np.nan, "6%"],
+        "variabile dipendente":[np.nan,'Esempio Fattore 1'],
+        "tipo_variabile":['ricavo','costo'],
+        "k_min":[0.01, 0.015],
+        "k_max":[0.05, 0.055],
+        "mu":[np.nan,100],
+        "sigma":[np.nan,50]
+       
     }
-
     df_template = pd.DataFrame(data)
-
+    
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         df_template.to_excel(writer, index=False, sheet_name='Template Input')
     buffer.seek(0)
     return buffer
+
 
 
 def load_risk_factors(file):
@@ -285,59 +168,80 @@ def load_risk_factors(file):
 
 def parse_factors(df):
     blocks = []
-
     for _, row in df.iterrows():
-        varia = normalize_varia(row.get('variabile'))
-        anno = row.get('anno')
+        dist = row['Distribuzione']
+        varia = row['variabile']  # prezzo, quantità, o NaN
+        anno = row['anno']  # aggiunto anno
 
-        k_min = row['k_min'] if not pd.isna(row.get('k_min')) else 0
-        k_max = row['k_max'] if not pd.isna(row.get('k_max')) else 0
+        # Prendo k_min, k_max
+        k_min = row['k_min'] if not pd.isna(row['k_min']) else 0
+        k_max = row['k_max'] if not pd.isna(row['k_max']) else 0
 
-        base_val = row['valore a piano'] if not pd.isna(row.get('valore a piano')) else 0
-
-        perc_raw = row.get('perc', 0)
-        if isinstance(perc_raw, str) and perc_raw.strip().endswith('%'):
-            perc = float(perc_raw.strip().replace('%', '')) / 100
-        else:
-            perc = perc_raw if not pd.isna(perc_raw) else 0
-
+        # Prendo valore base a piano
+        base_val = row['valore a piano'] if not pd.isna(row['valore a piano']) else 0
+        perc = row['perc'] if not pd.isna(row['perc']) else 0
+        dipendente= row['variabile dipendente']
         block = {
             'name': row['Fattore di rischio'],
-            'anno': anno,
+            'anno': anno,  # aggiunto anno
             'varia': varia,
-            'costo_variabile': (str(row.get('costo variabile', '')).strip().lower() == 'si'),
+            'costo_variabile': (str(row['costo variabile']).lower() == 'si') if isinstance(row['costo variabile'], str) else False,
             'perc': perc,
-            'dipendente': row.get('variabile dipendente') if not pd.isna(row.get('variabile dipendente')) else None,
-            'incertezza': row.get('incertezza', 1) if not pd.isna(row.get('incertezza', 1)) else 1,
+            'dipendente': dipendente,
+            'incertezza': row['incertezza'] if not pd.isna(row['incertezza']) else 1,
             'valore_a_piano': base_val,
-            'tipo_variabile': row.get('tipo_variabile', 'ricavo') if not pd.isna(row.get('tipo_variabile', 'ricavo')) else 'ricavo',
+            'tipo_variabile': row['tipo_variabile'] if not pd.isna(row['tipo_variabile']) else 'ricavo',
             'k_min': k_min,
             'k_max': k_max
         }
 
-        # default
-        p_dict = {"dist": None, "b": row.get("p", 1) if not pd.isna(row.get("p", 1)) else 1}
-        q_dict = {"dist": None, "b": row.get("q", 1) if not pd.isna(row.get("q", 1)) else 1}
+        # Gestione percentuale
+        perc_raw = row['perc']
+        if isinstance(perc_raw, str) and perc_raw.strip().endswith('%'):
+            perc = float(perc_raw.strip().strip('%')) / 100
+        else:
+            perc = perc_raw if not pd.isna(perc_raw) else 0
+        block['perc'] = perc
 
-        if varia == "Solo Prezzo":
-            p_dict = build_dist_legacy(row, "p")
-            q_dict = {"dist": None, "b": row.get("q", 1) if not pd.isna(row.get("q", 1)) else 1}
+        # Valori fissi per p e q (in caso di nessuna variazione)
+        p_fixed = row['p'] if not pd.isna(row['p']) else 1
+        q_fixed = row['q'] if not pd.isna(row['q']) else 1
 
-        elif varia == "Solo Quantità":
-            q_dict = build_dist_legacy(row, "q")
-            p_dict = {"dist": None, "b": row.get("p", 1) if not pd.isna(row.get("p", 1)) else 1}
+        if varia == 'prezzo':
+            block['varia'] = 'Solo Prezzo'
+            if dist == 'triangolare':
+                block['p'] = {'a': row['min'], 'b': row['moda'], 'c': row['max'], 'dist': 'triangolare'}
+            elif dist == 'normale':
+                block['p'] = {'mu': row['mu'], 'sigma': row['sigma'], 'dist': 'normale'}
+            else:
+                block['p'] = {'b': p_fixed, 'dist': None}
+            block['q'] = {'b': q_fixed, 'dist': None}
 
-        elif varia == "Entrambi":
-            # usa le nuove colonne opzionali
-            p_dict = build_dist_specific(row, "prezzo")
-            q_dict = build_dist_specific(row, "quantità")
+        elif varia == 'quantità':
+            block['varia'] = 'Solo Quantità'
+            if dist == 'triangolare':
+                block['q'] = {'a': row['min'], 'b': row['moda'], 'c': row['max'], 'dist': 'triangolare'}
+                block['p'] = {'b': p_fixed, 'dist': None}
+            elif dist == 'normale':
+                block['q'] = {'mu': row['mu'], 'sigma': row['sigma'], 'dist': 'normale'}
+                block['p'] = {'b': p_fixed, 'dist': None}
+            else:
+                block['q'] = {'b': q_fixed, 'dist': None}
+                block['p'] = {'b': p_fixed, 'dist': None}
+                
+        else:
+            block['varia'] = None
+            block['p'] = {'b': p_fixed, 'dist': None}
+            block['q'] = {'b': q_fixed, 'dist': None}
 
-        block['p'] = p_dict
-        block['q'] = q_dict
+        block['dipendente'] = row['variabile dipendente'] if not pd.isna(row['variabile dipendente']) else None
+        
+        if 'p' not in block:
+            print(f"Attenzione: block senza chiave 'p' trovato! Riga:\n{row}")
 
         blocks.append(block)
-
     return blocks
+
 
 
 def sample_distribution(dist_type, params, size):
@@ -346,24 +250,16 @@ def sample_distribution(dist_type, params, size):
         b = params['b']
         c = params['c']
         return np.random.triangular(a, b, c, size)
-
-    elif dist_type == 'normale':
-        mu = params.get('mu')
-        sigma = params.get('sigma')
-        return np.random.normal(mu, sigma, size)
-
-    elif dist_type == 'bernoulli':
-        prob = params.get('prob', 0)
-        value = params.get('value', 1)
-        eventi = np.random.binomial(1, prob, size)
-        return eventi * value
-
     elif dist_type is None:
-        return np.full(size, params.get('b', 0))
-
+        return np.full(size, params['b'])
+        
+    elif dist_type=='normale':
+        mu = params.get('mu')
+        sigma = params.get('sigma')   
+        return np.random.normal(mu, sigma, size)
     else:
         return np.full(size, params.get('b', 0))
-    
+
 
 def apply_uncertainty_to_params(params, dist_type, k_min, k_max):
     params_mod = params.copy()
@@ -373,32 +269,23 @@ def apply_uncertainty_to_params(params, dist_type, k_min, k_max):
         b = params.get('b')
         c = params.get('c')
 
-        if a is not None and not pd.isna(a):
-            params_mod['a'] = max(0, a * (1 - k_min))
-        if b is not None and not pd.isna(b):
-            params_mod['b'] = b
-        if c is not None and not pd.isna(c):
+        if a is not None:
+            new_a = a * (1 - k_min)
+            params_mod['a'] = max(0, new_a)
+        if b is not None:
+            params_mod['b'] = b 
+        if c is not None:
             params_mod['c'] = c * (1 + k_max)
-
-    elif dist_type == "normale":
+    
+    elif dist_type =="normale":
         mu = params.get('mu')
         sigma = params.get('sigma')
-        params_mod['mu'] = mu
-        params_mod['sigma'] = sigma * (1 + k_max) if sigma is not None and not pd.isna(sigma) else sigma
-
-    elif dist_type == "bernoulli":
-        prob = params.get('prob')
-        value = params.get('value')
-
-        params_mod['prob'] = prob  # di solito non toccherei la probabilità con k
-        if value is not None and not pd.isna(value):
-            params_mod['value'] = value * (1 + k_max)
-
+        params_mod['sigma'] = sigma * (1 + k_max) 
+    
     elif dist_type is None:
         b = params.get('b')
-        params_mod['b'] = b
-
     return params_mod
+
 
 def simulate_ebitda_multi_year_blocks(
     blocks, 
@@ -1217,59 +1104,3 @@ def genera_output_excel(risultati_anni, ebitda_base_dict, df_styled):
         df_styled.to_excel(writer, sheet_name='Shock Fattori')  
     buffer.seek(0)
     return buffer
-
-
-def build_distribution_from_row(row, prefix):
-    """
-    prefix = 'p' oppure 'q'
-    Supporta sia:
-    - nuovo formato (distribuzione_prezzo)
-    - legacy (Distribuzione, prob, value)
-    """
-
-    # --- 1) PRIORITA': NUOVO FORMATO ---
-    dist_col = f"distribuzione_{'prezzo' if prefix == 'p' else 'quantità'}"
-    dist_type = row.get(dist_col, None)
-
-    if isinstance(dist_type, str):
-        dist_type = dist_type.strip().lower()
-
-    # --- 2) FALLBACK SU LEGACY ---
-    if not dist_type or str(dist_type) == "nan":
-        dist_type = row.get("Distribuzione", None)
-        if isinstance(dist_type, str):
-            dist_type = dist_type.strip().lower()
-
-    base_val = row.get(f"{prefix}_base", 1)
-    base_val = 1 if pd.isna(base_val) else base_val
-
-    # --- TRIANGOLARE ---
-    if dist_type == "triangolare":
-        return {
-            "dist": "triangolare",
-            "a": row.get(f"{prefix}_min", row.get("min", np.nan)),
-            "b": row.get(f"{prefix}_moda", row.get("moda", np.nan)),
-            "c": row.get(f"{prefix}_max", row.get("max", np.nan)),
-        }
-
-    # --- NORMALE ---
-    elif dist_type == "normale":
-        return {
-            "dist": "normale",
-            "mu": row.get(f"{prefix}_mu", row.get("mu", np.nan)),
-            "sigma": row.get(f"{prefix}_sigma", row.get("sigma", np.nan)),
-        }
-
-    # --- BERNOULLI (QUI È IL FIX) ---
-    elif dist_type == "bernoulli":
-        return {
-            "dist": "bernoulli",
-            "prob": row.get(f"{prefix}_prob", row.get("prob", np.nan)),
-            "value": row.get(f"{prefix}_value", row.get("value", np.nan)),
-        }
-
-    else:
-        return {
-            "dist": None,
-            "b": base_val
-        }
