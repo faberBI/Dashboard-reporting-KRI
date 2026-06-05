@@ -64,9 +64,7 @@ from functions.natural_events import (calcola_percentili, calcola_vulnerabilita_
                                 get_risk_sismico, get_risk_incendi)
 from functions.business_interruption import (get_kri_bi, plot_kri, plot_kri_map_regioni_interattivo ,get_gpt_insights_kri)
 from functions.copper import (make_lag_df, plot_copper_forecast, plot_var_vs_budget, monte_carlo_forecast_cp_from_disk, full_copper_forecast)
-from functions.ebitda import (plot_top_corr_bar, get_top_correlations, simula_fattori_empiricamente, genera_template_input, load_risk_factors, parse_factors, sample_distribution, 
-                            apply_uncertainty_to_params, simulate_ebitda_multi_year_blocks, simulate_ebitda_multi_year_blocks_with_ricavi, simulate_ebitda_multi_year_blocks_old, plot_k_min_max_plotly, 
-                            calcola_importanza_fattori, genera_output_excel, safe_pivot, ensure_dataframe, safe_applymap, build_dist_specific, build_dist_legacy, normalize_varia, build_distribution_from_row)
+import functions.ebitda
 
 # -----------------------
 # Configurazione Streamlit
