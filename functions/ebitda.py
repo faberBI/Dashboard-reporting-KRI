@@ -14,6 +14,111 @@ import plotly.graph_objects as go
 
 @st.cache_data
 
+def normalize_dist(x):
+    if pd.isna(x):
+        return None
+    x = str(x).strip().lower()
+    if x in ["", "none", "nan"]:
+        return None
+    return x
+
+
+def normalize_varia(x):
+    if pd.isna(x):
+        return None
+    x = str(x).strip().lower()
+    if x in ["prezzo", "solo prezzo"]:
+        return "Solo Prezzo"
+    elif x in ["quantità", "quantita", "solo quantità", "solo quantita"]:
+        return "Solo Quantità"
+    elif x in ["entrambi", "prezzo e quantità", "prezzo e quantita"]:
+        return "Entrambi"
+    return None
+
+
+def build_dist_legacy(row, side):
+    """
+    side = 'p' oppure 'q'
+    Usa il tracciato legacy:
+    - Distribuzione, min, moda, max, mu, sigma, prob, value
+    - colonna fissa opposta: p o q
+    """
+    dist = normalize_dist(row.get("Distribuzione"))
+
+    if side == "p":
+        fixed_val = row.get("p", 1)
+    else:
+        fixed_val = row.get("q", 1)
+
+    fixed_val = 1 if pd.isna(fixed_val) else fixed_val
+
+    if dist == "triangolare":
+        return {
+            "dist": "triangolare",
+            "a": row.get("min", np.nan),
+            "b": row.get("moda", np.nan),
+            "c": row.get("max", np.nan)
+        }
+
+    elif dist == "normale":
+        return {
+            "dist": "normale",
+            "mu": row.get("mu", np.nan),
+            "sigma": row.get("sigma", np.nan)
+        }
+
+    elif dist == "bernoulli":
+        return {
+            "dist": "bernoulli",
+            "prob": row.get("prob", np.nan),
+            "value": row.get("value", np.nan)
+        }
+
+    else:
+        return {
+            "dist": None,
+            "b": fixed_val
+        }
+
+
+def build_dist_specific(row, prefix):
+    """
+    prefix = 'prezzo' oppure 'quantità'
+    Usa il nuovo tracciato per il caso 'Entrambi'
+    """
+    dist = normalize_dist(row.get(f"Distribuzione_{prefix}"))
+
+    if dist == "triangolare":
+        return {
+            "dist": "triangolare",
+            "a": row.get(f"min_{prefix}", np.nan),
+            "b": row.get(f"moda_{prefix}", np.nan),
+            "c": row.get(f"max_{prefix}", np.nan)
+        }
+
+    elif dist == "normale":
+        return {
+            "dist": "normale",
+            "mu": row.get(f"mu_{prefix}", np.nan),
+            "sigma": row.get(f"sigma_{prefix}", np.nan)
+        }
+
+    elif dist == "bernoulli":
+        return {
+            "dist": "bernoulli",
+            "prob": row.get(f"prob_{prefix}", np.nan),
+            "value": row.get(f"value_{prefix}", np.nan)
+        }
+
+    else:
+        base_col = "p" if prefix == "prezzo" else "q"
+        base_val = row.get(base_col, 1)
+        base_val = 1 if pd.isna(base_val) else base_val
+        return {
+            "dist": None,
+            "b": base_val
+        }
+
 def ensure_dataframe(df):
     """
     Garantisce che df sia un DataFrame.
@@ -182,23 +287,17 @@ def parse_factors(df):
     blocks = []
 
     for _, row in df.iterrows():
-        varia = row.get('variabile', None)
-        anno = row.get('anno', None)
+        varia = normalize_varia(row.get('variabile'))
+        anno = row.get('anno')
 
         k_min = row['k_min'] if not pd.isna(row.get('k_min')) else 0
         k_max = row['k_max'] if not pd.isna(row.get('k_max')) else 0
 
-        # fix robusto sul nome colonna
-        if 'valore a piano' in row.index:
-            base_val = row['valore a piano'] if not pd.isna(row['valore a piano']) else 0
-        elif 'valore  a piano' in row.index:
-            base_val = row['valore  a piano'] if not pd.isna(row['valore  a piano']) else 0
-        else:
-            base_val = 0
+        base_val = row['valore a piano'] if not pd.isna(row.get('valore a piano')) else 0
 
         perc_raw = row.get('perc', 0)
         if isinstance(perc_raw, str) and perc_raw.strip().endswith('%'):
-            perc = float(perc_raw.strip().strip('%')) / 100
+            perc = float(perc_raw.strip().replace('%', '')) / 100
         else:
             perc = perc_raw if not pd.isna(perc_raw) else 0
 
@@ -206,7 +305,7 @@ def parse_factors(df):
             'name': row['Fattore di rischio'],
             'anno': anno,
             'varia': varia,
-            'costo_variabile': (str(row.get('costo variabile', '')).lower() == 'si'),
+            'costo_variabile': (str(row.get('costo variabile', '')).strip().lower() == 'si'),
             'perc': perc,
             'dipendente': row.get('variabile dipendente') if not pd.isna(row.get('variabile dipendente')) else None,
             'incertezza': row.get('incertezza', 1) if not pd.isna(row.get('incertezza', 1)) else 1,
@@ -216,27 +315,22 @@ def parse_factors(df):
             'k_max': k_max
         }
 
-        varia_norm = str(varia).strip().lower() if pd.notna(varia) else None
-
         # default
-        p_dict = {"dist": None, "b": row.get("p_base", 1) if not pd.isna(row.get("p_base", 1)) else 1}
-        q_dict = {"dist": None, "b": row.get("q_base", 1) if not pd.isna(row.get("q_base", 1)) else 1}
+        p_dict = {"dist": None, "b": row.get("p", 1) if not pd.isna(row.get("p", 1)) else 1}
+        q_dict = {"dist": None, "b": row.get("q", 1) if not pd.isna(row.get("q", 1)) else 1}
 
-        if varia_norm == "prezzo":
-            block['varia'] = "Solo Prezzo"
-            p_dict = build_distribution_from_row(row, "p")
+        if varia == "Solo Prezzo":
+            p_dict = build_dist_legacy(row, "p")
+            q_dict = {"dist": None, "b": row.get("q", 1) if not pd.isna(row.get("q", 1)) else 1}
 
-        elif varia_norm in ["quantità", "quantita"]:
-            block['varia'] = "Solo Quantità"
-            q_dict = build_distribution_from_row(row, "q")
+        elif varia == "Solo Quantità":
+            q_dict = build_dist_legacy(row, "q")
+            p_dict = {"dist": None, "b": row.get("p", 1) if not pd.isna(row.get("p", 1)) else 1}
 
-        elif varia_norm == "entrambi":
-            block['varia'] = "Entrambi"
-            p_dict = build_distribution_from_row(row, "p")
-            q_dict = build_distribution_from_row(row, "q")
-
-        else:
-            block['varia'] = None
+        elif varia == "Entrambi":
+            # usa le nuove colonne opzionali
+            p_dict = build_dist_specific(row, "prezzo")
+            q_dict = build_dist_specific(row, "quantità")
 
         block['p'] = p_dict
         block['q'] = q_dict
@@ -244,7 +338,6 @@ def parse_factors(df):
         blocks.append(block)
 
     return blocks
-
 
 
 def sample_distribution(dist_type, params, size):
