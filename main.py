@@ -1798,7 +1798,7 @@ elif selected_kri == "📊📈 Ebitda @Risk":
     
             st.subheader("📊 Grafici riepilogativi delle simulazioni")
     
-            anni = list(range(2025, 2025 + len(risultati)))
+            anni = [r["anno"] for r in risultati]
             mean_ebitda = [np.mean(r["ebitda_simulazioni"]) for r in risultati]
             p5_ebitda = [np.percentile(r["ebitda_simulazioni"], 5) for r in risultati]
             p95_ebitda = [np.percentile(r["ebitda_simulazioni"], 95) for r in risultati]
