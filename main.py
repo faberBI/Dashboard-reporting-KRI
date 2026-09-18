@@ -1243,19 +1243,31 @@ elif selected_kri == "📈 Interest Rate":
             kri_cashflow = np.max(var_cf-plan_cf,0)
         
             # DataFrame con indice corretto per la tranche
+            #
             df_var = pd.DataFrame({
                 "Notional": row["Notional"],
                 "Hedged": row["Hedged"],
                 "Un-Hedged": unhedged,
+
+                # nuove colonne utili
+                "Plan Euribor": plan_euribor_series,
+                "Var Euribor": forecast_tranche["upper_adj"],
+
                 "Spread": spread_series.values,
-                "Var Rate": var_rate,
+
                 "Plan Rate": plan_rate,
+                "Var Rate": var_rate,
+
+                "Rate Gap": var_rate - plan_rate,
+
                 "Var Amount (€)": var_amount,
                 "Var Cashflow (€)": var_cf,
+
                 "Plan Amount (€)": plan_amount,
                 "Plan Cashflow (€)": plan_cf,
+
                 "Tranche": tranche_name
-            }, index=forecast_tranche.index)
+                }, index=forecast_tranche.index)
         
             results_var.append(df_var)
                 
@@ -1341,17 +1353,28 @@ elif selected_kri == "📈 Interest Rate":
         final_copy = final_copy.set_index('Date')
         final_copy["Year"] = final_copy.index.year
         agg_rules = {
-            "Var Cashflow (€)": "sum",
-            "Plan Cashflow (€)": "sum",
-            "KRI Cashflow": "sum",
-            "Notional": "first",
-            "Hedged": "first",
-            "Un-Hedged": "first",
-            "Var Rate": "mean",
-            "Plan Rate": "mean",
-            "Var Amount (€)": "mean",
-            "Plan Amount (€)": "mean",
-            "KRI Amount": "mean"}
+        "Var Cashflow (€)": "sum",
+        "Plan Cashflow (€)": "sum",
+        "KRI Cashflow": "sum",
+
+        "Notional": "first",
+        "Hedged": "first",
+        "Un-Hedged": "first",
+
+        "Plan Euribor": "first",
+        "Var Euribor": "mean",
+
+        "Spread": "mean",
+
+        "Plan Rate": "mean",
+        "Var Rate": "mean",
+
+        "Rate Gap": "mean",
+
+        "Var Amount (€)": "mean",
+        "Plan Amount (€)": "mean",
+        "KRI Amount": "mean"
+        }
         final_var_annual = final_copy.groupby(["Year", "Tranche"]).agg(agg_rules)
         final_var_annual = to_millions(final_var_annual, cols_mln)
         
