@@ -67,6 +67,10 @@ from functions.copper import (make_lag_df, plot_copper_forecast, plot_var_vs_bud
 from functions.ebitda import (plot_top_corr_bar, get_top_correlations, simula_fattori_empiricamente, genera_template_input, load_risk_factors, parse_factors, sample_distribution, 
                             apply_uncertainty_to_params, simulate_ebitda_multi_year_blocks, simulate_ebitda_multi_year_blocks_with_ricavi, simulate_ebitda_multi_year_blocks_old, plot_k_min_max_plotly, 
                             calcola_importanza_fattori, genera_output_excel, safe_pivot, ensure_dataframe, safe_applymap, build_dist_specific, build_dist_legacy, normalize_varia, build_distribution_from_row)
+ from functios.ebitda_factor_risk import (normalize_dist,normalize_varia, build_dist_legacy, build_dist_specific,  ensure_dataframe, safe_pivot, plot_top_corr_bar,  get_top_correlations, simula_fattori_empiricamente,
+                                    genera_template_input,load_risk_factors, parse_factors,  sample_distribution, apply_uncertainty_to_params, simulate_ebitda_multi_year_blocks, simulate_ebitda_multi_year_blocks_with_ricavi,simulate_ebitda_multi_year_blocks_old,
+                                    plot_k_min_max_plotly,calcola_importanza_fattori,safe_applymap,genera_output_excel, build_distribution_from_row,calcola_kri_per_fattore, visualizza_kri_per_fattore_streamlit,
+                                    genera_output_excel_con_kri)
 
 
 # -----------------------
