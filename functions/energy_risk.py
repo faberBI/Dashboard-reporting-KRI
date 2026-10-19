@@ -1,1487 +1,796 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
-import plotly.graph_objects as go
-import plotly.express as px
+import matplotlib.pyplot as plt
+from arch import arch_model
+import pmdarima as pm
 import io
-from scipy.stats import norm, multivariate_normal
-# Dipendenza rimossa: GaussianMultivariate non era utilizzata
-from scipy.stats import rankdata, norm
-from sklearn.covariance import LedoitWolf
+import pickle
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import altair as alt
 import plotly.graph_objects as go
 
-
-# nel main
-
-@st.cache_data
-
-def normalize_dist(x):
-    if pd.isna(x):
-        return None
-    x = str(x).strip().lower()
-    if x in ["", "none", "nan"]:
-        return None
-    return x
-
-
-def normalize_varia(x):
-    if pd.isna(x):
-        return None
-    x = str(x).strip().lower()
-    if x in ["prezzo", "solo prezzo"]:
-        return "Solo Prezzo"
-    elif x in ["quantità", "quantita", "solo quantità", "solo quantita"]:
-        return "Solo Quantità"
-    elif x in ["entrambi", "prezzo e quantità", "prezzo e quantita"]:
-        return "Entrambi"
-    return None
-
-
-def build_dist_legacy(row, side):
+@st.cache_resource
+def fit_sarimax_model(series):
     """
-    side = 'p' oppure 'q'
-    Usa il tracciato legacy:
-    - Distribuzione, min, moda, max, mu, sigma, prob, value
-    - colonna fissa opposta: p o q
+    Fit SARIMAX usando parametri fissi derivati da auto_arima.
     """
-    dist = normalize_dist(row.get("Distribuzione"))
-
-    if side == "p":
-        fixed_val = row.get("p", 1)
-    else:
-        fixed_val = row.get("q", 1)
-
-    fixed_val = 1 if pd.isna(fixed_val) else fixed_val
-
-    if dist == "triangolare":
-        return {
-            "dist": "triangolare",
-            "a": row.get("min", np.nan),
-            "b": row.get("moda", np.nan),
-            "c": row.get("max", np.nan)
-        }
-
-    elif dist == "normale":
-        return {
-            "dist": "normale",
-            "mu": row.get("mu", np.nan),
-            "sigma": row.get("sigma", np.nan)
-        }
-
-    elif dist == "bernoulli":
-        return {
-            "dist": "bernoulli",
-            "prob": row.get("prob", np.nan),
-            "value": row.get("value", np.nan)
-        }
-
-    else:
-        return {
-            "dist": None,
-            "b": fixed_val
-        }
-
-
-def build_dist_specific(row, prefix):
-    """
-    prefix = 'prezzo' oppure 'quantità'
-    Usa il nuovo tracciato per il caso 'Entrambi'
-    """
-    dist = normalize_dist(row.get(f"Distribuzione_{prefix}"))
-
-    if dist == "triangolare":
-        return {
-            "dist": "triangolare",
-            "a": row.get(f"min_{prefix}", np.nan),
-            "b": row.get(f"moda_{prefix}", np.nan),
-            "c": row.get(f"max_{prefix}", np.nan)
-        }
-
-    elif dist == "normale":
-        return {
-            "dist": "normale",
-            "mu": row.get(f"mu_{prefix}", np.nan),
-            "sigma": row.get(f"sigma_{prefix}", np.nan)
-        }
-
-    elif dist == "bernoulli":
-        return {
-            "dist": "bernoulli",
-            "prob": row.get(f"prob_{prefix}", np.nan),
-            "value": row.get(f"value_{prefix}", np.nan)
-        }
-
-    else:
-        base_col = "p" if prefix == "prezzo" else "q"
-        base_val = row.get(base_col, 1)
-        base_val = 1 if pd.isna(base_val) else base_val
-        return {
-            "dist": None,
-            "b": base_val
-        }
-
-def ensure_dataframe(df):
-    """
-    Garantisce che df sia un DataFrame.
-    Se non lo è o è None, ritorna DataFrame vuoto.
-    """
-    if isinstance(df, pd.DataFrame):
-        return df.copy()
-    elif df is None:
-        return pd.DataFrame()
-    try:
-        # prova a convertire dict, list, Series, ndarray
-        df_conv = pd.DataFrame(df)
-        if isinstance(df_conv, pd.DataFrame):
-            return df_conv
-        else:
-            return pd.DataFrame()
-    except:
-        return pd.DataFrame()
-
-def safe_pivot(df, index, columns, values):
-    if df.empty:
-        return pd.DataFrame()
-    try:
-        pivoted = df.pivot(index=index, columns=columns, values=values)
-        return pivoted.fillna(0)
-    except Exception as e:
-        print("Errore pivot:", e)
-        return pd.DataFrame()
-
-def plot_top_corr_bar(top_corr_pairs, anno):
-    df_corr = pd.DataFrame(top_corr_pairs, columns=["Feature 1", "Feature 2", "Correlazione"])
-    # Crea una stringa per ogni coppia
-    df_corr["Coppia"] = df_corr["Feature 1"] + " ↔ " + df_corr["Feature 2"]
-    # Ordina per valore assoluto di correlazione
-    df_corr = df_corr.reindex(df_corr["Correlazione"].abs().sort_values(ascending=True).index)
-    
-    fig = px.bar(
-        df_corr,
-        x="Correlazione",
-        y="Coppia",
-        orientation='h',
-        title=f"Top 10 correlazioni più alte - Anno {anno}",
-        color="Correlazione",
-        color_continuous_scale=px.colors.diverging.RdBu,
-        range_color=[-1, 1]
+    model = SARIMAX(
+        series,
+        order=(4,0,1),
+        seasonal_order=(2,1,0,12),
+        enforce_stationarity=False,
+        enforce_invertibility=False
     )
-    fig.update_layout(yaxis={'categoryorder':'total ascending'})
-    return fig
+    results = model.fit(disp=False)
+    return results
+
+def forecast_monthly_prices(series, n_years=1):
+    """
+    Serie storica mensile -> forecast per n_years * 12 mesi
+    """
+    model_fit = fit_sarimax_model(series)
+    forecast_periods = n_years * 12
+    forecast = model_fit.forecast(steps=forecast_periods)
+    return forecast
+
+def adjust_first_forecast_with_partial_month(forecast, series):
     
-import numpy as np
-import pandas as pd
+    last_date = series["Date"].max()
+    current_period = last_date.to_period("M")
 
-def get_top_correlations(corr_matrix, top_n=10):
-    corr_matrix = corr_matrix.copy()
+    partial_data = series[
+        series["Date"].dt.to_period("M") == current_period
+    ]["GMEPIT24 Index"]
+
+    partial_mean = partial_data.mean()
+
+    weight = last_date.day / last_date.days_in_month
+
+    forecast.iloc[0] = (
+        (1 - weight) * forecast.iloc[0]
+        + weight * partial_mean
+    )
+
+    return forecast
     
-    # 🔹 Imposta la diagonale a NaN senza usare np.fill_diagonal
-    n_rows = corr_matrix.shape[0]
-    n_cols = corr_matrix.shape[1]
-    for i in range(min(n_rows, n_cols)):
-        corr_matrix.iloc[i, i] = np.nan  # funziona anche se non quadrata
+def get_return(path, year=2015):
+    hist_pun = pd.read_excel(path)
+    hist_pun["Date"] = pd.to_datetime(hist_pun["Date"])
+    hist_pun["Year"] = hist_pun["Date"].dt.year
+    hist_pun["Month"] = hist_pun["Date"].dt.month
+    hist_pun["log_return"] = np.log(hist_pun["GMEPIT24 Index"] / hist_pun["GMEPIT24 Index"].shift(1))
+    last_5y = hist_pun[hist_pun['Year'] > year]
+    monthly_std = last_5y.groupby("Month")["log_return"].std().reset_index(name="std_log_return")
+    monthly_std['std_log_return_montly'] = monthly_std['std_log_return'] * np.sqrt(21)
+    monthly_price = last_5y.groupby("Month")["GMEPIT24 Index"].mean().reset_index(name="avg_price")
+    monthly_price_year = (
+        last_5y
+        .set_index("Date")["GMEPIT24 Index"]
+        .resample("MS")          # Month Start frequency
+        .mean()
+        .dropna()
+        .reset_index()
+        .rename(columns={"GMEPIT24 Index": "avg_price"})
+    )
+    return last_5y, monthly_std, monthly_price, monthly_price_year
 
-    # Trasforma in serie di correlazioni assolute
-    corr_unstacked = corr_matrix.abs().unstack()
+def apply_cholesky(last_5y):
+    monthly_lr = last_5y.groupby(last_5y["Date"].dt.to_period("M"))["log_return"].sum().to_frame("log_return")
+    monthly_lr["Month"] = monthly_lr.index.month
+    monthly_lr["Year"] = monthly_lr.index.year
+    monthly_lr_matrix = monthly_lr.pivot(index="Year", columns="Month", values="log_return")
+    corr_matrix = monthly_lr_matrix.corr()
+    rho_hat = np.mean([corr_matrix.iloc[i, i+1] for i in range(11)])
+    corr = np.fromfunction(lambda i,j: rho_hat ** np.abs(i-j), (12,12))
+    L = np.linalg.cholesky(corr)
+    return L, rho_hat
 
-    # Rimuovi duplicati (A,B) e (B,A)
-    corr_unstacked = corr_unstacked[
-        corr_unstacked.index.get_level_values(0) < corr_unstacked.index.get_level_values(1)
+def get_garch(last_5y, rolling_window=12):
+    monthly_means = last_5y.groupby(['Year', 'Month'])['GMEPIT24 Index'].mean().reset_index()
+    monthly_means['Date'] = pd.to_datetime(monthly_means[['Year','Month']].assign(DAY=1))
+    monthly_means = monthly_means.sort_values('Date')
+    prices = monthly_means.set_index('Date')['GMEPIT24 Index']
+    
+    log_returns = np.log(prices).diff().dropna()
+    rolling_std = log_returns.rolling(window=rolling_window).std()
+    
+    model = arch_model(log_returns, vol='Garch', p=1, q=1, dist='t', rescale=False)
+    fit = model.fit(disp=False)
+    sigma_t = fit.conditional_volatility
+    
+    sigma_df = pd.DataFrame({'Date': sigma_t.index, 'sigma': sigma_t.values})
+    sigma_df['Month'] = sigma_df['Date'].dt.month
+    monthly_sigma = sigma_df.groupby('Month')['sigma'].mean().values
+    
+    return monthly_sigma, rolling_std, sigma_t
+
+def simulate_prices(PUN_monthly_forecast, PUN_monthly, monthly_sigma, monthly_std, L, n_sims=100_000, seed=42, min_price=5.0):
+    np.random.seed(seed)
+    vol_h = monthly_sigma * np.array(PUN_monthly)
+    vol_m = np.array(monthly_std['std_log_return_montly'].values) * np.array(PUN_monthly)
+    vol_f = vol_h*0.4+ vol_m*0.6
+    
+    n_total_months = len(PUN_monthly_forecast)
+    n_years = n_total_months // 12
+    all_years = []
+    
+    for i in range(n_years):
+        P_mean = np.array(PUN_monthly_forecast[i*12:(i+1)*12])
+        Z = np.random.normal(size=(n_sims,12))
+        shocks = (Z @ L.T) * vol_f[np.newaxis, :]
+        P_paths = P_mean[np.newaxis, :] + shocks
+        P_paths = np.clip(P_paths, min_price, None)
+        all_years.append(P_paths)
+    
+    PUN_paths = np.hstack(all_years)
+    return PUN_paths, shocks
+
+def compute_VaR(df_var, VaR_95_monthly, cut_month, hid_month):
+    
+    VaR_95_2026 = VaR_95_monthly[-cut_month:] 
+    df_var['scoperto_w_solar'] = np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward'] +	df_var['Solar']), 0)
+    df_var['scoperto_w/o_solar'] = np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']), 0)
+    df_var['Price_95perc'] = np.concatenate([ [np.nan]*hid_month, VaR_95_2026 ])
+    df_var['Var_monthly_95_w_solar'] = (df_var['Price_95perc'] - df_var['Prezzo Budget']) * np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward'] + df_var['Solar']),0) *1000
+    df_var['Var_monthly_95_w/o_solar'] = (df_var['Price_95perc'] - df_var['Prezzo Budget']) * np.maximum(df_var['Fabbisogno'] - (df_var['PPA Erg'] + df_var['Forward']),0) *1000
+    
+    return df_var
+
+def plot_volatility(rolling_std, sigma_t):
+    """
+    Grafico volatilità:
+    - Rolling std mensile dei log-return
+    - Volatilità condizionale GARCH (mensile)
+    """
+
+    # Crea figura e asse
+    fig, ax = plt.subplots(figsize=(14, 6))
+
+    # ===== PLOT LINEE =====
+    rolling_std.plot(
+        ax=ax, 
+        label='Rolling std log-return', 
+        linestyle=':', 
+        linewidth=2
+    )
+
+    sigma_t.plot(
+        ax=ax, 
+        label='Volatilità condizionale GARCH', 
+        linestyle='--', 
+        linewidth=2
+    )
+
+    # ===== CUSTOMIZZAZIONE =====
+    ax.set_title("Volatilità stimata")
+    ax.set_ylabel("Volatilità")
+    ax.set_xlabel("Data")
+    ax.grid(True, linestyle='--', alpha=0.4)
+    ax.legend()
+
+    # ===== STREAMLIT =====
+    st.pyplot(fig, use_container_width=True)
+
+def plot_monthly_VaR(VaR_95_monthly, cut_month, start_year=2026):
+    """
+    Grafico VaR 95% mensile su più anni.
+
+    VaR_95_monthly : array o lista di valori VaR per ogni mese (lunghezza = n_years*12)
+    cut_month      : numero di mesi da tagliare dall'inizio (forecast parte dopo questi mesi)
+    start_year     : anno di partenza del forecast (es. 2026)
+    """
+
+    # Prendo solo i mesi che servono
+    VaR_95_2026 = VaR_95_monthly[-cut_month:] 
+    n_months = len(VaR_95_2026)
+    n_years = n_months // 12
+
+    # Genero le date corrispondenti agli stessi mesi
+    # Inizio da start_year + cut_month mesi
+    dates = pd.date_range(start=f"{start_year}-01-01", periods=len(VaR_95_monthly), freq='MS')
+    dates = dates[-cut_month:]
+
+    # Nomi mesi in italiano
+    months_names = [
+        "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
     ]
+    labels = [f"{months_names[d.month-1]} {d.year}" for d in dates]
 
-    # Prendi le top N correlazioni
-    top_corr = corr_unstacked.sort_values(ascending=False).head(top_n)
+    # Creazione figura
+    fig, ax = plt.subplots(figsize=(12,6))
+    ax.plot(labels, VaR_95_2026, marker='o', color='crimson', linewidth=2)
 
-    # Ricostruisci coppie con valore originale (segno incluso)
-    pairs = []
-    for (f1, f2), val_abs in top_corr.items():
-        val_orig = corr_matrix.loc[f1, f2]
-        pairs.append((f1, f2, val_orig))
+    ax.set_ylabel("VaR 95% (€/MWh)")
+    ax.set_title(f"VaR 95% Mensile - PUN ({n_years} year)")
+    ax.grid(True, linestyle='--', alpha=0.5)
 
-    return pairs
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    st.pyplot(fig)
+
+
+def plot_energy_stack_with_var(df):
+    months = df['Month']
+
+    # Volumi
+    fabbisogno = df['Fabbisogno']
+    ppa = df['PPA Erg']
+    forward = df['Forward']
+    solar = df['Solar']
+
+    # Prezzo
+    price_var = df['Var_monthly_95_w_solar'] / 1000
+
+    fig, ax1 = plt.subplots(figsize=(14, 6))
+
+    # ===== ASSE SINISTRO: ENERGIA =====
+    ax1.stackplot(
+        months,
+        ppa,
+        forward,
+        solar,
+        labels=['PPA Erg', 'Forward', 'Solar'],
+        colors=['#001f6b', '#5b9bff', '#66d17a'],
+        alpha=0.95
+    )
+
+    ax1.plot(
+        months,
+        fabbisogno,
+        color='black',
+        linestyle='--',
+        linewidth=2.5,
+        label='Fabbisogno'
+    )
+
+    ax1.set_ylabel("Energia (MWh)")
+    ax1.set_xlabel("Mese")
+    ax1.grid(True, linestyle='--', alpha=0.4)
+
+    # ===== ASSE DESTRO: PREZZO =====
+    ax2 = ax1.twinx()
+    ax2.plot(
+        months,
+        price_var,
+        color='crimson',
+        linewidth=3,
+        label='VaR €'
+    )
+
+    ax2.set_ylabel("VaR € (k€)", color='crimson')
+    ax2.tick_params(axis='y', labelcolor='crimson')
+    ax2.set_ylim(0, None)
+
+    # ===== LEGENDA =====
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+
+    plt.title("Copertura Energetica e VaR (95%) €", fontsize=14)
+    plt.tight_layout()
+
+    return fig
+
+
+def plot_var_bars(dati_fibercop):
+    # Creazione colonna "Anno-Mese" per l'asse X
+    dati_fibercop['Anno-Mese'] = dati_fibercop['Anno'].astype(str) + "-" + dati_fibercop['Month']
     
-def simula_fattori_empiricamente(fattori_simulati, n_sim):
-    if isinstance(fattori_simulati, dict):
-        fattori = list(fattori_simulati.keys())
-        data = np.vstack([fattori_simulati[f] for f in fattori])
+    # Posizione delle barre
+    x = np.arange(len(dati_fibercop))
+    width = 0.4  # larghezza barre
+    
+    # Figura
+    fig, ax = plt.subplots(figsize=(14,6))
+    
+    # Barre Var con Solar
+    bars1 = ax.bar(
+        x - width/2,
+        dati_fibercop['Var_monthly_95_w_solar'],
+        width=width,
+        label='VaR with Solar',
+        color='green',
+        alpha=0.7
+    )
+    
+    # Barre Var senza Solar
+    bars2 = ax.bar(
+        x + width/2,
+        dati_fibercop['Var_monthly_95_w/o_solar'],
+        width=width,
+        label='VaR w/o Solar',
+        color='red',
+        alpha=0.7
+    )
+    
+    # Label e titolo
+    ax.set_xticks(x)
+    ax.set_xticklabels(dati_fibercop['Anno-Mese'], rotation=45, ha='right')
+    ax.set_ylabel("Value@Risk (€)")
+    ax.set_xlabel("Anno-Mese")
+    ax.set_title("Monthly VaR w & w/o Solar")
+    ax.grid(axis='y', linestyle='--', alpha=0.4)
+    ax.legend()
+    
+    # Aggiunge i valori sopra le barre (formattati in €)
+    for bar in bars1:
+        height = bar.get_height()
+        ax.annotate(f'€{height:,.0f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0,3),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=8)
+    
+    for bar in bars2:
+        height = bar.get_height()
+        ax.annotate(f'€{height:,.0f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0,3),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=8)
+    
+    plt.tight_layout()
+    
+    # Se Streamlit
+    st.pyplot(fig, use_container_width=True)
+
+
+def compute_CVaR(hedge_vector, df, PUN_paths, VaR_level=95):
+    hedge_vector = np.asarray(hedge_vector).flatten()
+    exposed = df["scoperto_w_solar"].values - hedge_vector
+    exposed = np.maximum(exposed, 0)
+    losses = np.sum(
+        exposed * np.maximum(
+            PUN_paths - df["Prezzo Budget"].values,
+            0
+        ),
+        axis=1)
+    VaR = np.percentile(losses, VaR_level)
+    CVaR = losses[losses >= VaR].mean()
+    return CVaR
+
+
+def plot_monthly_coverage_stack(df, month_col="Month"):
+    df = df.copy()
+    df.columns = df.columns.str.strip()
+
+    if month_col not in df.columns:
+        st.error(f"Colonna '{month_col}' non trovata! Colonne disponibili: {df.columns.tolist()}")
+        return
+
+    # =========================
+    # ORDINAMENTO ASSE X
+    # =========================
+    mesi_italiani = ["gen", "feb", "mar", "apr", "mag", "giu",
+                     "lug", "ago", "set", "ott", "nov", "dic"]
+
+    if month_col == "Month":
+        # caso mono-anno classico
+        df[month_col] = pd.Categorical(
+            df[month_col],
+            categories=mesi_italiani,
+            ordered=True
+        )
     else:
-        data = np.array(fattori_simulati)
-        fattori = [f"Fattore_{i}" for i in range(data.shape[0])]
+        # caso multi-anno (Anno-Mese)
+        df = df.sort_values(month_col)
 
-    n_fattori, n_obs = data.shape
+    # =========================
+    # COLONNE DI COVERAGE
+    # =========================
+    coverage_cols = ["Copertura", "hedge_addizionale_MWh", "scoperto_finale"]
+    available_cols = [c for c in coverage_cols if c in df.columns]
 
-    # Stima matrice di covarianza con Ledoit-Wolf
-    lw = LedoitWolf().fit(data.T)  # attenzione: sklearn vuole (n_samples, n_features)
-    cov_shrink = lw.covariance_
+    if not available_cols:
+        st.error("Nessuna colonna di coverage disponibile nel DataFrame.")
+        return
 
-    # Deriva la matrice di correlazione dalla covarianza
-    d = np.sqrt(np.diag(cov_shrink))
-    cor_matrix = cov_shrink / np.outer(d, d)
-    
-    print(f'\nMatrice di correlazione stimata (Ledoit-Wolf):\n{cor_matrix}\n')
+    selected_cols = st.multiselect(
+        "Seleziona le componenti da visualizzare nel grafico:",
+        options=available_cols,
+        default=available_cols
+    )
 
-    # Simula da gaussiana multivariata con matrice corretta
-    Z_sim = np.random.multivariate_normal(mean=np.zeros(n_fattori), cov=cor_matrix, size=n_sim).T
+    if not selected_cols:
+        st.warning("Seleziona almeno una colonna da visualizzare.")
+        return
 
-    # Trasformazione copula: normal -> uniform -> margini empirici
-    U = norm.cdf(Z_sim)
-    sim_matrix_corr = np.zeros_like(U)
+    # =========================
+    # PREPARAZIONE DATI
+    # =========================
+    df_plot = df.melt(
+        id_vars=month_col,
+        value_vars=selected_cols,
+        var_name="Tipo",
+        value_name="MWh"
+    )
 
-    for i in range(n_fattori):
-        sorted_data = np.sort(data[i])
-        quantiles = np.linspace(1/(n_obs+1), n_obs/(n_obs+1), n_obs)
-        sim_matrix_corr[i] = np.interp(U[i], quantiles, sorted_data)
+    df_plot["MWh"] = pd.to_numeric(df_plot["MWh"], errors="coerce").fillna(0)
 
-    return sim_matrix_corr, cor_matrix, fattori
+    df_plot_pivot = df_plot.pivot_table(
+        index=month_col,
+        columns="Tipo",
+        values="MWh",
+        fill_value=0
+    )
 
+    # =========================
+    # PLOT
+    # =========================
+    fig, ax = plt.subplots(figsize=(12, 6))
+    df_plot_pivot.plot(kind="bar", stacked=True, ax=ax)
 
-def genera_template_input():
-    data = {
-        "Fattore di rischio": ["Prezzo Energia", "Quantità Venduta", "Bonus straordinario", "Costo straordinario"],
-        "variabile": ["prezzo", "quantità", "prezzo", "prezzo"],
-        "anno": [2025, 2025, 2026, 2026],
-        "valore a piano": [100000, 200000, 0, 0],
-        "costo variabile": ["no", "no", "no", "no"],
-        "perc": [np.nan, np.nan, np.nan, np.nan],
-        "variabile dipendente": [np.nan, np.nan, np.nan, np.nan],
-        "tipo_variabile": ["ricavo", "ricavo", "ricavo", "costo"],
-        "k_min": [0.01, 0.01, 0.00, 0.00],
-        "k_max": [0.05, 0.05, 0.00, 0.00],
+    ax.set_xlabel(month_col)
+    ax.set_ylabel("MWh")
+    ax.set_title("Monthly Coverage (PRE / POST)")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
 
-        # PREZZO
-        "distribuzione_prezzo": ["normale", None, "bernoulli", "bernoulli"],
-        "p_base": [np.nan, 50, np.nan, np.nan],
-        "p_min": [np.nan, np.nan, np.nan, np.nan],
-        "p_moda": [np.nan, np.nan, np.nan, np.nan],
-        "p_max": [np.nan, np.nan, np.nan, np.nan],
-        "p_mu": [120, np.nan, np.nan, np.nan],
-        "p_sigma": [15, np.nan, np.nan, np.nan],
-        "p_prob": [np.nan, np.nan, 0.30, 0.15],
-        "p_value": [np.nan, np.nan, 1000000, 500000],
-
-        # QUANTITA'
-        "distribuzione_quantità": [None, "triangolare", None, None],
-        "q_base": [1000, np.nan, 1, 1],
-        "q_min": [np.nan, 800, np.nan, np.nan],
-        "q_moda": [np.nan, 1000, np.nan, np.nan],
-        "q_max": [np.nan, 1300, np.nan, np.nan],
-        "q_mu": [np.nan, np.nan, np.nan, np.nan],
-        "q_sigma": [np.nan, np.nan, np.nan, np.nan],
-        "q_prob": [np.nan, np.nan, np.nan, np.nan],
-        "q_value": [np.nan, np.nan, np.nan, np.nan],
-    }
-
-    df_template = pd.DataFrame(data)
-
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        df_template.to_excel(writer, index=False, sheet_name='Template Input')
-    buffer.seek(0)
-    return buffer
+    st.pyplot(fig)
 
 
-def load_risk_factors(file):
+def plot_monthly_additional_hedge(df, month_col="Month"):
+    """
+    Grafico a barre: hedge addizionale mensile
+    """
+    chart = (
+        alt.Chart(df)
+        .mark_bar(color="#2196F3")
+        .encode(
+            x=alt.X(f"{month_col}:N", title="Mese"),
+            y=alt.Y("Hedge_addizionale_MWh:Q", title="Hedge addizionale (MWh)"),
+            tooltip=["Hedge_addizionale_MWh:Q"]
+        )
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+def plot_cvar_reduction_over_iterations(log):
+    """
+    Andamento CVaR durante l'ottimizzazione greedy
+    """
+    # Se log è lista o DataFrame
+    if log is None or len(log) == 0:
+        st.warning("Nessuna iterazione di ottimizzazione disponibile.")
+        return
+
+    # Trasforma in DataFrame se non lo è già
+    if not isinstance(log, pd.DataFrame):
+        log_df = pd.DataFrame(log)
+    else:
+        log_df = log
+
+    import altair as alt
+
+    chart = (
+        alt.Chart(log_df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("iter:Q", title="Iterazione"),
+            y=alt.Y("CVaR_euro:Q", title="CVaR (€)"),
+            tooltip=[
+                "iter:Q",
+                "mese:N",
+                "CVaR_euro:Q",
+                "copertura_annua_pct:Q"
+            ]
+        )
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+# =========================
+# FUNZIONE CVaR WRAPPER
+# =========================
+def CVaR(h, df_local, PUN_paths_local):
+    """
+    Calcola il CVaR usando un hedge vector h e il dataframe df_local.
+    """
+    return float(compute_CVaR(
+        hedge_vector=h,
+        df=df_local,
+        PUN_paths=PUN_paths_local,
+        VaR_level=95
+    ))
+
+
+def plot_hedging_dashboard(df, month_col="Anno-Mese"):
+    df = df.copy()
+
+    # =========================
+    # GRAFICO 1: COSTO HEDGING
+    # =========================
+    fig_cost = go.Figure()
+    fig_cost.add_trace(
+        go.Scatter(
+            x=df[month_col],
+            y=df["hedge_cost"],
+            mode="lines+markers",
+            name="Hedge cost (€/MWh)",
+            line=dict(color="black", width=2),
+            marker=dict(size=7)
+        )
+    )
+
+    fig_cost.update_layout(
+        title="Costo hedging (€/MWh)",
+        xaxis_title="Anno-Mese",
+        yaxis_title="€/MWh",
+        template="plotly_white",
+        height=350
+    )
+
+    # =========================
+    # GRAFICO 2: HEDGE ADDIZIONALE
+    # =========================
+    fig_hedge = go.Figure()
+    fig_hedge.add_trace(
+        go.Bar(
+            x=df[month_col],
+            y=df["hedge_addizionale_MWh"],
+            name="Hedge addizionale (MWh)",
+            marker_color="#ff7f0e"
+        )
+    )
+
+    fig_hedge.update_layout(
+        title="Hedge addizionale per mese (acquisti / de-hedging)",
+        xaxis_title="Anno-Mese",
+        yaxis_title="MWh",
+        template="plotly_white",
+        height=350
+    )
+
+    # =========================
+    # GRAFICO 3: COPERTURA VS FABBISOGNO
+    # =========================
+    fig_cov = go.Figure()
+
+    # Barre PRE
+    fig_cov.add_bar(
+        x=df[month_col],
+        y=df["Copertura"],
+        name="Copertura PRE",
+        marker_color="#1f77b4"
+    )
+
+    fig_cov.add_bar(
+        x=df[month_col],
+        y=df["Scoperto_base"],
+        name="Scoperto PRE",
+        marker_color="#d62728"
+    )
+
+    # Barre POST
+    fig_cov.add_bar(
+        x=df[month_col],
+        y=df["coperto_totale"],
+        name="Copertura POST",
+        marker_color="#2ca02c"
+    )
+
+    fig_cov.add_bar(
+        x=df[month_col],
+        y=df["scoperto_finale"],
+        name="Scoperto POST",
+        marker_color="#9467bd"
+    )
+
+    # Linea fabbisogno
+    fig_cov.add_trace(
+        go.Scatter(
+            x=df[month_col],
+            y=df["Fabbisogno"],
+            name="Fabbisogno",
+            mode="lines+markers",
+            line=dict(color="black", width=3),
+            marker=dict(size=6)
+        )
+    )
+
+    fig_cov.update_layout(
+        title="Copertura e scoperto PRE / POST vs Fabbisogno",
+        barmode="group",
+        xaxis_title="Anno-Mese",
+        yaxis_title="Energia (MWh)",
+        template="plotly_white",
+        height=500
+    )
+
+    return fig_cost, fig_hedge, fig_cov
+
+
+def read_budget_excel(file):
     df = pd.read_excel(file)
+
+    # Normalizza nomi colonne
+    df.columns = [c.strip() for c in df.columns]
+
+    required_cols = {"Month", "Budget_Cum", "Year"}
+    if not required_cols.issubset(df.columns):
+        raise ValueError(f"Il file deve contenere colonne: {required_cols}")
+
+    # Eventuale cast (modifica direttamente il df)
+    df["Month"] = df["Month"].astype(str)
+    df["Budget_Cum"] = df["Budget_Cum"].astype(float)
+
     return df
 
-def parse_factors(df):
-    blocks = []
 
-    for _, row in df.iterrows():
-        varia = normalize_varia(row.get('variabile'))
-        anno = row.get('anno')
-
-        k_min = row['k_min'] if not pd.isna(row.get('k_min')) else 0
-        k_max = row['k_max'] if not pd.isna(row.get('k_max')) else 0
-
-        base_val = row['valore a piano'] if not pd.isna(row.get('valore a piano')) else 0
-
-        perc_raw = row.get('perc', 0)
-        if isinstance(perc_raw, str) and perc_raw.strip().endswith('%'):
-            perc = float(perc_raw.strip().replace('%', '')) / 100
-        else:
-            perc = perc_raw if not pd.isna(perc_raw) else 0
-
-        block = {
-            'name': row['Fattore di rischio'],
-            'anno': anno,
-            'varia': varia,
-            'costo_variabile': (str(row.get('costo variabile', '')).strip().lower() == 'si'),
-            'perc': perc,
-            'dipendente': row.get('variabile dipendente') if not pd.isna(row.get('variabile dipendente')) else None,
-            'incertezza': row.get('incertezza', 1) if not pd.isna(row.get('incertezza', 1)) else 1,
-            'valore_a_piano': base_val,
-            'tipo_variabile': row.get('tipo_variabile', 'ricavo') if not pd.isna(row.get('tipo_variabile', 'ricavo')) else 'ricavo',
-            'k_min': k_min,
-            'k_max': k_max
-        }
-
-        # default
-        p_dict = {"dist": None, "b": row.get("p", 1) if not pd.isna(row.get("p", 1)) else 1}
-        q_dict = {"dist": None, "b": row.get("q", 1) if not pd.isna(row.get("q", 1)) else 1}
-
-        if varia == "Solo Prezzo":
-            p_dict = build_dist_legacy(row, "p")
-            q_dict = {"dist": None, "b": row.get("q", 1) if not pd.isna(row.get("q", 1)) else 1}
-
-        elif varia == "Solo Quantità":
-            q_dict = build_dist_legacy(row, "q")
-            p_dict = {"dist": None, "b": row.get("p", 1) if not pd.isna(row.get("p", 1)) else 1}
-
-        elif varia == "Entrambi":
-            # usa le nuove colonne opzionali
-            p_dict = build_dist_specific(row, "prezzo")
-            q_dict = build_dist_specific(row, "quantità")
-
-        block['p'] = p_dict
-        block['q'] = q_dict
-
-        blocks.append(block)
-
-    return blocks
-
-
-def sample_distribution(dist_type, params, size):
-    if dist_type == 'triangolare':
-        a = params['a']
-        b = params['b']
-        c = params['c']
-        return np.random.triangular(a, b, c, size)
-
-    elif dist_type == 'normale':
-        mu = params.get('mu')
-        sigma = params.get('sigma')
-        return np.random.normal(mu, sigma, size)
-
-    elif dist_type == 'bernoulli':
-        prob = params.get('prob', 0)
-        value = params.get('value', 1)
-        eventi = np.random.binomial(1, prob, size)
-        return eventi * value
-
-    elif dist_type is None:
-        return np.full(size, params.get('b', 0))
-
-    else:
-        return np.full(size, params.get('b', 0))
-    
-
-def apply_uncertainty_to_params(params, dist_type, k_min, k_max):
-    params_mod = params.copy()
-
-    if dist_type == "triangolare":
-        a = params.get('a')
-        b = params.get('b')
-        c = params.get('c')
-
-        if a is not None and not pd.isna(a):
-            params_mod['a'] = max(0, a * (1 - k_min))
-        if b is not None and not pd.isna(b):
-            params_mod['b'] = b
-        if c is not None and not pd.isna(c):
-            params_mod['c'] = c * (1 + k_max)
-
-    elif dist_type == "normale":
-        mu = params.get('mu')
-        sigma = params.get('sigma')
-        params_mod['mu'] = mu
-        params_mod['sigma'] = sigma * (1 + k_max) if sigma is not None and not pd.isna(sigma) else sigma
-
-    elif dist_type == "bernoulli":
-        prob = params.get('prob')
-        value = params.get('value')
-
-        params_mod['prob'] = prob  # di solito non toccherei la probabilità con k
-        if value is not None and not pd.isna(value):
-            params_mod['value'] = value * (1 + k_max)
-
-    elif dist_type is None:
-        b = params.get('b')
-        params_mod['b'] = b
-
-    return params_mod
-
-def simulate_ebitda_multi_year_blocks(
-    blocks, 
-    ebitda_base_list, 
-    n_sim, 
-    anni,  
-    anno_inizio_k, 
-    trend,
-    attiva_shock=False, 
-    lambda_shock_annuo=0.1, 
-    magnitudo_shock=0.2, 
-    activation_matrix=None,
-    shock_event_dict=None
+def simulate_budget(
+    df,
+    mu=20,
+    sigma_ratio=0.2,
+    shape_sigma=0.15,
+    n_sim=10000,
+    seed=42
 ):
-    risultati_anni = []
-    anni_str = [str(a) for a in anni]
-    cor_matrix_by_year = {}
+    # ============================================================
+    # 1. CHECK INPUT
+    # ============================================================
+    required_cols = {"Year", "Month", "Budget_Cum"}
+    if not required_cols.issubset(df.columns):
+        raise ValueError(f"Il DataFrame deve contenere: {required_cols}")
 
-    if attiva_shock:
-        total_shocks = np.random.poisson(lam=lambda_shock_annuo * len(anni))
+    df = df.copy()
 
-    # 👉 Se la Poisson genera almeno 1 evento, ne consentiamo solo uno
-        if total_shocks > 1:
-            total_shocks = 1
+    # Ordina correttamente per anno + mese
+    df["date"] = pd.to_datetime(dict(year=df["Year"], month=df["Month_num"], day=1))
 
-    # 👉 Scegli al massimo un anno
-        anni_shock = np.random.choice(anni, size=total_shocks, replace=False) if total_shocks > 0 else []
+    df = df.sort_values("date").reset_index(drop=True)
 
-        print(f"[INFO] Shock esogeni totali simulati su EBITDA: {total_shocks}")
-    else:
-        anni_shock = []
+    budget_cum = df["Budget_Cum"].astype(float).values
 
-    # --- Nuova logica: per ogni fattore, estraiamo al massimo 1 anno con shock ---
-    shock_event_schedule = {}
-    if shock_event_dict:
-        for nome_fattore, cfg in shock_event_dict.items():
-            anni_attivi = [anno for anno, attivo in cfg["anni_attivi"].items() if attivo]
-            if anni_attivi:
-                lambda_totale = cfg["lambda"]
-                num_eventi = np.random.poisson(lambda_totale)
-    
-                # 🔁 Se non è stato estratto nessuno shock ma lambda ≥ 0.9, forziamo 1 evento
-                if num_eventi == 0 and lambda_totale >= 0.9:
-                    num_eventi = 1
-    
-                if num_eventi > 0:
-                    anno_shock = np.random.choice(anni_attivi)
-                    shock_event_schedule[nome_fattore] = int(anno_shock)
-                    
-    print("[DEBUG] shock_event_schedule:", shock_event_schedule)                
-    # ----------------------------------------------------------
+    if not np.all(np.diff(budget_cum) >= 0):
+        raise ValueError("Budget cumulato NON monotono!")
 
-    # Mappa per effetto a cascata degli shock sui fattori
-    shock_start_year = {}
+    Y_budget = budget_cum[-1]
 
-    for i, anno in enumerate(anni):
-        shock_occorrenze = {}
-        anno_label = str(anno)
-        ebitda_sim = np.zeros(n_sim)
-        blocchi_simulati = {}
-        fattori_simulati = {}
+    # ============================================================
+    # 2. INCREMENTALE (MENSILE)
+    # ============================================================
+    monthly_budget = np.diff(np.insert(budget_cum, 0, 0.0))
+    monthly_profile = monthly_budget / Y_budget
 
-        blocks_per_anno = [b for b in blocks if b['anno'] == anno]
+    # ============================================================
+    # 3. SIMULAZIONE MONTE CARLO
+    # ============================================================
+    rng = np.random.default_rng(seed)
 
-        if activation_matrix is not None:
-            blocks_attivi = [
-                b for b in blocks_per_anno
-                if activation_matrix.get(b['name'], {}).get(anno_label, True)
-            ]
-        else:
-            blocks_attivi = blocks_per_anno
+    sigma = sigma_ratio * mu
+    Y_sim = np.clip(rng.normal(mu, sigma, n_sim), 0, None)
 
-        blocks_attivi = sorted(blocks_attivi, key=lambda x: 1 if x.get('varia') == 'Derivato' else 0)
-
-        for block in blocks_attivi:
-            nome = block['name']
-            k_min_orig = block.get('k_min', 0)
-            k_max_orig = block.get('k_max', 0)
-
-            if i + 1 < anno_inizio_k:
-                k_min = k_max = 0
-            else:
-                anni_passati = i + 1 - (anno_inizio_k - 1)
-                if trend == 'lineare':
-                    k_min = k_min_orig * anni_passati
-                    k_max = k_max_orig * anni_passati
-                elif trend == 'moltiplicativo':
-                    k_min = k_min_orig * (1.5 ** (anni_passati - 1))
-                    k_max = k_max_orig * (1.5 ** (anni_passati - 1))
-                else:
-                    k_min = k_min_orig
-                    k_max = k_max_orig
-
-            varia = block.get('varia')
-
-            if varia in ["Solo Prezzo", "Entrambi"]:
-                p_dict = block['p']
-                p_dist = p_dict.get('dist')
-            else:
-                p_dict = {'b': block['p']['b'], 'dist': None}
-                p_dist = None
-
-            if varia in ["Solo Quantità", "Entrambi"]:
-                q_dict = block['q']
-                q_dist = q_dict.get('dist')
-            else:
-                q_dict = {'b': block['q']['b'], 'dist': None}
-                q_dist = None
-
-            if 'param_log' not in block:
-                block['param_log'] = {}
-
-            params_mod_p = apply_uncertainty_to_params(p_dict, p_dist, k_min, k_max) if p_dist else p_dict
-            params_mod_q = apply_uncertainty_to_params(q_dict, q_dist, k_min, k_max) if q_dist else q_dict
-
-            block['param_log'][anno] = {
-                "k_min": k_min,
-                "k_max": k_max,
-                "prezzo": params_mod_p,
-                "quantità": params_mod_q
-            }
-
-            p = sample_distribution(p_dist, params_mod_p, n_sim) if p_dist else np.full(n_sim, params_mod_p['b'])
-            q = sample_distribution(q_dist, params_mod_q, n_sim) if q_dist else np.full(n_sim, params_mod_q['b'])
-
-            base = block.get('valore_a_piano', 0)
-            sim = p * q
-
-            dipendente_sim = None
-            if block.get('costo_variabile', False) and block.get('dipendente'):
-                dipendente_sim = blocchi_simulati.get(block['dipendente'])
-
-            if dipendente_sim is not None:
-                perc = block.get('perc', 1)
-                tipo_var = block.get('tipo_variabile', 'ricavo').lower()
-                sim = dipendente_sim['sim'] * perc
-                if tipo_var == "costo":
-                    sim = -sim
-
-            # --- Applica shock solo nell'anno schedulato e propagalo negli anni successivi ---
-            if shock_event_dict:
-                shock_cfg = shock_event_dict.get(nome)
-                anno_shock_fattore = shock_event_schedule.get(nome, None)
-                if shock_cfg and anno_shock_fattore is not None:
-                    if isinstance(anno_shock_fattore, int) and anno >= anno_shock_fattore:
-                        impatto = shock_cfg["magnitudo"]
-                        segno = shock_cfg["segno"]
-                        
-                        # Applica in modo coerente con il segno del valore simulato (costo vs ricavo)
-                        if segno == "Negativo":
-                            if np.all(sim < 0):
-                                sim *= (1 + impatto)  # costo aumenta = peggiora
-                            else:
-                                sim *= (1 - impatto)  # ricavo diminuisce = peggiora
-                        else:  # segno "Positivo"
-                            if np.all(sim < 0):
-                                sim *= (1 - impatto)  # costo diminuisce = migliora
-                            else:
-                                sim *= (1 + impatto)  # ricavo aumenta = migliora        
-            
-            shock_occorrenze[nome] = shock_event_schedule.get(nome) == anno
-            
-            
-            blocchi_simulati[nome] = {"sim": sim, "base": base}
-            fattori_simulati[nome] = sim - base
-
-        # Applica copula per correlazione tra fattori
-        df_simulazioni, cor_matrix, fattori = simula_fattori_empiricamente(fattori_simulati, n_sim)
-        cor_matrix_by_year[anno] = {
-            "matrice": cor_matrix,
-            "fattori": fattori
-        }
-
-        delta_totale_per_simulazione = df_simulazioni.sum(axis=0)
-        ebitda_sim = ebitda_base_list[i] + delta_totale_per_simulazione
-
-        # Shock su EBITDA complessivo (non sui fattori)
-        if attiva_shock and len(anni_shock) > 0:
-            anno_shock = min(anni_shock)  # lo shock esogeno può capitare una sola volta
-            if anno >= anno_shock:
-                ebitda_sim *= (1 - magnitudo_shock)
-
-
-        df_sim = pd.DataFrame(df_simulazioni.T, columns=fattori)
-
-        risultati_anni.append({
-            "anno": anno,
-            "ebitda_simulazioni": ebitda_sim,
-            "fattori_simulati": df_sim.to_dict(orient='list'),
-            "shock_ebitda": int(np.sum(np.array(anni_shock) == anno)),
-            "matrice_correlazione": cor_matrix_by_year[anno],
-            "nomi_fattori": fattori,
-            "shock_occorrenze": shock_occorrenze
-        })
-
-    return risultati_anni, cor_matrix_by_year
-
-def simulate_ebitda_multi_year_blocks_with_ricavi(
-    blocks, 
-    ebitda_base_list, 
-    n_sim, 
-    anni,  
-    anno_inizio_k, 
-    trend,
-    attiva_shock=False, 
-    lambda_shock_annuo=0.1, 
-    magnitudo_shock=0.2, 
-    activation_matrix=None,
-    shock_event_dict=None
-):
-    risultati_anni = []
-    anni_str = [str(a) for a in anni]
-    cor_matrix_by_year = {}
-
-    # Per raccogliere ricavi negativi: lista di dict
-    ricavi_negativi_records = []
-
-    # Per salvare le simulazioni dei fattori per ogni anno in DataFrame
-    df_parametri_simulati_per_anno = {}
-
-    if attiva_shock:
-        if lambda_shock_annuo > 0.9:
-        # Forzo 1 evento shock, sicuro
-            total_shocks = 1
-        else:
-        # Numero di eventi shock da Poisson (può essere anche 0)
-            total_shocks = np.random.poisson(lam=lambda_shock_annuo * len(anni))
-        # Limito a massimo 1 evento
-            if total_shocks > 1:
-                total_shocks = 1
-    
-    # Se c'è almeno un evento, scelgo un anno casuale (un solo anno)
-        anni_shock = np.random.choice(anni, size=total_shocks, replace=False) if total_shocks > 0 else []
-        print(f"[INFO] Shock totali simulati su EBITDA: {total_shocks}")
-    else:
-        anni_shock = []
-
-    # Nuova logica per shock sui fattori
-    shock_event_schedule = {}
-    if shock_event_dict:
-        for nome_fattore, cfg in shock_event_dict.items():
-            anni_attivi = [anno for anno, attivo in cfg["anni_attivi"].items() if attivo]
-            if anni_attivi:
-                lambda_totale = cfg["lambda"]
-                num_eventi = np.random.poisson(lambda_totale)
-
-                if num_eventi == 0 and lambda_totale >= 0.9:
-                    num_eventi = 1
-
-                if num_eventi > 0:
-                    anno_shock = np.random.choice(anni_attivi)
-                    shock_event_schedule[nome_fattore] = int(anno_shock)
-
-    print("[DEBUG] shock_event_schedule:", shock_event_schedule)                
-    
-    fattore_cumulativo_shock = 1.0
-    
-    for i, anno in enumerate(anni):
-        shock_occorrenze = {}
-        anno_label = str(anno)
-        ebitda_sim = np.zeros(n_sim)
-        blocchi_simulati = {}
-        fattori_simulati = {}
-
-        blocks_per_anno = [b for b in blocks if b['anno'] == anno]
-
-        if activation_matrix is not None:
-            blocks_attivi = [
-                b for b in blocks_per_anno
-                if activation_matrix.get(b['name'], {}).get(anno_label, True)
-            ]
-        else:
-            blocks_attivi = blocks_per_anno
-
-        blocks_attivi = sorted(blocks_attivi, key=lambda x: 1 if x.get('varia') == 'Derivato' else 0)
-
-        for block in blocks_attivi:
-            nome = block['name']
-            k_min_orig = block.get('k_min', 0)
-            k_max_orig = block.get('k_max', 0)
-
-            if i + 1 < anno_inizio_k:
-                k_min = k_max = 0
-            else:
-                anni_passati = i + 1 - (anno_inizio_k - 1)
-                if trend == 'lineare':
-                    k_min = k_min_orig * anni_passati
-                    k_max = k_max_orig * anni_passati
-                elif trend == 'moltiplicativo':
-                    k_min = k_min_orig * (1.5 ** (anni_passati - 1))
-                    k_max = k_max_orig * (1.5 ** (anni_passati - 1))
-                else:
-                    k_min = k_min_orig
-                    k_max = k_max_orig
-
-            varia = block.get('varia')
-
-            if varia in ["Solo Prezzo", "Entrambi"]:
-                p_dict = block['p']
-                p_dist = p_dict.get('dist')
-            else:
-                p_dict = {'b': block['p']['b'], 'dist': None}
-                p_dist = None
-
-            if varia in ["Solo Quantità", "Entrambi"]:
-                q_dict = block['q']
-                q_dist = q_dict.get('dist')
-            else:
-                q_dict = {'b': block['q']['b'], 'dist': None}
-                q_dist = None
-
-            if 'param_log' not in block:
-                block['param_log'] = {}
-
-            params_mod_p = apply_uncertainty_to_params(p_dict, p_dist, k_min, k_max) if p_dist else p_dict
-            params_mod_q = apply_uncertainty_to_params(q_dict, q_dist, k_min, k_max) if q_dist else q_dict
-
-            block['param_log'][anno] = {
-                "k_min": k_min,
-                "k_max": k_max,
-                "prezzo": params_mod_p,
-                "quantità": params_mod_q
-            }
-
-            p = sample_distribution(p_dist, params_mod_p, n_sim) if p_dist else np.full(n_sim, params_mod_p['b'])
-            q = sample_distribution(q_dist, params_mod_q, n_sim) if q_dist else np.full(n_sim, params_mod_q['b'])
-
-            base = block.get('valore_a_piano', 0)
-            
-            # 🔍 Controllo se il fattore dipende da un altro
-            dipendente_sim = None
-            if block.get('costo_variabile', False) and block.get('dipendente'):
-                dipendente_sim = blocchi_simulati.get(block['dipendente'])
-            
-            if dipendente_sim is not None:
-                # ✅ CASO 1: fattore dipendente
-                perc = block.get('perc', 1)
-                sim = dipendente_sim['sim'] * perc
-            
-            else:
-                # ✅ CASO 2: fattore autonomo
-                sim = p * q
-            
-            # 👉 Dopo aver calcolato sim, gestiamo il segno
-            tipo_var = block.get('tipo_variabile', 'ricavo').lower()
-            if tipo_var == "costo":
-                sim = -sim
-            
-            # 📌 Rileva ricavi negativi (solo se tipo_variabile NON è costo)
-            if tipo_var != 'costo':
-                ind_negativi = np.where(sim < 0)[0]
-                for idx in ind_negativi:
-                    ricavi_negativi_records.append({
-                        "anno": anno,
-                        "nome_fattore": nome,
-                        "indice_simulazione": idx,
-                        "valore_simulazione": sim[idx]
-                    })
-                # Forza valori negativi a zero
-                sim = np.maximum(sim, 0)
-
-            # Applica shock fattori
-            if shock_event_dict:
-                shock_cfg = shock_event_dict.get(nome)
-                anno_shock_fattore = shock_event_schedule.get(nome, None)
-                if shock_cfg and anno_shock_fattore is not None:
-                    if isinstance(anno_shock_fattore, int) and anno >= anno_shock_fattore:
-                        impatto = shock_cfg["magnitudo"]
-                        segno = shock_cfg["segno"]
-                        
-                        if segno == "Negativo":
-                            if np.all(sim < 0):
-                                sim *= (1 + impatto)
-                            else:
-                                sim *= (1 - impatto)
-                        else:
-                            if np.all(sim < 0):
-                                sim *= (1 - impatto)
-                            else:
-                                sim *= (1 + impatto)
-
-            shock_occorrenze[nome] = shock_event_schedule.get(nome) == anno
-
-            blocchi_simulati[nome] = {"sim": sim, "base": base}
-            fattori_simulati[nome] = sim - base
-
-        # Creo DataFrame parametri simulati per questo anno (righe: simulazioni, colonne: fattori)
-        df_parametri_simulati_per_anno[anno] = pd.DataFrame(
-            {nome: blocchi_simulati[nome]['sim'] for nome in blocchi_simulati}
-        )
-
-        # Copula e correlazioni
-        df_simulazioni, cor_matrix, fattori = simula_fattori_empiricamente(fattori_simulati, n_sim)
-        cor_matrix_by_year[anno] = {
-            "matrice": cor_matrix,
-            "fattori": fattori
-        }
-
-        delta_totale_per_simulazione = df_simulazioni.sum(axis=0)
-        ebitda_sim = ebitda_base_list[i] + delta_totale_per_simulazione
-
-
-        # Shock EBITDA complessivo
-        #if attiva_shock:
-        #    n_shocks_anno = np.sum(np.array(anni_shock) == anno)
-        #    if n_shocks_anno > 0:
-        #        ebitda_sim *= (1 - magnitudo_shock) ** n_shocks_anno
-        
-        
-        # Se è attivo lo shock e lo shock è previsto per questo anno
-        # if attiva_shock:
-        #    n_shocks_anno = np.sum(np.array(anni_shock) == anno)
-        #    if n_shocks_anno > 0:
-                # Applico shock complessivo
-        #        ebitda_sim *= (1 - magnitudo_shock) ** n_shocks_anno
-                
-                # Calcolo trend a partire dalla lista storica ebitda_base_list (escluso anno corrente)
-                # (ad esempio calcolo crescita media annuale o trend lineare)
-        #        if i > 0:
-        #            trend_growth = (ebitda_base_list[i] - ebitda_base_list[i-1]) / ebitda_base_list[i-1]
-        #        else:
-        #            trend_growth = 0
-                
-                # Applico trend sul valore medio simulato con shock
-        #        media_ebitda = np.mean(ebitda_sim)
-        #        print(f'media ebitda a seguito di uno shock esogeno: {media_ebitda}')
-        #        ebitda_sim = media_ebitda * (1 + trend_growth) + (ebitda_sim - np.mean(ebitda_sim))
-
-        # if attiva_shock:
-        #    n_shocks_anno = np.sum(np.array(anni_shock) == anno)
-        #    if n_shocks_anno > 0:
-        #        fattore_cumulativo_shock *= (1 - magnitudo_shock) ** n_shocks_anno
-        
-        #    if fattore_cumulativo_shock < 1:  # significa che almeno uno shock è successo
-        #        if i > 0:
-        #            trend_growth = (ebitda_base_list[i] - ebitda_base_list[i-1]) / ebitda_base_list[i-1]
-        #        else:
-        #            trend_growth = 0
-        
-        #        media_ebitda = np.mean(ebitda_sim)
-        #        ebitda_sim = media_ebitda * (1 + trend_growth) + (ebitda_sim - np.mean(ebitda_sim))
-        #        ebitda_sim = ebitda_sim * fattore_cumulativo_shock
-       
-        if attiva_shock:
-            n_shocks_anno = np.sum(np.array(anni_shock) == anno)
-        
-            # 🔴 1️⃣ Se c’è shock quest’anno: abbatti EBITDA e imposta il fattore cumulativo
-            if n_shocks_anno > 0:
-                fattore_cumulativo_shock *= (1 - magnitudo_shock) ** n_shocks_anno
-                shock_avvenuto = True  # Flag per dire che da qui in poi c'è uno shock da gestire
-        
-            # 🟠 2️⃣ Se lo shock è già avvenuto in anni precedenti (o in questo anno), lavora su trend e fattore
-            if 'shock_avvenuto' in locals() and shock_avvenuto:
-                # Applico decadimento del fattore shock (attenuazione)
-                if i > 0:
-                    fattore_cumulativo_shock += (1 - fattore_cumulativo_shock) * 0.20
-                    # In alternativa: fattore_cumulativo_shock *= (1 - tasso_decadimento_annuo)
-        
-                # Calcolo il trend sugli EBITDA di piano (sempre su base_list)
-                if i > 0:
-                    trend_growth = (ebitda_base_list[i] - ebitda_base_list[i-1]) / ebitda_base_list[i-1]
-                else:
-                    trend_growth = 0
-        
-                # Applico il trend al valore simulato tenendo conto dello shock
-                media_ebitda = np.mean(ebitda_sim)
-                ebitda_sim = media_ebitda * (1 + trend_growth) + (ebitda_sim - media_ebitda)
-        
-                # Applico l’effetto cumulativo dello shock (decaduto)
-                ebitda_sim = ebitda_sim * fattore_cumulativo_shock
-        
-        
-        df_sim = pd.DataFrame(df_simulazioni.T, columns=fattori)
-
-        risultati_anni.append({
-            "anno": anno,
-            "ebitda_simulazioni": ebitda_sim,
-            "fattori_simulati": df_sim.to_dict(orient='list'),
-            "shock_ebitda": int(np.sum(np.array(anni_shock) == anno)),
-            "matrice_correlazione": cor_matrix_by_year[anno],
-            "nomi_fattori": fattori,
-            "shock_occorrenze": shock_occorrenze
-        })
-
-    # DataFrame finale con tutte le simulazioni negative su ricavi (prima del clipping)
-    df_ricavi_negativi = pd.DataFrame(ricavi_negativi_records)
-
-    # Unisci i DataFrame parametri simulati in uno solo multi-anno, con MultiIndex (anno, simulazione)
-    df_parametri_simulati = pd.concat(
-        {anno: df_parametri_simulati_per_anno[anno] for anno in df_parametri_simulati_per_anno},
-        names=['anno', 'simulazione']
+    shape = rng.lognormal(
+        mean=np.log(monthly_profile + 1e-8),
+        sigma=shape_sigma,
+        size=(n_sim, len(df))
     )
 
-    return risultati_anni, cor_matrix_by_year, df_ricavi_negativi, df_parametri_simulati
-
-def simulate_ebitda_multi_year_blocks_old(
-    blocks, 
-    ebitda_base_list, 
-    n_sim, 
-    anni,  
-    anno_inizio_k, 
-    trend,
-    attiva_shock=False, 
-    lambda_shock_annuo=0.1, 
-    magnitudo_shock=0.2, 
-    activation_matrix=None,
-    shock_event_dict=None
-):
-    risultati_anni = []
-    anni_str = [str(a) for a in anni]
-    cor_matrix_by_year = {}
-
-    # Shock su EBITDA
-    if attiva_shock:
-        total_shocks = np.random.poisson(lam=lambda_shock_annuo * len(anni))
-        anni_shock = np.random.choice(anni, size=total_shocks) if total_shocks > 0 else []
-        print(f"[INFO] Shock totali simulati su EBITDA: {total_shocks}")
-    else:
-        anni_shock = []
-
-    shock_start_year = {}
-    for i, anno in enumerate(anni):
-        anno_label = str(anno)
-        ebitda_sim = np.zeros(n_sim)
-        blocchi_simulati = {}
-        fattori_simulati = {}
-
-        blocks_per_anno = [b for b in blocks if b['anno'] == anno]
-
-        if activation_matrix is not None:
-            blocks_attivi = [
-                b for b in blocks_per_anno
-                if activation_matrix.get(b['name'], {}).get(anno_label, True)
-            ]
-        else:
-            blocks_attivi = blocks_per_anno
-
-        blocks_attivi = sorted(blocks_attivi, key=lambda x: 1 if x.get('varia') == 'Derivato' else 0)
-
-        for block in blocks_attivi:
-            nome = block['name']
-            k_min_orig = block.get('k_min', 0)
-            k_max_orig = block.get('k_max', 0)
-
-            if i + 1 < anno_inizio_k:
-                k_min = k_max = 0
-            else:
-                anni_passati = i + 1 - (anno_inizio_k - 1)
-                if trend == 'lineare':
-                    k_min = k_min_orig * anni_passati
-                    k_max = k_max_orig * anni_passati
-                elif trend == 'moltiplicativo':
-                    k_min = k_min_orig * (1.5 ** (anni_passati - 1))
-                    k_max = k_max_orig * (1.5 ** (anni_passati - 1))
-                else:
-                    k_min = k_min_orig
-                    k_max = k_max_orig
-
-            varia = block.get('varia')
-
-            if varia in ["Solo Prezzo", "Entrambi"]:
-                p_dict = block['p']
-                p_dist = p_dict.get('dist')
-            else:
-                p_dict = {'b': block['p']['b'], 'dist': None}
-                p_dist = None
-
-            if varia in ["Solo Quantità", "Entrambi"]:
-                q_dict = block['q']
-                q_dist = q_dict.get('dist')
-            else:
-                q_dict = {'b': block['q']['b'], 'dist': None}
-                q_dist = None
-
-            if 'param_log' not in block:
-                block['param_log'] = {}
-
-            params_mod_p = apply_uncertainty_to_params(p_dict, p_dist, k_min, k_max) if p_dist else p_dict
-            params_mod_q = apply_uncertainty_to_params(q_dict, q_dist, k_min, k_max) if q_dist else q_dict
-
-            block['param_log'][anno] = {
-                "k_min": k_min,
-                "k_max": k_max,
-                "prezzo": params_mod_p,
-                "quantità": params_mod_q
-            }
-
-            p = sample_distribution(p_dist, params_mod_p, n_sim) if p_dist else np.full(n_sim, params_mod_p['b'])
-            q = sample_distribution(q_dist, params_mod_q, n_sim) if q_dist else np.full(n_sim, params_mod_q['b'])
-
-            base = block.get('valore_a_piano', 0)
-            sim = p * q
-
-            dipendente_sim = None
-            if block.get('costo_variabile', False) and block.get('dipendente'):
-                dipendente_sim = blocchi_simulati.get(block['dipendente'])
-
-            if dipendente_sim is not None:
-                perc = block.get('perc', 1)
-                tipo_var = block.get('tipo_variabile', 'ricavo').lower()
-                sim = dipendente_sim['sim'] * perc
-                if tipo_var == "costo":
-                    sim = -sim
-
-            if shock_event_dict:
-                shock_cfg = shock_event_dict.get(nome)
-                if shock_cfg and shock_cfg["anni_attivi"].get(anno_label, False):
-                    shock_count = np.random.poisson(shock_cfg["lambda"])
-                    if shock_count > 0:
-                        impatto = shock_cfg["magnitudo"]
-                        if shock_cfg["segno"] == "Negativo":
-                            sim *= (1 - impatto) ** shock_count
-                        else:
-                            sim *= (1 + impatto) ** shock_count
-
-            blocchi_simulati[nome] = {"sim": sim, "base": base}
-            fattori_simulati[nome] = sim - base
-    
-    
-        #print(f'fattori simulati: {fattori_simulati}')
-        # Applica copula per correlazione tra fattori
-        df_simulazioni, cor_matrix, fattori = simula_fattori_empiricamente(fattori_simulati, n_sim)
-        cor_matrix_by_year[anno] = {
-            "matrice": cor_matrix,
-            "fattori": fattori
-        }
-        
-        delta_totale_per_simulazione = df_simulazioni.sum(axis=0)
-        ebitda_sim = ebitda_base_list[i] + delta_totale_per_simulazione
-
-        #if attiva_shock:
-        #    n_shocks_anno = np.sum(np.array(anni_shock) == anno)
-        #    if n_shocks_anno > 0:
-        #        ebitda_sim *= (1 - magnitudo_shock) ** n_shocks_anno
-        
-        # Se è attivo lo shock e lo shock è previsto per questo anno
-        if attiva_shock:
-            n_shocks_anno = np.sum(np.array(anni_shock) == anno)
-            if n_shocks_anno > 0:
-                # Applico shock complessivo
-                ebitda_sim *= (1 - magnitudo_shock) ** n_shocks_anno
-                
-                # Calcolo trend a partire dalla lista storica ebitda_base_list (escluso anno corrente)
-                # (ad esempio calcolo crescita media annuale o trend lineare)
-                if i > 0:
-                    trend_growth = (ebitda_base_list[i] - ebitda_base_list[i-1]) / ebitda_base_list[i-1]
-                else:
-                    trend_growth = 0
-                
-                # Applico trend sul valore medio simulato con shock
-                media_ebitda = np.mean(ebitda_sim)
-                ebitda_sim = media_ebitda * (1 + trend_growth) + (ebitda_sim - np.mean(ebitda_sim))
-
-        df_sim = pd.DataFrame(df_simulazioni.T, columns=fattori)
-        
-        risultati_anni.append({
-            "anno": anno,
-            "ebitda_simulazioni": ebitda_sim,
-            "fattori_simulati": df_sim.to_dict(orient='list'),
-            "shock_ebitda": int(np.sum(np.array(anni_shock) == anno)),
-            "matrice_correlazione": cor_matrix_by_year[anno],
-            "nomi_fattori": fattori
-        })
-
-    return risultati_anni, cor_matrix_by_year
-
-def plot_k_min_max_plotly(blocks):
-    for block in blocks:
-        nome = block['name']
-        param_log = block.get('param_log', {})
-
-        if not param_log:
-            continue
-
-        anni = sorted(param_log.keys())
-        k_min_vals = [param_log[anno]['k_min'] for anno in anni]
-        k_max_vals = [param_log[anno]['k_max'] for anno in anni]
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=anni, y=k_min_vals,
-            mode='lines+markers',
-            name='k_min',
-            line=dict(color='blue')
-        ))
-        fig.add_trace(go.Scatter(
-            x=anni, y=k_max_vals,
-            mode='lines+markers',
-            name='k_max',
-            line=dict(color='green')
-        ))
-
-        fig.update_layout(
-            title=f"Andamento k_min / k_max per '{nome}'",
-            xaxis_title="Anno",
-            yaxis_title="Valore k",
-            yaxis=dict(range=[0, 1.05]),
-            template="plotly_white"
-        )
-        fig.show()
-
-
-
-def calcola_importanza_fattori(risultati_raw):
-    tornado_per_anno = []
-    importanza_totale = {}
-
-    for anno_data in risultati_raw:
-        anno = anno_data["anno"]
-        y = anno_data["ebitda_simulazioni"]
-        X = pd.DataFrame(anno_data["fattori_simulati"])
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-
-        model = LinearRegression()
-        model.fit(X_scaled, y)
-
-        importanza = pd.Series(np.abs(model.coef_), index=X.columns)
-        importanza /= importanza.sum()
-        tornado_per_anno.append({
-            "anno": anno,
-            "importanza": importanza
-        })
-
-        for f, v in importanza.items():
-            importanza_totale[f] = importanza_totale.get(f, 0) + v
-
-    importanza_totale = pd.Series(importanza_totale).sort_values(ascending=False)
-    return tornado_per_anno, importanza_totale
-
-
-
-def safe_applymap(df, func):
-    """
-    Applica applymap a df se è DataFrame. 
-    Se non lo è, crea DataFrame vuoto.
-    """
-    if not isinstance(df, pd.DataFrame):
-        df = pd.DataFrame(df)  # forza la conversione, o diventa vuoto se non compatibile
-    if df.empty:
-        return df
-    return df.applymap(func)
-
-def genera_output_excel(risultati_anni, ebitda_base_dict, df_styled):
-    dati_output = []
-    fattori_data = []
-    shock_data = []
-
-    # Estrazione fattori presenti
-    fattori = sorted(set().union(*[e.get("fattori_simulati", {}).keys() for e in risultati_anni]))
-
-    for entry in risultati_anni:
-        anno = entry["anno"]
-        ebitda_sim = entry["ebitda_simulazioni"]
-        base = ebitda_base_dict.get(anno, 0)
-
-        # EBITDA - percentili e statistiche
-        percentili = np.percentile(ebitda_sim, [1, 5, 10, 25, 50, 75, 90, 95, 99])
-        media = np.mean(ebitda_sim)
-        sigma = np.std(ebitda_sim)
-
-        delta_5 = (percentili[1] - base) / base * 100 if base != 0 else None
-        delta_95 = (percentili[7] - base) / base * 100 if base != 0 else None
-        delta_1 = (percentili[0] - base) / base * 100 if base != 0 else None
-        delta_99 = (percentili[8] - base) / base * 100 if base != 0 else None
-
-        dati_output.append({
-            "Anno": anno,
-            "Valore a piano": base,
-            "Media EBITDA": media,
-            "Deviazione standard (σ)": sigma,
-            "Percentile 1%": percentili[0],
-            "Percentile 5%": percentili[1],
-            "Percentile 10%": percentili[2],
-            "Percentile 25%": percentili[3],
-            "Mediana": percentili[4],
-            "Percentile 75%": percentili[5],
-            "Percentile 90%": percentili[6],
-            "Percentile 95%": percentili[7],
-            "Percentile 99%": percentili[8],
-            "Δ% 1% vs Piano": delta_1,
-            "Δ% 5% vs Piano": delta_5,
-            "Δ% 95% vs Piano": delta_95,
-            "Δ% 99% vs Piano": delta_99,
-            "Shock esogeni applicati": entry.get("shock_ebitda", 0)
-        })
-
-        # Percentili fattori
-        for fatt in fattori:
-            sim_vals = entry.get("fattori_simulati", {}).get(fatt)
-            if sim_vals is not None:
-                p5 = np.percentile(sim_vals, 5)
-                p95 = np.percentile(sim_vals, 95)
-                fattori_data.append({
-                    "Anno": anno,
-                    "Fattore": fatt,
-                    "Tipo": "5° Percentile",
-                    "Valore": p5
-                })
-                fattori_data.append({
-                    "Anno": anno,
-                    "Fattore": fatt,
-                    "Tipo": "95° Percentile",
-                    "Valore": p95
-                })
-
-    # --- DataFrame per ciascuna sheet ---
-    df_output = pd.DataFrame(dati_output)
-    df_fattori = pd.DataFrame(fattori_data)
-  
-    # --- Esportazione Excel ---
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        df_output.to_excel(writer, index=False, sheet_name='Risultati EBITDA')
-        df_fattori.to_excel(writer, index=False, sheet_name='Fattori di Rischio')
-        df_styled.to_excel(writer, sheet_name='Shock Fattori')  
-    buffer.seek(0)
-    return buffer
-
-
-def build_distribution_from_row(row, prefix):
-    """
-    prefix = 'p' oppure 'q'
-    Supporta sia:
-    - nuovo formato (distribuzione_prezzo)
-    - legacy (Distribuzione, prob, value)
-    """
-
-    # --- 1) PRIORITA': NUOVO FORMATO ---
-    dist_col = f"distribuzione_{'prezzo' if prefix == 'p' else 'quantità'}"
-    dist_type = row.get(dist_col, None)
-
-    if isinstance(dist_type, str):
-        dist_type = dist_type.strip().lower()
-
-    # --- 2) FALLBACK SU LEGACY ---
-    if not dist_type or str(dist_type) == "nan":
-        dist_type = row.get("Distribuzione", None)
-        if isinstance(dist_type, str):
-            dist_type = dist_type.strip().lower()
-
-    base_val = row.get(f"{prefix}_base", 1)
-    base_val = 1 if pd.isna(base_val) else base_val
-
-    # --- TRIANGOLARE ---
-    if dist_type == "triangolare":
-        return {
-            "dist": "triangolare",
-            "a": row.get(f"{prefix}_min", row.get("min", np.nan)),
-            "b": row.get(f"{prefix}_moda", row.get("moda", np.nan)),
-            "c": row.get(f"{prefix}_max", row.get("max", np.nan)),
-        }
-
-    # --- NORMALE ---
-    elif dist_type == "normale":
-        return {
-            "dist": "normale",
-            "mu": row.get(f"{prefix}_mu", row.get("mu", np.nan)),
-            "sigma": row.get(f"{prefix}_sigma", row.get("sigma", np.nan)),
-        }
-
-    # --- BERNOULLI (QUI È IL FIX) ---
-    elif dist_type == "bernoulli":
-        return {
-            "dist": "bernoulli",
-            "prob": row.get(f"{prefix}_prob", row.get("prob", np.nan)),
-            "value": row.get(f"{prefix}_value", row.get("value", np.nan)),
-        }
-
-    else:
-        return {
-            "dist": None,
-            "b": base_val
-        }
-
-# ============================================================
-# KRI @RISK PER SINGOLO FATTORE
-# ============================================================
-def calcola_kri_per_fattore(risultati_anni, confidence_level=0.95):
-    """Calcola un KRI stand-alone per ogni fattore e anno.
-
-    Convenzioni:
-    - fattori_simulati contiene il delta rispetto al valore a piano;
-    - delta negativo = impatto sfavorevole sull'EBITDA;
-    - perdita = max(-delta, 0), quindi gli indicatori @Risk sono positivi;
-    - VaR 95% = percentile 95% della perdita;
-    - Expected Shortfall 95% = perdita media nella coda oltre il VaR 95%.
-
-    Il VaR stand-alone dei singoli fattori non è additivo: la somma dei VaR
-    non coincide in generale con l'EBITDA@Risk complessivo, soprattutto in
-    presenza di correlazioni e diversificazione.
-    """
-    if not 0 < confidence_level < 1:
-        raise ValueError("confidence_level deve essere compreso tra 0 e 1")
-
-    alpha_pct = confidence_level * 100
-    righe = []
-
-    for entry in risultati_anni:
-        anno = entry.get("anno")
-        fattori = entry.get("fattori_simulati", {}) or {}
-        shock_occ = entry.get("shock_occorrenze", {}) or {}
-
-        for fattore, valori in fattori.items():
-            delta = np.asarray(valori, dtype=float)
-            delta = delta[np.isfinite(delta)]
-            if delta.size == 0:
-                continue
-
-            perdita = np.maximum(-delta, 0.0)
-            guadagno = np.maximum(delta, 0.0)
-
-            var_loss = float(np.percentile(perdita, alpha_pct))
-            tail = perdita[perdita >= var_loss]
-            es_loss = float(tail.mean()) if tail.size else var_loss
-
-            downside = delta[delta < 0]
-            upside = delta[delta > 0]
-            mean_delta = float(delta.mean())
-            std_delta = float(delta.std(ddof=1)) if delta.size > 1 else 0.0
-
-            righe.append({
-                "Anno": anno,
-                "Fattore di rischio": fattore,
-                "Numero simulazioni": int(delta.size),
-                "Delta medio vs piano": mean_delta,
-                "Delta mediano vs piano": float(np.median(delta)),
-                "Deviazione standard delta": std_delta,
-                "Percentile 1% delta": float(np.percentile(delta, 1)),
-                "Percentile 5% delta": float(np.percentile(delta, 5)),
-                "Percentile 10% delta": float(np.percentile(delta, 10)),
-                "Percentile 50% delta": float(np.percentile(delta, 50)),
-                "Percentile 90% delta": float(np.percentile(delta, 90)),
-                "Percentile 95% delta": float(np.percentile(delta, 95)),
-                "Percentile 99% delta": float(np.percentile(delta, 99)),
-                f"KRI @Risk {confidence_level:.0%}": var_loss,
-                f"Expected Shortfall {confidence_level:.0%}": es_loss,
-                "Perdita media": float(perdita.mean()),
-                "Perdita media se negativa": float((-downside).mean()) if downside.size else 0.0,
-                "Probabilita perdita": float(np.mean(delta < 0)),
-                "Probabilita impatto positivo": float(np.mean(delta > 0)),
-                "Upside medio": float(guadagno.mean()),
-                "Worst case simulato": float(perdita.max()),
-                "Best case simulato": float(delta.max()),
-                "Rapporto ES/VaR": es_loss / var_loss if var_loss > 0 else np.nan,
-                "Shock nel periodo": bool(shock_occ.get(fattore, False)),
-            })
-
-    df_kri = pd.DataFrame(righe)
-    if df_kri.empty:
-        return df_kri
-
-    risk_col = f"KRI @Risk {confidence_level:.0%}"
-    df_kri["Ranking rischio nell'anno"] = (
-        df_kri.groupby("Anno")[risk_col]
-        .rank(method="dense", ascending=False)
-        .astype(int)
-    )
-    return df_kri.sort_values(["Anno", "Ranking rischio nell'anno", "Fattore di rischio"])
-
-
-def visualizza_kri_per_fattore_streamlit(risultati_anni, confidence_level=0.95):
-    """Tabella e grafici Streamlit per il rischio stand-alone dei fattori."""
-    df_kri = calcola_kri_per_fattore(risultati_anni, confidence_level)
-    if df_kri.empty:
-        st.info("Nessun fattore disponibile per il calcolo del KRI @Risk.")
-        return df_kri
-
-    risk_col = f"KRI @Risk {confidence_level:.0%}"
-    es_col = f"Expected Shortfall {confidence_level:.0%}"
-
-    st.subheader(f"KRI @Risk {confidence_level:.0%} per singolo fattore")
-    st.caption(
-        "Il KRI è espresso come perdita positiva rispetto al piano. "
-        "Esempio: 250.000 indica un downside al percentile selezionato pari a 250.000."
+    shape /= shape.sum(axis=1, keepdims=True)
+
+    monthly_sim = Y_sim[:, None] * shape
+
+    # ============================================================
+    # 4. STATISTICHE MENSILI
+    # ============================================================
+    P50_m = np.percentile(monthly_sim, 50, axis=0)
+    P90_m = np.percentile(monthly_sim, 10, axis=0)
+    P95_m = np.percentile(monthly_sim, 5, axis=0)
+
+    # ============================================================
+    # 5. DATAFRAME OUTPUT
+    # ============================================================
+    df_out = df.copy()
+
+    df_out["Budget"] = monthly_budget
+    df_out["P50"] = P50_m
+    df_out["P90"] = P90_m
+    df_out["P95"] = P95_m
+
+    # cumulati
+    df_out["Cum_Budget"] = df_out["Budget"].cumsum()
+    df_out["Cum_P50"] = df_out["P50"].cumsum()
+    df_out["Cum_P95"] = df_out["P95"].cumsum()
+
+    # asse x leggibile (Anno-Mese)
+    x_axis = df_out["Year"].astype(str) + "-" + df_out["Month"].astype(str)
+
+    # ============================================================
+    # 6. GRAFICO CUMULATO
+    # ============================================================
+    fig_cum = go.Figure()
+
+    fig_cum.add_trace(go.Scatter(
+        x=x_axis,
+        y=df_out["Cum_P95"],
+        line=dict(width=0),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+
+    fig_cum.add_trace(go.Scatter(
+        x=x_axis,
+        y=df_out["Cum_P50"],
+        fill='tonexty',
+        name="Range (P50–P95)",
+        mode='lines',
+        line=dict(width=0),
+    ))
+
+    fig_cum.add_trace(go.Scatter(
+        x=x_axis,
+        y=df_out["Cum_P50"],
+        name="P50 cumulato",
+        line=dict(width=3)
+    ))
+
+    fig_cum.add_trace(go.Scatter(
+        x=x_axis,
+        y=df_out["Cum_Budget"],
+        name="Budget cumulato",
+        line=dict(width=3, dash="dash")
+    ))
+
+    fig_cum.update_layout(
+        title="Produzione Cumulata (multi-anno)",
+        xaxis_title="Anno-Mese",
+        yaxis_title="Valore cumulato",
+        template="plotly_white",
+        hovermode="x unified"
     )
 
-    colonne_view = [
-        "Anno", "Ranking rischio nell'anno", "Fattore di rischio",
-        risk_col, es_col, "Delta medio vs piano", "Deviazione standard delta",
-        "Probabilita perdita", "Perdita media se negativa", "Worst case simulato",
-        "Shock nel periodo"
-    ]
-    st.dataframe(
-        df_kri[colonne_view].style.format({
-            risk_col: "{:,.2f}",
-            es_col: "{:,.2f}",
-            "Delta medio vs piano": "{:,.2f}",
-            "Deviazione standard delta": "{:,.2f}",
-            "Probabilita perdita": "{:.1%}",
-            "Perdita media se negativa": "{:,.2f}",
-            "Worst case simulato": "{:,.2f}",
-        }),
-        use_container_width=True
+    # ============================================================
+    # 7. GRAFICO MENSILE
+    # ============================================================
+    fig_monthly = go.Figure()
+
+    fig_monthly.add_trace(go.Scatter(
+        x=x_axis,
+        y=df_out["P95"],
+        line=dict(width=0),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+
+    fig_monthly.add_trace(go.Scatter(
+        x=x_axis,
+        y=df_out["P50"],
+        fill='tonexty',
+        name="Range (P50–P95)",
+        mode='lines',
+        line=dict(width=0),
+    ))
+
+    fig_monthly.add_trace(go.Scatter(
+        x=x_axis,
+        y=df_out["P50"],
+        name="P50 mensile",
+        line=dict(width=3)
+    ))
+
+    fig_monthly.add_trace(go.Scatter(
+        x=x_axis,
+        y=df_out["Budget"],
+        name="Budget mensile",
+        line=dict(width=3, dash="dash")
+    ))
+
+    fig_monthly.update_layout(
+        title="Produzione Mensile (multi-anno)",
+        xaxis_title="Anno-Mese",
+        yaxis_title="Valore mensile",
+        template="plotly_white",
+        hovermode="x unified"
     )
 
-    fig = px.bar(
-        df_kri,
-        x=risk_col,
-        y="Fattore di rischio",
-        color="Anno",
-        facet_col="Anno",
-        orientation="h",
-        title=f"Rischio stand-alone per fattore - KRI @Risk {confidence_level:.0%}",
-        hover_data=[es_col, "Probabilita perdita", "Delta medio vs piano"],
-    )
-    fig.update_layout(template="plotly_white", height=max(500, 35 * len(df_kri)))
-    st.plotly_chart(fig, use_container_width=True)
-
-    fig_scatter = px.scatter(
-        df_kri,
-        x="Probabilita perdita",
-        y="Perdita media se negativa",
-        size=risk_col,
-        color="Anno",
-        hover_name="Fattore di rischio",
-        title="Mappa frequenza-severita dei fattori",
-    )
-    fig_scatter.update_xaxes(tickformat=".0%")
-    fig_scatter.update_layout(template="plotly_white")
-    st.plotly_chart(fig_scatter, use_container_width=True)
-    return df_kri
-
-
-def genera_output_excel_con_kri(
-    risultati_anni,
-    ebitda_base_dict,
-    df_styled,
-    confidence_level=0.95,
-):
-    """Estende l'export esistente aggiungendo la sheet 'KRI per Fattore'."""
-    df_kri = calcola_kri_per_fattore(risultati_anni, confidence_level)
-
-    dati_output = []
-    fattori_data = []
-    fattori = sorted(set().union(*[
-        e.get("fattori_simulati", {}).keys() for e in risultati_anni
-    ])) if risultati_anni else []
-
-    for entry in risultati_anni:
-        anno = entry["anno"]
-        ebitda_sim = np.asarray(entry["ebitda_simulazioni"], dtype=float)
-        base = ebitda_base_dict.get(anno, 0)
-        percentili = np.percentile(ebitda_sim, [1, 5, 10, 25, 50, 75, 90, 95, 99])
-        dati_output.append({
-            "Anno": anno,
-            "Valore a piano": base,
-            "Media EBITDA": np.mean(ebitda_sim),
-            "Deviazione standard (sigma)": np.std(ebitda_sim),
-            "Percentile 1%": percentili[0],
-            "Percentile 5%": percentili[1],
-            "Percentile 10%": percentili[2],
-            "Percentile 25%": percentili[3],
-            "Mediana": percentili[4],
-            "Percentile 75%": percentili[5],
-            "Percentile 90%": percentili[6],
-            "Percentile 95%": percentili[7],
-            "Percentile 99%": percentili[8],
-            "EBITDA @Risk 95%": max(base - percentili[1], 0),
-            "Shock esogeni applicati": entry.get("shock_ebitda", 0),
-        })
-        for fatt in fattori:
-            vals = entry.get("fattori_simulati", {}).get(fatt)
-            if vals is not None:
-                fattori_data.append({
-                    "Anno": anno,
-                    "Fattore": fatt,
-                    "Percentile 5% delta": np.percentile(vals, 5),
-                    "Percentile 50% delta": np.percentile(vals, 50),
-                    "Percentile 95% delta": np.percentile(vals, 95),
-                })
-
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        pd.DataFrame(dati_output).to_excel(writer, index=False, sheet_name="Risultati EBITDA")
-        pd.DataFrame(fattori_data).to_excel(writer, index=False, sheet_name="Percentili Fattori")
-        df_kri.to_excel(writer, index=False, sheet_name="KRI per Fattore")
-        if isinstance(df_styled, pd.io.formats.style.Styler):
-            df_styled.to_excel(writer, sheet_name="Shock Fattori")
-        elif isinstance(df_styled, pd.DataFrame):
-            df_styled.to_excel(writer, sheet_name="Shock Fattori")
-    buffer.seek(0)
-    return buffer
+    # ============================================================
+    # 8. OUTPUT
+    # ============================================================
+    return {
+        "df": df_out,
+        "Y_budget": Y_budget,
+        "plot_monthly": fig_monthly,
+        "plot_cum": fig_cum
+    }
