@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import io
 from scipy.stats import norm, multivariate_normal
-from copulas.multivariate import GaussianMultivariate
+# Dipendenza rimossa: GaussianMultivariate non era utilizzata
 from scipy.stats import rankdata, norm
 from sklearn.covariance import LedoitWolf
 import plotly.graph_objects as go
@@ -1276,3 +1276,212 @@ def build_distribution_from_row(row, prefix):
             "dist": None,
             "b": base_val
         }
+
+# ============================================================
+# KRI @RISK PER SINGOLO FATTORE
+# ============================================================
+def calcola_kri_per_fattore(risultati_anni, confidence_level=0.95):
+    """Calcola un KRI stand-alone per ogni fattore e anno.
+
+    Convenzioni:
+    - fattori_simulati contiene il delta rispetto al valore a piano;
+    - delta negativo = impatto sfavorevole sull'EBITDA;
+    - perdita = max(-delta, 0), quindi gli indicatori @Risk sono positivi;
+    - VaR 95% = percentile 95% della perdita;
+    - Expected Shortfall 95% = perdita media nella coda oltre il VaR 95%.
+
+    Il VaR stand-alone dei singoli fattori non è additivo: la somma dei VaR
+    non coincide in generale con l'EBITDA@Risk complessivo, soprattutto in
+    presenza di correlazioni e diversificazione.
+    """
+    if not 0 < confidence_level < 1:
+        raise ValueError("confidence_level deve essere compreso tra 0 e 1")
+
+    alpha_pct = confidence_level * 100
+    righe = []
+
+    for entry in risultati_anni:
+        anno = entry.get("anno")
+        fattori = entry.get("fattori_simulati", {}) or {}
+        shock_occ = entry.get("shock_occorrenze", {}) or {}
+
+        for fattore, valori in fattori.items():
+            delta = np.asarray(valori, dtype=float)
+            delta = delta[np.isfinite(delta)]
+            if delta.size == 0:
+                continue
+
+            perdita = np.maximum(-delta, 0.0)
+            guadagno = np.maximum(delta, 0.0)
+
+            var_loss = float(np.percentile(perdita, alpha_pct))
+            tail = perdita[perdita >= var_loss]
+            es_loss = float(tail.mean()) if tail.size else var_loss
+
+            downside = delta[delta < 0]
+            upside = delta[delta > 0]
+            mean_delta = float(delta.mean())
+            std_delta = float(delta.std(ddof=1)) if delta.size > 1 else 0.0
+
+            righe.append({
+                "Anno": anno,
+                "Fattore di rischio": fattore,
+                "Numero simulazioni": int(delta.size),
+                "Delta medio vs piano": mean_delta,
+                "Delta mediano vs piano": float(np.median(delta)),
+                "Deviazione standard delta": std_delta,
+                "Percentile 1% delta": float(np.percentile(delta, 1)),
+                "Percentile 5% delta": float(np.percentile(delta, 5)),
+                "Percentile 10% delta": float(np.percentile(delta, 10)),
+                "Percentile 50% delta": float(np.percentile(delta, 50)),
+                "Percentile 90% delta": float(np.percentile(delta, 90)),
+                "Percentile 95% delta": float(np.percentile(delta, 95)),
+                "Percentile 99% delta": float(np.percentile(delta, 99)),
+                f"KRI @Risk {confidence_level:.0%}": var_loss,
+                f"Expected Shortfall {confidence_level:.0%}": es_loss,
+                "Perdita media": float(perdita.mean()),
+                "Perdita media se negativa": float((-downside).mean()) if downside.size else 0.0,
+                "Probabilita perdita": float(np.mean(delta < 0)),
+                "Probabilita impatto positivo": float(np.mean(delta > 0)),
+                "Upside medio": float(guadagno.mean()),
+                "Worst case simulato": float(perdita.max()),
+                "Best case simulato": float(delta.max()),
+                "Rapporto ES/VaR": es_loss / var_loss if var_loss > 0 else np.nan,
+                "Shock nel periodo": bool(shock_occ.get(fattore, False)),
+            })
+
+    df_kri = pd.DataFrame(righe)
+    if df_kri.empty:
+        return df_kri
+
+    risk_col = f"KRI @Risk {confidence_level:.0%}"
+    df_kri["Ranking rischio nell'anno"] = (
+        df_kri.groupby("Anno")[risk_col]
+        .rank(method="dense", ascending=False)
+        .astype(int)
+    )
+    return df_kri.sort_values(["Anno", "Ranking rischio nell'anno", "Fattore di rischio"])
+
+
+def visualizza_kri_per_fattore_streamlit(risultati_anni, confidence_level=0.95):
+    """Tabella e grafici Streamlit per il rischio stand-alone dei fattori."""
+    df_kri = calcola_kri_per_fattore(risultati_anni, confidence_level)
+    if df_kri.empty:
+        st.info("Nessun fattore disponibile per il calcolo del KRI @Risk.")
+        return df_kri
+
+    risk_col = f"KRI @Risk {confidence_level:.0%}"
+    es_col = f"Expected Shortfall {confidence_level:.0%}"
+
+    st.subheader(f"KRI @Risk {confidence_level:.0%} per singolo fattore")
+    st.caption(
+        "Il KRI è espresso come perdita positiva rispetto al piano. "
+        "Esempio: 250.000 indica un downside al percentile selezionato pari a 250.000."
+    )
+
+    colonne_view = [
+        "Anno", "Ranking rischio nell'anno", "Fattore di rischio",
+        risk_col, es_col, "Delta medio vs piano", "Deviazione standard delta",
+        "Probabilita perdita", "Perdita media se negativa", "Worst case simulato",
+        "Shock nel periodo"
+    ]
+    st.dataframe(
+        df_kri[colonne_view].style.format({
+            risk_col: "{:,.2f}",
+            es_col: "{:,.2f}",
+            "Delta medio vs piano": "{:,.2f}",
+            "Deviazione standard delta": "{:,.2f}",
+            "Probabilita perdita": "{:.1%}",
+            "Perdita media se negativa": "{:,.2f}",
+            "Worst case simulato": "{:,.2f}",
+        }),
+        use_container_width=True
+    )
+
+    fig = px.bar(
+        df_kri,
+        x=risk_col,
+        y="Fattore di rischio",
+        color="Anno",
+        facet_col="Anno",
+        orientation="h",
+        title=f"Rischio stand-alone per fattore - KRI @Risk {confidence_level:.0%}",
+        hover_data=[es_col, "Probabilita perdita", "Delta medio vs piano"],
+    )
+    fig.update_layout(template="plotly_white", height=max(500, 35 * len(df_kri)))
+    st.plotly_chart(fig, use_container_width=True)
+
+    fig_scatter = px.scatter(
+        df_kri,
+        x="Probabilita perdita",
+        y="Perdita media se negativa",
+        size=risk_col,
+        color="Anno",
+        hover_name="Fattore di rischio",
+        title="Mappa frequenza-severita dei fattori",
+    )
+    fig_scatter.update_xaxes(tickformat=".0%")
+    fig_scatter.update_layout(template="plotly_white")
+    st.plotly_chart(fig_scatter, use_container_width=True)
+    return df_kri
+
+
+def genera_output_excel_con_kri(
+    risultati_anni,
+    ebitda_base_dict,
+    df_styled,
+    confidence_level=0.95,
+):
+    """Estende l'export esistente aggiungendo la sheet 'KRI per Fattore'."""
+    df_kri = calcola_kri_per_fattore(risultati_anni, confidence_level)
+
+    dati_output = []
+    fattori_data = []
+    fattori = sorted(set().union(*[
+        e.get("fattori_simulati", {}).keys() for e in risultati_anni
+    ])) if risultati_anni else []
+
+    for entry in risultati_anni:
+        anno = entry["anno"]
+        ebitda_sim = np.asarray(entry["ebitda_simulazioni"], dtype=float)
+        base = ebitda_base_dict.get(anno, 0)
+        percentili = np.percentile(ebitda_sim, [1, 5, 10, 25, 50, 75, 90, 95, 99])
+        dati_output.append({
+            "Anno": anno,
+            "Valore a piano": base,
+            "Media EBITDA": np.mean(ebitda_sim),
+            "Deviazione standard (sigma)": np.std(ebitda_sim),
+            "Percentile 1%": percentili[0],
+            "Percentile 5%": percentili[1],
+            "Percentile 10%": percentili[2],
+            "Percentile 25%": percentili[3],
+            "Mediana": percentili[4],
+            "Percentile 75%": percentili[5],
+            "Percentile 90%": percentili[6],
+            "Percentile 95%": percentili[7],
+            "Percentile 99%": percentili[8],
+            "EBITDA @Risk 95%": max(base - percentili[1], 0),
+            "Shock esogeni applicati": entry.get("shock_ebitda", 0),
+        })
+        for fatt in fattori:
+            vals = entry.get("fattori_simulati", {}).get(fatt)
+            if vals is not None:
+                fattori_data.append({
+                    "Anno": anno,
+                    "Fattore": fatt,
+                    "Percentile 5% delta": np.percentile(vals, 5),
+                    "Percentile 50% delta": np.percentile(vals, 50),
+                    "Percentile 95% delta": np.percentile(vals, 95),
+                })
+
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        pd.DataFrame(dati_output).to_excel(writer, index=False, sheet_name="Risultati EBITDA")
+        pd.DataFrame(fattori_data).to_excel(writer, index=False, sheet_name="Percentili Fattori")
+        df_kri.to_excel(writer, index=False, sheet_name="KRI per Fattore")
+        if isinstance(df_styled, pd.io.formats.style.Styler):
+            df_styled.to_excel(writer, sheet_name="Shock Fattori")
+        elif isinstance(df_styled, pd.DataFrame):
+            df_styled.to_excel(writer, sheet_name="Shock Fattori")
+    buffer.seek(0)
+    return buffer
